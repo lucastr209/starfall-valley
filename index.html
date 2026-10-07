@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f5cf97">
+  <title>Thung Lũng Sao Rơi — Một hành trình mới</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23fff3d3'/%3E%3Cpath d='M16 3l4 9 10 4-10 4-4 9-4-9-10-4 10-4z' fill='%23c36e51'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="client-config.js"></script>
+  <script defer src="game-data.js"></script>
+  <script defer src="game-core.js"></script>
+  <script defer src="npc-ai.js"></script>
+  <script defer src="world-paths.js"></script>
+  <script defer src="world-effects.js"></script>
+  <script defer src="world-actors.js"></script>
+  <script defer src="game.js"></script>
+</head>
+<body>
+  <main id="game-wrapper">
+    <section id="start-screen" aria-label="Bắt đầu hành trình">
+      <canvas id="titleCanvas" width="1440" height="900" aria-hidden="true"></canvas>
+      <div class="title-wash"></div>
+      <div class="start-content">
+        <span class="eyebrow">MỘT LÀNG NHỎ · MỘT BẦU TRỜI ĐẦY BÍ MẬT</span>
+        <h1>Thung Lũng<br><span>Sao Rơi</span><i aria-hidden="true">✦</i></h1>
+        <p class="intro">Sau cơn mưa sao, ngọn hải đăng đã tắt.<br>Gặp những người bạn mới, xây lại ngôi làng<br>và đánh thức ánh sáng trong thung lũng.</p>
+        <form id="start-form">
+          <label for="player-name">Tên nhà thám hiểm</label>
+          <div class="start-row"><input id="player-name" maxlength="18" placeholder="Tên của bạn" autocomplete="nickname" required value="Lữ khách"><button type="submit" id="btn-start">Bắt đầu hành trình <span>→</span></button></div>
+        </form>
+        <p id="save-label" class="save-label">Một câu chuyện mới đang đợi bạn.</p>
+        <p class="privacy-note">Hãy dùng biệt danh. Tên và chat online được người chơi khác nhìn thấy. <a href="privacy.html" target="_blank" rel="noopener">Quyền riêng tư</a></p>
+        <div class="feature-strip"><span>✦ 4 miền khám phá</span><span>⌂ 12 nâng cấp</span><span>♧ Thu thập & chế tạo</span></div>
+        <div class="start-controls">WASD / phím mũi tên: đi · Giữ Shift: chạy · E: tương tác · Space: vung kiếm<br>Trên điện thoại: bật Chạy, dùng phím điều hướng và các nút bên dưới bản đồ.</div>
+      </div>
+      <div class="title-sign">BÌNH MINH TẠI LÀNG SAO</div>
+      <div class="title-version">PIXEL RPG · TỰ LƯU TIẾN TRÌNH</div>
+    </section>
+    <section id="play-screen" hidden>
+      <header class="topbar">
+        <a class="game-brand" href="#" id="btn-home" title="Về màn hình đầu">✦ <span>Sao Rơi</span></a>
+        <div class="status-group"><span id="coins" class="stat"></span><span id="level" class="stat"></span><span id="renown" class="stat"></span></div>
+        <div id="clock" class="clock"></div>
+        <button id="btn-fullscreen" class="icon-button" aria-label="Phóng toàn màn hình" aria-pressed="false">⛶ <span>Toàn màn hình</span></button>
+      </header>
+      <div class="play-layout">
+        <div class="world-column">
+          <div class="mapbar"><div><span class="tiny-label">BẠN ĐANG Ở</span><strong id="map-name">Làng Sao</strong></div><span id="weather-label"></span><span id="online-status">Chơi một mình</span></div>
+          <div id="canvas-stage">
+            <canvas id="gameCanvas" width="960" height="600" aria-label="Bản đồ trò chơi, di chuyển bằng WASD hoặc các phím mũi tên"></canvas>
+            <div id="toast" role="status" aria-live="polite"></div>
+            <div id="interaction-hint"></div>
+            <div id="fishing" hidden><strong>CÂU CÁ · BẤM E KHI PHAO Ở VÙNG VÀNG</strong><div class="fish-track"><div class="fish-zone"></div><i id="fish-marker"></i></div><small>Esc để hủy</small></div>
+          </div>
+          <div class="actionbar">
+            <div class="vitals"><span>♥ <b id="health">100</b></span><span>⚡ <b id="stamina">100</b></span><span id="player-label"></span><span id="move-mode">Đi bộ</span></div>
+            <div class="game-actions"><button id="btn-journal">Sổ nhiệm vụ <kbd>Q</kbd></button><button id="btn-build">Xây làng <kbd>B</kbd></button><button id="btn-inventory">Túi & chế tạo <kbd>I</kbd></button></div>
+          </div>
+          <div class="touch-controls" aria-label="Điều khiển cảm ứng"><div class="dpad"><button data-move="up" aria-label="Đi lên">▲</button><button data-move="left" aria-label="Đi trái">◀</button><button data-move="down" aria-label="Đi xuống">▼</button><button data-move="right" aria-label="Đi phải">▶</button></div><div class="touch-actions"><button id="touch-run" aria-pressed="false">Chạy</button><button id="touch-attack">⚔ Kiếm</button><button id="touch-interact">E · Tương tác</button></div></div>
+          <footer class="key-guide">WASD / ↑↓←→: di chuyển · Giữ Shift: chạy <span>E: tương tác · Space: kiếm · Esc: đóng cửa sổ</span><small id="save-status">Đã lưu</small></footer>
+        </div>
+        <aside class="sidebar">
+          <section class="tracker panel"><div class="panel-heading"><span>HÀNH TRÌNH CỦA BẠN</span><button id="btn-tracker" aria-label="Mở sổ nhiệm vụ">↗</button></div><button id="btn-residents">Tìm cư dân & hợp đồng</button><p id="npc-guide"></p><div id="quest-tracker"></div><div id="quest-count"></div></section>
+          <section class="tips panel"><span class="tiny-label">GHI CHÚ TỪ THUNG LŨNG</span><p id="world-tip">Hãy tìm Mira gần quảng trường.</p></section>
+          <section class="chat panel"><div class="panel-heading"><span>CHUYỆN TRONG LÀNG</span><span id="player-count">1 người</span></div><p class="chat-privacy">Chat công khai · Không gửi thông tin riêng tư.</p><div id="chat-log" role="log" aria-live="polite"></div><form id="chat-form"><input id="chat-input" maxlength="140" placeholder="Lời chào tới bạn bè…" aria-label="Tin nhắn"><button aria-label="Gửi tin nhắn">→</button></form></section>
+        </aside>
+      </div>
+    </section>
+    <dialog id="game-dialog"><div class="dialog-heading"><div><span id="dialog-eyebrow" class="tiny-label"></span><h2 id="dialog-title"></h2></div><button id="dialog-close" aria-label="Đóng cửa sổ">✕</button></div><div id="dialog-body"></div></dialog>
+  </main>
+</body>
+</html>

@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Giáo Xứ Tycoon - Stardew Graphics</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&family=Courier+Prime&display=swap');
+        
+        body { margin: 0; padding: 0; background-color: #050505; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Courier Prime', Courier, monospace; touch-action: none; -webkit-user-select: none; user-select: none;}
+
+        #start-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(135deg, #111, #2c3e50); z-index: 100000; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #fff; }
+        #start-btn { background: #e74c3c; color: #fff; border: 3px solid rgba(255,255,255,0.5); padding: 15px 50px; font-family: 'VT323', monospace; font-size: 38px; font-weight: bold; border-radius: 16px; cursor: pointer; animation: pulse 2s infinite cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 10px 30px rgba(231, 76, 60, 0.4); text-shadow: 2px 2px 0 #000; transition: 0.2s;}
+        #start-btn:active { transform: scale(0.95); box-shadow: 0 5px 15px rgba(231, 76, 60, 0.6); }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+
+        #game-wrapper { position: relative; width: 100%; max-width: 900px; aspect-ratio: 1.5; border: 4px solid #fff; border-radius: 12px; box-shadow: 0 0 50px rgba(0,0,0,0.8); background: #000; overflow: hidden; transition: 0.3s;}
+        #game-wrapper.pseudo-fullscreen { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; max-width: none !important; height: 100vh !important; aspect-ratio: auto !important; border: none !important; border-radius: 0 !important; z-index: 9999; }
+        
+        canvas { display: block; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+
+        .glass-panel { background: rgba(20, 25, 30, 0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 2px solid rgba(255, 255, 255, 0.3); box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+
+        .hud-top { position: absolute; top: 15px; left: 15px; display: flex; gap: 12px; z-index: 100; flex-wrap: wrap;}
+        .hud-box { border-radius: 12px; padding: 8px 18px; color: #fff; font-family: 'VT323', monospace; font-size: 26px; display: flex; align-items: center; gap: 10px;}
+        .hud-kimte { color: #f1c40f; text-shadow: 0 0 10px rgba(241, 196, 15, 0.5); } 
+        .hud-congduc { color: #ff9ff3; text-shadow: 0 0 10px rgba(255, 159, 243, 0.5); }
+        
+        #btn-upgrade, #btn-fullscreen { background: linear-gradient(180deg, #3498db, #2980b9); color: #fff; border: 2px solid rgba(255,255,255,0.8); border-radius: 12px; padding: 8px 18px; font-family: 'VT323', monospace; font-size: 22px; cursor: pointer; font-weight: bold; transition: 0.1s; text-shadow: 1px 1px 0px rgba(0,0,0,0.5);}
+        #btn-upgrade:active, #btn-fullscreen:active { transform: translateY(3px); }
+        #btn-fullscreen { background: linear-gradient(180deg, #e67e22, #d35400); }
+
+        #quest-tracker { position: absolute; top: 15px; right: 15px; border-radius: 12px; padding: 15px; font-size: 22px; z-index: 100; font-family: 'VT323', monospace; max-width: 350px; line-height: 1.4; border-left: 6px solid #f1c40f;}
+        #map-name { position: absolute; bottom: 20px; left: 20px; color: #fff; font-family: 'VT323', monospace; font-size: 45px; text-shadow: 0 5px 15px rgba(0,0,0,1); z-index: 90; opacity: 0.9;}
+
+        @keyframes slideUp { 0% { opacity: 0; transform: translateX(-50%) translateY(40px); } 100% { opacity: 1; transform: translateX(-50%) translateY(0); } }
+        @keyframes popIn { 0% { opacity: 0; transform: translate(-50%, -45%) scale(0.9); } 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+
+        #dialogue-box { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 80%; border-radius: 16px; padding: 25px; display: none; z-index: 300; color: #fff; font-family: 'VT323', monospace; border-top: 6px solid #f1c40f;}
+        .show-dialogue { display: block !important; animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        #npc-name { color: #f1c40f; margin-bottom: 10px; font-size: 36px; border-bottom: 2px dashed rgba(255,255,255,0.4); padding-bottom: 8px; text-transform: uppercase; text-shadow: 0 0 10px rgba(241, 196, 15, 0.3);}
+        #dialogue-text { font-size: 28px; line-height: 1.5; min-height: 85px; text-shadow: 1px 1px 0 #000;}
+        .hint-text { font-size: 20px; color: #7bed9f; margin-top: 10px; text-align: right; animation: blink 1.5s infinite; opacity: 0.8;}
+        #dialogue-options { display: none; margin-top: 20px; gap: 15px; }
+        .opt-btn { background: linear-gradient(180deg, #2ecc71, #27ae60); color: #fff; border: 2px solid rgba(255,255,255,0.8); padding: 12px 20px; font-family: 'VT323', monospace; font-size: 26px; cursor: pointer; border-radius: 10px; flex: 1; font-weight: bold; text-shadow: 1px 1px 0px rgba(0,0,0,0.5); transition: 0.1s;}
+        .opt-btn:active { transform: translateY(3px); }
+        .opt-btn.reject { background: linear-gradient(180deg, #e74c3c, #c0392b); }
+
+        .menu-popup { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 550px; max-height: 80vh; overflow-y: auto; border-radius: 16px; padding: 30px; display: none; z-index: 400; color: #fff; font-family: 'VT323', monospace; border-top: 6px solid #3498db;}
+        .show-menu { display: block !important; animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        
+        .upg-title { font-size: 40px; color: #3498db; text-align: center; border-bottom: 2px dashed rgba(255,255,255,0.4); padding-bottom: 15px; margin-bottom: 25px; text-shadow: 0 0 10px rgba(52, 152, 219, 0.5);}
+        .upg-item { display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.6); padding: 18px; border: 2px solid rgba(255,255,255,0.2); margin-bottom: 12px; border-radius: 12px;}
+        .upg-info h3 { margin: 0; font-size: 28px; color: #f1c40f; text-shadow: 1px 1px 0 #000;}
+        .upg-info p { margin: 6px 0 0 0; font-size: 20px; color: #bdc3c7; }
+        .btn-buy { background: linear-gradient(180deg, #f39c12, #d35400); color: #fff; border: 2px solid rgba(255,255,255,0.8); padding: 10px 20px; font-family: inherit; font-size: 22px; font-weight: bold; cursor: pointer; border-radius: 8px; transition: 0.1s; text-shadow: 1px 1px 0px rgba(0,0,0,0.5);}
+        .btn-buy:active { transform: translateY(3px); }
+        .btn-buy:disabled { background: #7f8c8d; color: #ddd; cursor: not-allowed; border-color: #555;}
+        .btn-close { display: block; width: 100%; margin-top: 25px; background: rgba(255,255,255,0.2); color: #fff; border: 2px solid #fff; padding: 15px; font-family: inherit; font-size: 26px; font-weight: bold; cursor: pointer; border-radius: 10px; text-align: center; transition: 0.2s;}
+
+        #interact-hint { position: absolute; display: none; background: rgba(255,255,255,0.95); color: #000; padding: 6px 12px; border-radius: 8px; font-weight: bold; font-size: 20px; pointer-events: none; z-index: 150; box-shadow: 0 4px 10px rgba(0,0,0,0.5); font-family: 'VT323', monospace; border-bottom: 3px solid #ccc; animation: bounce 1s infinite;}
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+
+        #mobile-controls { display: none; }
+        #joystick-base { position: fixed; bottom: 30px; left: 30px; width: 150px; height: 150px; border-radius: 50%; background: rgba(255,255,255,0.2); border: 3px solid rgba(255,255,255,0.6); z-index: 9999; touch-action: none; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);}
+        #joystick-knob { position: absolute; top: 40px; left: 40px; width: 70px; height: 70px; border-radius: 50%; background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(200,200,200,0.9)); box-shadow: 0 8px 20px rgba(0,0,0,0.4), inset 0 2px 5px rgba(255,255,255,1); pointer-events: none; transition: transform 0.1s ease-out; }
+        #btn-action { position: fixed; bottom: 40px; right: 30px; width: 110px; height: 110px; border-radius: 50%; background: linear-gradient(135deg, #e74c3c, #c0392b); border: 4px solid rgba(255,255,255,0.8); font-family: 'VT323', monospace; font-size: 34px; color: #fff; font-weight: bold; display: flex; justify-content: center; align-items: center; z-index: 9999; box-shadow: 0 8px 20px rgba(0,0,0,0.4); text-shadow: 1px 1px 0 rgba(0,0,0,0.5);}
+        #btn-action:active { transform: scale(0.95); }
+
+        .is-mobile #mobile-controls { display: block; }
+        .is-mobile #game-wrapper { width: 100vw; height: 100vh; max-width: none; border: none; border-radius: 0; box-shadow: none;}
+        .is-mobile .hud-top { top: 15px; left: 15px; gap: 8px; }
+        .is-mobile .hud-box { font-size: 20px; padding: 6px 12px; }
+        .is-mobile #btn-upgrade, .is-mobile #btn-fullscreen { font-size: 20px; padding: 6px 12px; }
+        .is-mobile #quest-tracker { top: 75px; left: 15px; right: auto; padding: 12px; font-size: 18px; max-width: 250px; }
+        .is-mobile #map-name { display: none; } 
+        .is-mobile #dialogue-box { bottom: 170px; width: 92%; padding: 20px; }
+        .is-mobile #npc-name { font-size: 28px; }
+        .is-mobile #dialogue-text { font-size: 22px; min-height: 60px; }
+        .is-mobile .opt-btn { font-size: 22px; padding: 10px 15px; }
+        .is-mobile .menu-popup { width: 95%; padding: 20px; max-height: 75vh; }
+
+        /* Giao diện thị trấn mới: tương phản dịu, rõ trên màn hình nhỏ */
+        :root { color-scheme: dark; }
+        body { background: radial-gradient(ellipse at 50% 45%, #1e3b37 0%, #081b20 75%); }
+        #game-wrapper { border: 1px solid rgba(223, 244, 222, .55); border-radius: 22px; box-shadow: 0 28px 90px rgba(0,0,0,.64), 0 0 0 7px rgba(255,255,255,.035); }
+        canvas { image-rendering: auto; }
+        .glass-panel { background: rgba(15, 31, 34, .82); border-color: rgba(219, 239, 215, .25); box-shadow: 0 12px 32px rgba(0,0,0,.28); }
+        .hud-box { border-radius: 16px; }
+        #quest-tracker { border-left-color: #a8d86d; max-width: 310px; font-size: 21px; }
+        #quest-tracker > span:first-child { color: #c7ef8d !important; }
+        #start-overlay { background: radial-gradient(ellipse at 50% 36%, rgba(42,91,74,.95), rgba(7,22,28,.99) 70%), linear-gradient(145deg, #193d36, #111b29); }
+        #start-overlay h1 { color: #f5efdc; letter-spacing: 2px; }
+        #start-overlay > p:first-of-type { color: #c7ef8d !important; }
+        #start-btn { background: linear-gradient(180deg, #8fc65a, #548c40); border-color: #d6efad; border-radius: 14px; }
+        #player-name { width: min(320px, 78vw); box-sizing: border-box; padding: 13px 16px; border: 1px solid rgba(230,245,220,.4); border-radius: 12px; background: rgba(5,18,20,.62); color: white; font: 22px 'VT323', monospace; text-align: center; outline: none; }
+        #player-name:focus { border-color: #c7ef8d; box-shadow: 0 0 0 3px rgba(199,239,141,.18); }
+        #connection-status { min-height: 24px; color: #c4d4c8; font: 18px 'VT323', monospace; margin: 14px 0 0; }
+        .hud-pill, #btn-questboard { color: #ecf5e7; background: rgba(15,31,34,.82); border: 1px solid rgba(219,239,215,.25); border-radius: 12px; padding: 7px 12px; font: 20px 'VT323', monospace; box-shadow: 0 8px 25px rgba(0,0,0,.2); }
+        #btn-questboard { cursor: pointer; background: linear-gradient(180deg, #6b9d55, #406d45); border-color: rgba(228,255,204,.55); }
+        #btn-questboard:hover { filter: brightness(1.12); }
+        #online-status { color: #b6c8bd; }
+        #online-status.online { color: #c7ef8d; }
+        #quest-board { width: min(590px, 92vw); }
+        #quest-board .upg-title { color: #c7ef8d; }
+        .quest-intro { color: #c4d4c8; font: 20px/1.4 'VT323', monospace; margin: -12px 0 18px; }
+        #quest-desc { white-space: pre-line; }
+        .contract-card { background: linear-gradient(135deg, rgba(26,49,47,.96), rgba(18,33,39,.96)); border: 1px solid rgba(199,239,141,.23); border-radius: 14px; padding: 16px; margin: 11px 0; }
+        .contract-card h3 { margin: 0 0 5px; color: #eef3dc; font: 25px 'VT323', monospace; }
+        .contract-card p { margin: 0 0 11px; color: #bdcec4; font: 19px/1.3 'VT323', monospace; }
+        .contract-meta { display: flex; justify-content: space-between; align-items: center; color: #c7ef8d; font: 18px 'VT323', monospace; }
+        .contract-actions { margin-top: 12px; display: flex; gap: 8px; }
+        .contract-actions button { flex: 1; border: 1px solid rgba(255,255,255,.48); border-radius: 9px; padding: 8px; color: white; background: #4f8750; font: 20px 'VT323', monospace; cursor: pointer; }
+        .contract-actions button:disabled { color: #a4b2a7; background: #3a4847; cursor: default; }
+        #chat-panel { position: absolute; left: 16px; bottom: 18px; width: 280px; z-index: 120; color: white; font: 18px 'VT323', monospace; }
+        #chat-log { display: flex; flex-direction: column; gap: 4px; max-height: 138px; overflow: auto; padding: 10px 12px; margin-bottom: 7px; border-radius: 12px; background: linear-gradient(0deg, rgba(10,23,27,.82), rgba(10,23,27,.22)); text-shadow: 0 1px 3px #000; }
+        .chat-line { overflow-wrap: anywhere; }
+        #chat-form { display: flex; gap: 6px; }
+        #chat-input { min-width: 0; flex: 1; padding: 8px 10px; border: 1px solid rgba(255,255,255,.35); border-radius: 9px; outline: 0; background: rgba(10,23,27,.82); color: white; font: 18px 'VT323', monospace; }
+        #chat-form button { border: 0; border-radius: 9px; padding: 5px 12px; background: #699651; color: white; font: 20px 'VT323', monospace; }
+        .is-mobile .hud-top { max-width: calc(100vw - 24px); }
+        .is-mobile #chat-panel { left: 12px; bottom: 176px; width: min(245px, 55vw); }
+        .is-mobile #chat-log { max-height: 80px; }
+        .is-mobile .hud-pill { font-size: 17px; padding: 5px 8px; }
+        .is-mobile #btn-questboard { font-size: 18px; padding: 5px 9px; }
+        /* Các vùng HUD được bố trí riêng để tên bản đồ, chat và nhật ký không che nhau. */
+        .hud-top { left: 16px; right: 16px; gap: 7px; flex-wrap: nowrap; align-items: flex-start; }
+        .hud-box { flex: 0 0 auto; gap: 6px; padding: 6px 9px; font-size: 20px; }
+        .hud-pill { flex: 0 0 auto; font-size: 17px; padding: 7px 8px; white-space: nowrap; }
+        #btn-upgrade, #btn-fullscreen { flex: 0 0 auto; padding: 7px 9px; font-size: 18px; white-space: nowrap; }
+        #btn-questboard { flex: 0 0 auto; padding: 7px 9px; font-size: 18px; white-space: nowrap; }
+        #quest-tracker { top: 106px; right: 16px; left: auto; width: 310px; max-width: calc(100% - 32px); max-height: min(36vh, 220px); box-sizing: border-box; overflow-y: auto; overscroll-behavior: contain; }
+        #map-name { left: auto; right: 18px; bottom: 14px; max-width: 45%; box-sizing: border-box; padding: 4px 11px; border: 1px solid rgba(255,255,255,.25); border-radius: 10px; background: rgba(10,24,25,.55); text-align: right; font-size: clamp(25px, 4vw, 38px); line-height: 1.05; }
+        #chat-panel { left: 16px; bottom: 16px; width: min(270px, 32%); }
+        #chat-log { max-height: 120px; }
+        #quest-board { box-sizing: border-box; }
+        #game-wrapper.pseudo-fullscreen { inset: 0 !important; width: 100vw !important; height: 100dvh !important; }
+        #game-wrapper:fullscreen, #game-wrapper:-webkit-full-screen { width: 100vw; max-width: none; height: 100dvh; aspect-ratio: auto; border: 0; border-radius: 0; }
+        @media (max-width: 820px) {
+            .hud-top { flex-wrap: wrap; max-height: 104px; overflow: visible; }
+            #quest-tracker { top: 120px; right: 12px; width: 270px; max-height: 25vh; font-size: 18px; }
+            #chat-panel { width: min(250px, 37%); }
+        }
+        @media (max-width: 760px) {
+            .hud-top { gap: 5px; }
+            .hud-box { font-size: 17px; padding: 5px 7px; }
+            .hud-pill { font-size: 15px; padding: 5px 7px; }
+            #btn-upgrade, #btn-fullscreen, #btn-questboard { font-size: 16px; padding: 5px 7px; }
+            #quest-tracker { top: 155px; max-height: min(24vh, 128px); touch-action: pan-y; }
+        }
+        @media (max-width: 600px) {
+            .is-mobile .hud-top { right: 12px; left: 12px; max-width: none; gap: 5px; max-height: 110px; }
+            .is-mobile .hud-box { font-size: 17px; padding: 5px 7px; }
+            .is-mobile .hud-pill { font-size: 15px; padding: 5px 7px; }
+            .is-mobile #btn-upgrade, .is-mobile #btn-fullscreen, .is-mobile #btn-questboard { font-size: 16px; padding: 5px 7px; }
+            .is-mobile #quest-tracker { top: 155px; left: 12px; right: 12px; width: auto; max-width: none; max-height: min(24vh, 108px); padding: 9px 11px; font-size: 16px; }
+            .is-mobile #map-name { display: none; }
+            .is-mobile #chat-panel { left: 10px; bottom: 176px; width: min(238px, 58vw); }
+            .is-mobile #chat-log { max-height: 72px; padding: 7px 9px; }
+        }
+        @media (max-width: 760px) and (min-width: 601px) {
+            #map-name { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="start-overlay">
+        <h1 style="font-size: 55px; margin-bottom: 5px; text-shadow: 0 5px 15px rgba(0,0,0,1);">GIÁO XỨ TYCOON</h1>
+        <p style="font-size: 24px; color: #f1c40f; margin-bottom: 28px; font-weight: bold; letter-spacing: 2px;">MỘT THỊ TRẤN NHỎ, NGÀN CHUYỆN VUI</p>
+        <input id="player-name" maxlength="18" autocomplete="nickname" placeholder="Tên người chơi" value="Khách làng" aria-label="Tên người chơi">
+        <p id="connection-status">Chế độ một người chơi luôn sẵn sàng · máy chủ sẽ tự kết nối nếu có</p>
+        <button id="start-btn">VÀO GAME NGAY</button>
+        <p style="font-family: sans-serif; font-size: 14px; margin-top: 30px; color: #bdc3c7; opacity: 0.8;">Khuyến nghị: Chơi ở chế độ xoay ngang trên Điện thoại.</p>
+    </div>
+
+    <div id="game-wrapper">
+        <div class="hud-top">
+            <div class="hud-box hud-kimte glass-panel">🪙 <span id="diemKimTe">500</span></div>
+            <div class="hud-box hud-congduc glass-panel">💖 <span id="diemCongDuc">50</span></div>
+            <div class="hud-pill" id="level-pill">🌱 Cấp 1 · 0 XP</div>
+            <div class="hud-pill" id="online-status" title="Người chơi đang có mặt trong cùng khu vực">○ Ngoại tuyến</div>
+            <button id="btn-upgrade" class="glass-panel">Nâng Cấp Làng</button>
+            <button id="btn-questboard">📜 Nhiệm vụ</button>
+            <button id="btn-fullscreen" class="glass-panel">Fullscreen</button>
+        </div>
+        
+        <div id="quest-tracker" class="glass-panel">
+            <span style="color: #ff9ff3; font-weight: bold; text-shadow: 0 0 5px rgba(255,159,243,0.5);">Cốt truyện chính:</span><br>
+            <span id="quest-desc" style="color:#ecf0f1; margin-top: 5px; display: inline-block;">Đang tải...</span>
+        </div>
+
+        <div id="map-name">Thị Trấn Tycoon</div>
+        <div id="interact-hint">💬 Giao Tiếp</div>
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="dialogue-box" class="glass-panel">
+            <div id="npc-name">NPC</div>
+            <div id="dialogue-text">...</div>
+            <div class="hint-text" id="dlg-hint">Nhấn [ACT] hoặc [Click]</div>
+            <div id="dialogue-options">
+                <button class="opt-btn" id="opt-accept">Đồng ý</button>
+                <button class="opt-btn reject" id="opt-reject">Từ chối</button>
+            </div>
+        </div>
+
+        <div id="upgrade-menu" class="menu-popup glass-panel">
+            <div class="upg-title">QUẢN LÝ CÔNG TRÌNH</div>
+            <div class="upg-item" style="border-color: #e74c3c;">
+                <div class="upg-info">
+                    <h3 style="color: #e74c3c;">🔥 Chiến dịch E-Buzz</h3>
+                    <p>Plan IMC 4 tuần: x2 Doanh thu toàn map (Giá: 400 🪙)</p>
+                </div>
+                <button class="btn-buy" onclick="buyViral(400)">Chạy Plan</button>
+            </div>
+
+            <div class="upg-item" style="border-color: #3498db;">
+                <div class="upg-info">
+                    <h3 style="color: #3498db;">🌊 Khám Phá Biển</h3>
+                    <p>Khám phá vùng biển xung quanh (Giá: 1000 🪙)</p>
+                </div>
+                <button class="btn-buy" onclick="buyExploration(1000)">Khám Phá</button>
+            </div>
+
+            <div class="upg-item" style="border-color: #2ecc71;">
+                <div class="upg-info">
+                    <h3 style="color: #2ecc71;">🍖 Khu BBQ K-PUB</h3>
+                    <p>Tiệc nướng xèo xèo (Giá: 1800 🪙)</p>
+                </div>
+                <button class="btn-buy" id="upg-kpub" onclick="buyUpgrade('kpub', 1800)">Mua</button>
+            </div>
+
+            <div class="upg-item" style="border-color: #f1c40f;">
+                <div class="upg-info">
+                    <h3 style="color: #f1c40f;">☕ Quán Cafe Highlands</h3>
+                    <p>Đẳng cấp nội khu (Giá: 1500 🪙)</p>
+                </div>
+                <button class="btn-buy" id="upg-highlands" onclick="buyUpgrade('highlands', 1500)">Mua</button>
+            </div>
+
+            <div class="upg-item" style="border-color: #f39c12;">
+            <div class="upg-info">
+                <h3 style="color: #f39c12;">🛣️ Đường Lát Đá</h3>
+                    <p>Đường làng sạch đẹp (Giá: 300 🪙)</p>
+                </div>
+                <button class="btn-buy" id="upg-road" onclick="buyUpgrade('road', 300)">Mua</button>
+            </div>
+
+            <div class="upg-item" style="border-color: #9b59b6;">
+                <div class="upg-info">
+                    <h3 style="color: #9b59b6;">🗼 Tháp Chuông 3D</h3>
+                    <p>Tháp chuông uy nghi (Giá: 600 🪙)</p>
+                </div>
+                <button class="btn-buy" id="upg-bell" onclick="buyUpgrade('bell', 600)">Mua</button>
+            </div>
+            
+            <div class="upg-item">
+                <div class="upg-info"><h3>Đài Phun Nước</h3><p>Quảng trường lộng lẫy (Giá: 1000 🪙)</p></div>
+                <button class="btn-buy" id="upg-park" onclick="buyUpgrade('park', 1000)">Mua</button>
+            </div>
+
+            <div class="upg-item">
+                <div class="upg-info"><h3>Trạm Tâm Lý MindCare</h3><p>Chữa lành cư dân (+Công Đức) (Giá: 1200 🪙)</p></div>
+                <button class="btn-buy" id="upg-mindcare" onclick="buyUpgrade('mindcare', 1200)">Mua</button>
+            </div>
+
+            <div class="upg-item" style="border-color: #f1c40f;">
+                <div class="upg-info"><h3 style="color: #f1c40f;">Trụ Sở E-Buzz Media</h3><p>Tự động thu hoạch tiền (Giá: 10000 🪙)</p></div>
+                <button class="btn-buy" id="upg-ebuzz" onclick="buyUpgrade('ebuzz', 10000)">Xây</button>
+            </div>
+
+            <div class="upg-item">
+                <div class="upg-info"><h3>Trạm Pin Cocoon</h3><p>Dự án tái chế trung niên (Giá: 500 🪙)</p></div>
+                <button class="btn-buy" id="upg-cocoon" onclick="buyUpgrade('cocoon', 500)">Mua</button>
+            </div>
+
+            <div class="upg-item">
+                <div class="upg-info"><h3>Đại Sứ Ảo Rebrand</h3><p>Avatar kéo x2 khách (Giá: 800 🪙)</p></div>
+                <button class="btn-buy" id="upg-avatar" onclick="buyUpgrade('avatar', 800)">Mua</button>
+            </div>
+            <button class="btn-close" onclick="document.getElementById('upgrade-menu').classList.remove('show-menu')">Đóng Cửa Sổ</button>
+        </div>
+
+        <div id="item-shop-menu" class="menu-popup glass-panel">
+            <div class="upg-title">CỬA HÀNG VẬT PHẨM</div>
+            <div class="upg-item" style="border-color: #f1c40f;">
+                <div class="upg-info"><h3 style="color: #f1c40f;">🎲 Vòng Quay Gacha</h3><p>Trúng thưởng ngẫu nhiên (100 🪙)</p></div>
+                <button class="btn-buy" onclick="playGacha()">Quay</button>
+            </div>
+            <div class="upg-item">
+                <div class="upg-info"><h3>Giày Yonex Eclipsion Z3</h3><p>Trượt siêu mượt (Giá: 800 🪙)</p></div>
+                <button class="btn-buy" id="item-shoes" onclick="buyItem('shoes', 800)">Mua</button>
+            </div>
+            <div class="upg-item">
+                <div class="upg-info"><h3>Tài Khoản Filmora VIP</h3><p>Màu sắc Cinematic (Giá: 1000 🪙)</p></div>
+                <button class="btn-buy" id="item-filmora" onclick="buyItem('filmora', 1000)">Mua</button>
+            </div>
+            <div class="upg-item">
+                <div class="upg-info"><h3>Bí Kíp IELTS Task 2</h3><p>Khai sáng trí tuệ (Giá: 300 🪙)</p></div>
+                <button class="btn-buy" id="item-book" onclick="buyItem('book', 300)">Mua</button>
+            </div>
+            <div class="upg-item">
+                <div class="upg-info"><h3>Thẻ Gym VIP Cali</h3><p>Nhân vật vạm vỡ (Giá: 600 🪙)</p></div>
+                <button class="btn-buy" id="item-gym" onclick="buyItem('gym', 600)">Mua</button>
+            </div>
+            <button class="btn-close" onclick="document.getElementById('item-shop-menu').classList.remove('show-menu')">Đóng Cửa Sổ</button>
+        </div>
+
+        <div id="quest-board" class="menu-popup glass-panel">
+            <div class="upg-title">SỔ TAY CỘNG ĐỒNG</div>
+            <p class="quest-intro">Việc tốt nhỏ, thị trấn vui hơn mỗi ngày. Nhận hợp đồng, hoàn thành mục tiêu rồi quay lại nhận thưởng.</p>
+            <div id="contract-list"></div>
+            <button class="btn-close" id="quest-board-close">Đóng sổ tay</button>
+        </div>
+
+        <div id="chat-panel" aria-label="Trò chuyện trong làng">
+            <div id="chat-log" aria-live="polite"></div>
+            <form id="chat-form"><input id="chat-input" maxlength="140" placeholder="Nhắn cả làng…" autocomplete="off"><button type="submit">Gửi</button></form>
+        </div>
+
+        <div id="mobile-controls">
+            <div id="joystick-base"><div id="joystick-knob"></div></div>
+            <div id="btn-action">ACT</div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || ('ontouchstart' in window) && window.innerWidth < 1024;
+        if (isMobile) document.body.classList.add('is-mobile');
+
+        const startOverlay = document.getElementById('start-overlay');
+        const playerNameInput = document.getElementById('player-name');
+        let playerName = playerNameInput.value;
+        const connectionStatus = document.getElementById('connection-status');
+        document.getElementById('start-btn').addEventListener('click', async (event) => {
+            event.stopPropagation();
+            playerName = playerNameInput.value.trim().replace(/[<>\u0000-\u001f]/g, '').slice(0, 18) || 'Khách làng';
+            hasStarted = true;
+            startOverlay.style.opacity = '0';
+            startOverlay.style.transition = 'opacity 0.5s';
+            setTimeout(() => startOverlay.style.display = 'none', 500);
+            connectOnline();
+            
+            if (isMobile) {
+                let elem = document.documentElement;
+                try {
+                    if (elem.requestFullscreen) await elem.requestFullscreen();
+                    else if (elem.webkitRequestFullscreen) await elem.webkitRequestFullscreen();
+                    if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape');
+                } catch (err) {}
+            }
+        });
+
+        const wrapper = document.getElementById('game-wrapper');
+        const btnFullscreen = document.getElementById('btn-fullscreen');
+        const isNativeFullscreen = () => !!(document.fullscreenElement || document.webkitFullscreenElement || document.webkitIsFullScreen);
+        const syncFullscreenButton = () => {
+            const expanded = isNativeFullscreen() || wrapper.classList.contains('pseudo-fullscreen');
+            btnFullscreen.innerText = expanded ? 'Thu Nhỏ' : 'Fullscreen';
+            btnFullscreen.setAttribute('aria-label', expanded ? 'Thu nhỏ màn hình game' : 'Phóng to màn hình game');
+        };
+        btnFullscreen.addEventListener('click', async () => {
+            const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
+            if (isNativeFullscreen()) {
+                try {
+                    if (exitFullscreen) {
+                        const result = exitFullscreen.call(document);
+                        if (result && typeof result.then === 'function') await result;
+                    }
+                } catch (_) { /* Sự kiện fullscreen sẽ cập nhật lại nút nếu trình duyệt từ chối thoát. */ }
+                syncFullscreenButton();
+                return;
+            }
+            if (wrapper.classList.contains('pseudo-fullscreen')) {
+                wrapper.classList.remove('pseudo-fullscreen');
+                syncFullscreenButton();
+                return;
+            }
+
+            const requestFullscreen = wrapper.requestFullscreen || wrapper.webkitRequestFullscreen;
+            if (!requestFullscreen) {
+                wrapper.classList.add('pseudo-fullscreen');
+                syncFullscreenButton();
+                return;
+            }
+            try {
+                const result = requestFullscreen.call(wrapper);
+                if (result && typeof result.then === 'function') await result;
+                if (!isNativeFullscreen()) wrapper.classList.add('pseudo-fullscreen');
+            } catch (_) {
+                wrapper.classList.add('pseudo-fullscreen');
+            }
+            syncFullscreenButton();
+        });
+        document.addEventListener('fullscreenchange', syncFullscreenButton);
+        document.addEventListener('webkitfullscreenchange', syncFullscreenButton);
+
+        const canvas = document.getElementById('gameCanvas'); const interactHint = document.getElementById('interact-hint'); 
+        const ctx = canvas.getContext('2d');
+        const GAME_WIDTH = 900; const GAME_HEIGHT = 600;
+        canvas.width = GAME_WIDTH; canvas.height = GAME_HEIGHT;
+
+        const SAVE_KEY = 'giaoxu-tycoon-save-v2';
+        const savedGame = (() => { try { return JSON.parse(localStorage.getItem(SAVE_KEY) || '{}') || {}; } catch (_) { return {}; } })();
+        if (typeof savedGame.playerName === 'string' && savedGame.playerName.trim()) {
+            playerName = savedGame.playerName.replace(/[<>\u0000-\u001f]/g, '').slice(0, 18) || 'Khách làng';
+            playerNameInput.value = playerName;
+        }
+        const defaultUpgrades = { road: false, bell: false, park: false, highlands: false, kpub: false, mindcare: false, ebuzz: false, sea: false, cocoon: false, avatar: false };
+        let kimTe = Number.isFinite(savedGame.kimTe) ? Math.max(0, Math.floor(savedGame.kimTe)) : 500;
+        let congDuc = Number.isFinite(savedGame.congDuc) ? Math.max(0, Math.floor(savedGame.congDuc)) : 50;
+        let upgrades = { ...defaultUpgrades, ...(savedGame.upgrades && typeof savedGame.upgrades === 'object' ? savedGame.upgrades : {}) };
+        let mindcareTimer = Date.now();
+        let hasFilmora = !!savedGame.hasFilmora;
+        let hasShoes = !!savedGame.hasShoes;
+        let hasBook = !!savedGame.hasBook;
+        let hasGym = !!savedGame.hasGym;
+        let playerXP = Number.isFinite(savedGame.playerXP) ? Math.max(0, Math.floor(savedGame.playerXP)) : 0;
+        let completedSideQuests = new Set(Array.isArray(savedGame.completedSideQuests) ? savedGame.completedSideQuests : []);
+        let ecoTimer = Date.now();
+        let rainDrops = [];
+        for(let i=0; i<150; i++) rainDrops.push({x: Math.random()*1200, y: Math.random()*600, speed: 15 + Math.random()*10});
+        
+        // --- NÂNG CẤP: Hạt môi trường (Lá rơi / Đom đóm) ---
+        let envParticles = [];
+        for(let i=0; i<80; i++) envParticles.push({x: Math.random()*4000, y: Math.random()*3200, phase: Math.random()*Math.PI*2});
+        
+        let viralTimer = 0; // Bộ đếm thời gian Plan 4 Tuần
+
+        window.buyViral = function(cost) {
+            if (kimTe >= cost) {
+                if (viralTimer > 0) return alert("Chiến dịch E-Buzz đang chạy rồi sếp, không thể spam được!");
+                updateEconomy(-cost, 0);
+                viralTimer = 60 * 60; // 60 giây (60 frames/s)
+                alert("🔥 Đã chốt Plan IMC 4 tuần! Độ phủ sóng tăng vọt, Lợi nhuận nhân đôi!");
+                document.getElementById('upgrade-menu').classList.remove('show-menu');
+            } else alert("Sếp chưa đủ Kim Tệ để cấp ngân sách truyền thông!");
+        }
+        let tycoonBuildings = [
+            { id: 'highlands', x: 2300, y: 1400, rate: 20000, amount: 50, lastGen: Date.now(), hasCoin: false },
+            { id: 'kpub', x: 2300, y: 1750, rate: 30000, amount: 80, lastGen: Date.now(), hasCoin: false }
+        ];
+        let cocoonBatteries = [
+            { id: 1, map: "town", x: 600, y: 600, collected: false },
+            { id: 2, map: "town", x: 3200, y: 2000, collected: false },
+            { id: 3, map: "town", x: 1500, y: 2500, collected: false }
+        ];
+        let batteriesCollected = 0;
+        if (Array.isArray(savedGame.batteriesCollected)) {
+            cocoonBatteries.forEach(b => { b.collected = savedGame.batteriesCollected.includes(b.id); });
+            batteriesCollected = cocoonBatteries.filter(b => b.collected).length;
+        }
+        let floatingTexts = [];
+        let particles = [];
+
+        const maps = {
+            "town": { w: 4000, h: 3000, name: "Thị Trấn Khổng Lồ", bg: '#4cd137' },
+            "church": { w: 1000, h: 1200, name: "Bên Trong Nhà Thờ", bg: '#2f3640' },
+            "house_trum": { w: 600, h: 500, name: "Nhà Bà Trùm", bg: '#718093' },
+            "shop": { w: 600, h: 500, name: "Cửa Hàng Của Bạn", bg: '#d35400' },
+            "house_tu": { w: 500, h: 500, name: "Nhà Ông Tư", bg: '#8c7ae6' },
+            "youth_room": { w: 800, h: 600, name: "Phòng Giới Trẻ", bg: '#0097e6' },
+            "house_anna": { w: 500, h: 500, name: "Nhà Sơ Anna", bg: '#e1b12c' },
+            "house_nam": { w: 500, h: 500, name: "Nhà Thanh niên Nam", bg: '#44bd32' },
+            "hotpot": { w: 600, h: 500, name: "Tiệm Lẩu Khói", bg: '#c0392b' },
+            "highlands": { w: 600, h: 500, name: "Highlands Coffee", bg: '#d35400' },
+            "kpub": { w: 600, h: 500, name: "K-PUB BBQ", bg: '#2c3e50' }
+        };
+        let currentMap = "town"; const camera = { x: 0, y: 0 };
+        const player = { x: 550, y: 2600, w: hasGym ? 32 : 24, h: hasGym ? 44 : 36, speed: 6, shirt: savedGame.shirt || '#6d9f6c', hair: '#2c3e50', facingRight: true, isMoving: false, joyX: 0, joyY: 0 };
+        document.getElementById('diemKimTe').innerText = kimTe;
+        document.getElementById('diemCongDuc').innerText = congDuc;
+        document.getElementById('level-pill').innerText = `🌱 Cấp ${1 + Math.floor(playerXP / 150)} · ${playerXP} XP`;
+
+        const doors = [
+            { map: "town", x: 1900, y: 630, w: 200, h: 20, targetMap: "church", tx: 490, ty: 1050 },
+            { map: "town", x: 500, y: 2580, w: 100, h: 20, targetMap: "shop", tx: 280, ty: 400 },
+            { map: "town", x: 3400, y: 1580, w: 100, h: 20, targetMap: "house_trum", tx: 280, ty: 400 },
+            { map: "town", x: 600, y: 1480, w: 100, h: 20, targetMap: "house_tu", tx: 230, ty: 400 },
+            { map: "town", x: 3200, y: 2580, w: 100, h: 20, targetMap: "youth_room", tx: 380, ty: 500 },
+            { map: "town", x: 2600, y: 880, w: 100, h: 20, targetMap: "house_anna", tx: 230, ty: 400 }, 
+            { map: "town", x: 1200, y: 2180, w: 100, h: 20, targetMap: "house_nam", tx: 230, ty: 400 }, 
+            { map: "town", x: 2900, y: 880, w: 100, h: 20, targetMap: "hotpot", tx: 280, ty: 400 }, 
+            { map: "town", x: 2280, y: 1530, w: 40, h: 50, targetMap: "highlands", tx: 280, ty: 400, reqUpgrade: "highlands" },
+            { map: "town", x: 2280, y: 1880, w: 40, h: 50, targetMap: "kpub", tx: 280, ty: 400, reqUpgrade: "kpub" },
+
+            { map: "church", x: 400, y: 1150, w: 200, h: 50, targetMap: "town", tx: 1980, ty: 660 },
+            { map: "shop", x: 250, y: 460, w: 100, h: 40, targetMap: "town", tx: 530, ty: 2610 },
+            { map: "house_trum", x: 250, y: 460, w: 100, h: 40, targetMap: "town", tx: 3430, ty: 1610 },
+            { map: "house_tu", x: 200, y: 460, w: 100, h: 40, targetMap: "town", tx: 630, ty: 1510 },
+            { map: "youth_room", x: 350, y: 560, w: 100, h: 40, targetMap: "town", tx: 3230, ty: 2610 },
+            { map: "house_anna", x: 200, y: 460, w: 100, h: 40, targetMap: "town", tx: 2630, ty: 910 },
+            { map: "house_nam", x: 200, y: 460, w: 100, h: 40, targetMap: "town", tx: 1230, ty: 2210 },
+            { map: "hotpot", x: 200, y: 460, w: 100, h: 40, targetMap: "town", tx: 2950, ty: 920 },
+            { map: "highlands", x: 200, y: 460, w: 100, h: 40, targetMap: "town", tx: 2300, ty: 1600 },
+            { map: "kpub", x: 200, y: 460, w: 100, h: 40, targetMap: "town", tx: 2300, ty: 1950 }
+        ];
+
+        const keys = {};
+        const isTypingTarget = target => target instanceof Element && !!target.closest('input, textarea, select, [contenteditable="true"]');
+
+        const onlineStatus = document.getElementById('online-status');
+        const onlinePlayers = new Map();
+        let onlineSocket = null;
+        let onlineSelfId = null;
+        let onlineRetryTimer = null;
+        let lastNetworkUpdate = 0;
+        let hasStarted = false;
+        function setOnlineStatus(connected, count = 0) {
+            onlineStatus.classList.toggle('online', connected);
+            onlineStatus.textContent = connected ? `● Trực tuyến · ${count} người` : '○ Ngoại tuyến';
+            connectionStatus.textContent = connected ? 'Đã kết nối máy chủ · gặp gỡ người chơi khác trong làng' : 'Máy chủ chưa sẵn sàng · bạn vẫn có thể chơi và lưu tiến trình';
+        }
+        function sendOnline(data) {
+            if (onlineSocket && onlineSocket.readyState === WebSocket.OPEN) onlineSocket.send(JSON.stringify(data));
+        }
+        function addChatLine(name, message, system = false) {
+            const line = document.createElement('div'); line.className = 'chat-line';
+            if (system) { line.style.color = '#c7ef8d'; line.textContent = message; }
+            else { const who = document.createElement('strong'); who.textContent = `${name}: `; who.style.color = '#c7ef8d'; line.append(who, document.createTextNode(message)); }
+            const log = document.getElementById('chat-log'); log.appendChild(line);
+            while (log.childElementCount > 24) log.firstElementChild.remove();
+            log.scrollTop = log.scrollHeight;
+        }
+        function connectOnline() {
+            if (location.protocol === 'file:') { setOnlineStatus(false); return; }
+            if (onlineSocket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(onlineSocket.readyState)) return;
+            const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            try { onlineSocket = new WebSocket(`${scheme}//${location.host}/play`); }
+            catch (_) { setOnlineStatus(false); return; }
+            onlineSocket.addEventListener('open', () => {
+                sendOnline({ type: 'join', name: playerName, map: currentMap, x: player.x, y: player.y });
+                addChatLine('', 'Đã kết nối đến làng trực tuyến.', true);
+                setOnlineStatus(true, onlinePlayers.size + 1);
+            });
+            onlineSocket.addEventListener('message', event => {
+                let message; try { message = JSON.parse(event.data); } catch (_) { return; }
+                if (message.type === 'snapshot' && Array.isArray(message.players)) {
+                    onlinePlayers.clear();
+                    message.players.forEach(other => { if (other.id !== onlineSelfId) onlinePlayers.set(other.id, other); else onlineSelfId = other.id; });
+                    setOnlineStatus(true, message.players.length);
+                } else if (message.type === 'chat') addChatLine(message.name, message.text);
+                else if (message.type === 'notice') addChatLine('', message.text, true);
+            });
+            onlineSocket.addEventListener('error', () => setOnlineStatus(false));
+            onlineSocket.addEventListener('close', () => {
+                onlinePlayers.clear(); onlineSelfId = null; setOnlineStatus(false);
+                if (hasStarted) { clearTimeout(onlineRetryTimer); onlineRetryTimer = setTimeout(connectOnline, 4000); }
+            });
+        }
+        document.getElementById('chat-form').addEventListener('submit', event => {
+            event.preventDefault();
+            const input = document.getElementById('chat-input'); const message = input.value.trim();
+            if (!message) return;
+            if (onlineSocket && onlineSocket.readyState === WebSocket.OPEN) sendOnline({ type: 'chat', text: message });
+            else addChatLine('', 'Kết nối máy chủ để nhắn tin cùng cả làng.', true);
+            input.value = '';
+        });
+
+        window.addEventListener('keydown', e => {
+            if (isTypingTarget(e.target)) return;
+            keys[e.key.toLowerCase()] = true;
+        });
+        window.addEventListener('keyup', e => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        document.getElementById('map-name').innerText = maps[currentMap].name;
+
+        function addFloatingText(x, y, text, color) { floatingTexts.push({x: x, y: y, text: text, color: color, life: 40, maxLife: 40}); }
+        function drawFloatingTexts() {
+            ctx.font = 'bold 30px VT323'; ctx.textAlign = 'center';
+            floatingTexts.forEach((ft, i) => {
+                ft.y -= 1.5; ft.life--; ctx.fillStyle = ft.color; ctx.globalAlpha = Math.max(0, ft.life / ft.maxLife);
+                ctx.strokeStyle = '#000'; ctx.lineWidth = 4; ctx.strokeText(ft.text, ft.x - camera.x, ft.y - camera.y); ctx.fillText(ft.text, ft.x - camera.x, ft.y - camera.y);
+                if(ft.life <= 0) floatingTexts.splice(i, 1);
+            });
+            ctx.globalAlpha = 1; ctx.textAlign = 'left';
+        }
+
+        function spawnDust(x, y) { if(Math.random() < 0.4) { particles.push({x: x + (Math.random()-0.5)*15, y: y, life: 20, maxLife: 20, vx: (Math.random()-0.5)*1, vy: -Math.random()*0.5 - 0.2}); } }
+        function drawParticles() {
+            particles.forEach((p, i) => {
+                p.x += p.vx; p.y += p.vy; p.life--; ctx.fillStyle = `rgba(189, 195, 199, ${p.life/p.maxLife * 0.6})`;
+                ctx.beginPath(); ctx.arc(p.x - camera.x, p.y - camera.y, 5, 0, Math.PI*2); ctx.fill();
+                if(p.life <= 0) particles.splice(i, 1);
+            });
+        }
+        
+        function saveGame() {
+            try {
+                localStorage.setItem(SAVE_KEY, JSON.stringify({ kimTe, congDuc, upgrades, hasFilmora, hasShoes, hasBook, hasGym, playerName, playerXP, questState, shirt: player.shirt, batteriesCollected: cocoonBatteries.filter(b => b.collected).map(b => b.id), completedSideQuests: [...completedSideQuests], dailyKey, dailyContracts, petalPickedIds, leafCleanedIds }));
+            } catch (_) { /* Private browsing or full storage: keep the current session playable. */ }
+        }
+
+        function awardXP(amount) {
+            playerXP += amount;
+            const level = 1 + Math.floor(playerXP / 150);
+            document.getElementById('level-pill').innerText = `🌱 Cấp ${level} · ${playerXP} XP`;
+            if (level > 1 && playerXP % 150 < amount) addFloatingText(player.x + 12, player.y - 68, `LÊN CẤP ${level}!`, '#c7ef8d');
+            saveGame();
+        }
+
+        function updateEconomy(k, c) {
+            kimTe = Math.max(0, Math.floor(kimTe + k)); congDuc = Math.max(0, Math.floor(congDuc + c)); document.getElementById('diemKimTe').innerText = kimTe; document.getElementById('diemCongDuc').innerText = congDuc;
+            if(k > 0) addFloatingText(player.x + 12, player.y - 10, `+${k} 🪙`, '#f1c40f'); else if(k < 0) addFloatingText(player.x + 12, player.y - 10, `${k} 🪙`, '#e74c3c');
+            if(c > 0) addFloatingText(player.x + 12, player.y - 40, `+${c} 💖`, '#ff9ff3');
+            saveGame();
+        }
+
+        window.buyUpgrade = function(type, cost) {
+            if (upgrades[type]) return alert("Công trình này sếp đã xây rồi mà!");
+            if (kimTe >= cost) {
+                updateEconomy(-cost, 0); upgrades[type] = true; const upgradeButton = document.getElementById('upg-' + type); if (upgradeButton) { upgradeButton.innerText = "Đã Xây Dựng"; upgradeButton.disabled = true; }
+                let tb = tycoonBuildings.find(b => b.id === type); if(tb) tb.lastGen = Date.now();
+                registerContractEvent('build', type); awardXP(45);
+            } else alert("Sếp chưa đủ Kim Tệ!");
+        }
+        
+        window.buyItem = function(type, cost) {
+            if (kimTe >= cost) {
+                updateEconomy(-cost, 0);
+                if (type === 'shoes') { hasShoes = true; player.speed = 12; alert("Trang bị giày Eclipsion Z3! Tốc độ trượt bá đạo!"); }
+                if (type === 'filmora') { hasFilmora = true; alert("Đã mở khóa Filter Cinematic!"); }
+                if (type === 'book') { hasBook = true; updateEconomy(0, 100); alert("Khai sáng tư duy IELTS Task 2! +100 Công Đức"); }
+                if (type === 'gym') { hasGym = true; player.w = 32; player.h = 44; alert("Tập Gym California! Body cường tráng!"); }
+                document.getElementById('item-' + type).innerText = "Đã Sở Hữu"; document.getElementById('item-' + type).disabled = true;
+                saveGame();
+            } else alert("Sếp chưa đủ Kim Tệ!");
+        }
+
+        window.playGacha = function() {
+            if (kimTe < 100) return alert("Không đủ 100 Kim Tệ để quay!");
+            updateEconomy(-100, 0);
+            let roll = Math.random();
+            setTimeout(() => {
+                if (roll < 0.15 && !hasShoes) { hasShoes = true; player.speed = 12; saveGame(); alert("🎉 JACKPOT! Trúng Giày Yonex! Tốc độ siêu nhanh!"); }
+                else if (roll < 0.4) { updateEconomy(250, 0); alert("🎉 Chúc mừng! Quay trúng 250 Kim Tệ!"); }
+                else if (roll < 0.7) { updateEconomy(0, 50); alert("🎉 Nhận được Thẻ Công Đức (+50💖)"); }
+                else { alert("😅 Đen quá! Quay trúng... một củ khoai tây."); }
+            }, 300);
+        }
+
+        window.buyExploration = function(cost) {
+            if (kimTe < cost) return alert(`Sếp cần ${cost} Kim Tệ để thuê tàu lớn ra biển!`);
+            updateEconomy(-cost, 0);
+            alert("🌊 Tàu đang giong buồm ra khơi thám hiểm...");
+            setTimeout(() => {
+                let mayMan = Math.random();
+                if (mayMan < 0.4) {
+                    let thuong = cost * 3; // Lời gấp 3 lần
+                    updateEconomy(thuong, 0);
+                    alert(`🎣 Trúng đậm! Sếp vớt được rương kho báu khổng lồ trị giá ${thuong} 🪙!`);
+                } else {
+                    alert("🦀 Biển động mạnh, tàu sếp chỉ vớt được rác. Thua lỗ rồi!");
+                }
+            }, 1500);
+        }
+
+        function syncPurchaseUI() {
+            Object.entries(upgrades).forEach(([type, owned]) => {
+                const button = document.getElementById('upg-' + type);
+                if (button && owned) { button.innerText = 'Đã Xây Dựng'; button.disabled = true; }
+            });
+        [['shoes',hasShoes],['filmora',hasFilmora],['book',hasBook],['gym',hasGym]].forEach(([type,owned]) => {
+                const button = document.getElementById('item-' + type);
+                if (button && owned) { button.innerText = 'Đã Sở Hữu'; button.disabled = true; }
+            });
+        }
+        syncPurchaseUI();
+        document.getElementById('btn-upgrade').addEventListener('click', () => { syncPurchaseUI(); document.getElementById('upgrade-menu').classList.add('show-menu'); });
+
+const processAction = () => {
+            if (document.querySelector('.menu-popup.show-menu')) return;
+            if (collectNearbyActivity()) return;
+            let collected = false;
+            tycoonBuildings.forEach(b => {
+                if (currentMap === "town" && upgrades[b.id] && b.hasCoin) {
+                    let dxB = (player.x + player.w/2) - b.x; let dyB = (player.y + player.h/2) - b.y;
+                    
+                    // Vùng thu hoạch tiền đã được gỡ rối cú pháp
+                    if (Math.sqrt(dxB*dxB + dyB*dyB) < 100) { 
+                        b.hasCoin = false; 
+                        b.lastGen = Date.now(); 
+                        let thuNhap = (typeof viralTimer !== 'undefined' && viralTimer > 0) ? b.amount * 2 : b.amount; 
+                        updateEconomy(thuNhap, 0); 
+                        collected = true; 
+                    }
+                }
+            });
+            if (collected) return; 
+            if (dialogueActive) nextDialogue(); else if (activeNPC) startDialogue(activeNPC); 
+        };
+        const btnAction = document.getElementById('btn-action');
+        btnAction.addEventListener('touchstart', (e) => { e.preventDefault(); processAction(); }, {passive: false});
+        btnAction.addEventListener('mousedown', (e) => { e.preventDefault(); processAction(); });
+        window.addEventListener('keydown', e => { if (!e.repeat && !isTypingTarget(e.target) && !document.querySelector('.menu-popup.show-menu') && (e.key === ' ' || e.key === 'Enter')) processAction(); });
+
+        let questState = Number.isInteger(savedGame.questState) ? Math.max(0, Math.min(11, savedGame.questState)) : 0;
+        function updateQuestUI() {
+            const tracker = document.getElementById('quest-desc');
+            const quests = [
+                "Vào Nhà Thờ gặp Cha Xứ.", "Tìm Bà Trùm Cúc.", "Tìm Ca Trưởng Maria đang dạo quảng trường.",
+                "Vào Nhà Thờ báo cáo Cha Xứ.", "Admin Fanpage trốn ở Công Viên.", "Về Shop lấy quỹ phạt.",
+                "Nộp tiền cho Cha Xứ.", "Khuyên Boy Thất Tình ở bãi cỏ.",
+                "Giúp Intern Marketing chạy Plan IMC.", "Giải mã bí ẩn 8-7-1.",
+                "TÌM PIN COCOON: Thu gom 3 viên pin rơi quanh làng.", "Tự do cày tiền nâng cấp thị trấn!"
+            ];
+            tracker.innerText = `${quests[questState] || "Hãy khám phá và cày tiền xây làng!"}\n\n📜 Mở Sổ Tay để nhận hợp đồng cộng đồng`;
+            saveGame();
+        }
+
+        function getQuestTarget() {
+            if (questState === 0 || questState === 3 || questState === 6) return { map: "church", x: 500, y: 300, id: "cha_xu" };
+            if (questState === 1 || questState === 10) return { map: "house_trum", x: 300, y: 200, id: "ba_trum" };
+            if (questState === 2) return { map: "town", x: 2000, y: 1000, id: "maria" };
+            if (questState === 4) return { map: "town", x: 3600, y: 400, id: "admin" };
+            if (questState === 5) return { map: "shop", x: 300, y: 200, id: "thu_quy" };
+            if (questState === 7) return { map: "town", x: 500, y: 500, id: "boy_buon" };
+            if (questState === 8) return { map: "town", x: 1800, y: 1800, id: "intern" };
+            if (questState === 9) return { map: "town", x: 2200, y: 2000, id: "puzzle" };
+            if (questState === 10) {
+                let activeBattery = cocoonBatteries.find(b => !b.collected);
+                if(activeBattery) return { map: "town", x: activeBattery.x, y: activeBattery.y, id: "battery" };
+                else return { map: "house_trum", x: 300, y: 200, id: "ba_trum" }; 
+            }
+            return null;
+        }
+
+        const npcs = [
+            { id: "cha_xu", map: "church", name: "⛪ Cha Xứ", x: 500, y: 300, w: 24, h: 36, shirt: '#ecf0f1', hair: '#bdc3c7', dx: 0, dy: 0, timer: 0, getDialogue: () => { if (questState === 0) { questState = 1; updateQuestUI(); return ["Bà Trùm Cúc đang giận dữ.", "Con đi theo mũi tên vàng gặp bà ấy nhé."]; } if (questState === 3) { questState = 4; updateQuestUI(); return ["Thằng Admin vừa xài AI quên xóa logo...", "Nó đang trốn trên Công Viên!"]; } if (questState === 6) { questState = 7; updateQuestUI(); updateEconomy(0, 50); return ["Tốt lắm. (+50 Công đức).", "Ra khuyên thằng bé thất tình giùm Cha nha."]; } return ["Cha đang suy ngẫm bài giảng."]; } },
+            { id: "ba_trum", map: "house_trum", name: "👵 Bà Trùm", x: 300, y: 200, w: 24, h: 36, shirt: '#9b59b6', hair: '#7f8c8d', dx: 0, dy: 0, timer: 0, getDialogue: () => { if (questState === 1) { questState = 2; updateQuestUI(); return ["Ta tịch thu USB nhạc EDM rồi.", "Ra quảng trường tìm con Maria đòi lại giùm nó."]; } if (questState === 10) { if(batteriesCollected >= 3) { questState = 11; updateQuestUI(); updateEconomy(1000, 200); return ["Tuyệt vời! Đã đủ pin cho dự án tái chế Cocoon.", "Thưởng con 1000 Kim Tệ! Chiến dịch này trung tuổi ưng lắm!"]; } else return ["Dự án Cocoon cần 3 viên pin cũ ngoài làng.", "Con mới nhặt được " + batteriesCollected + "/3 viên thôi."]; } return ["Đi lễ nhớ ăn mặc đàng hoàng."]; } },
+            { id: "maria", map: "town", name: "👩‍🎤 Maria", x: 2000, y: 1000, w: 24, h: 36, shirt: '#ff9ff3', hair: '#e056fd', dx: 0, dy: 0, timer: 0, getDialogue: () => { if (questState === 2) { questState = 3; updateQuestUI(); return ["Dạ tụi em đổi hát acoustic thui, anh báo Cha Xứ yên tâm nhé!"]; } return ["La la la..."]; } },
+            { id: "admin", map: "town", name: "💻 Admin", x: 3600, y: 400, w: 24, h: 36, shirt: '#81ecec', hair: '#000', dx: 0, dy: 0, timer: 0, getDialogue: () => { if (questState === 4) { questState = 5; updateQuestUI(); return ["Trưởng ban chạy về Cửa Hàng lấy 500k đưa Cha in lại banner gấp giùm em!"]; } return ["Sợ deadline quá..."]; } },
+            { id: "thu_quy", map: "shop", name: "💰 Thủ Quỹ", x: 300, y: 200, w: 24, h: 36, shirt: '#f1c40f', hair: '#000', dx: 0, dy: 0, timer: 0, getDialogue: () => { if (questState === 5) { questState = 6; updateQuestUI(); updateEconomy(500, 0); return ["Đây là 500 Kim Tệ, sếp mang vào nhà thờ đưa Cha nha."]; } return ["Chào sếp! Muốn thử Gacha thì mở Cửa Hàng nhé!"]; }, sideQuest: { prompt: "Mở Cửa Hàng & Gacha?", rewardK: 0, rewardC: 0, acceptMsg: "Đang tải danh mục...", rejectMsg: "Hẹn sếp khi khác.", openShop: true } },
+            { id: "boy_buon", map: "town", name: "💔 Boy Thất Tình", x: 500, y: 500, w: 24, h: 36, shirt: '#2ecc71', hair: '#e67e22', dx: 0, dy: 0, timer: 0, getDialogue: () => { if (questState === 7) { questState = 8; updateQuestUI(); updateEconomy(200, 100); return ["Gì cơ? Đi tu phải học 10 năm lận hả sếp?", "Thôi em về cày game tiếp đây. Tặng sếp 200 🪙."]; } return ["Thất tình buồn quá sếp ơi..."]; } },
+            { id: "intern", map: "town", name: "📊 Intern Marketing", x: 1800, y: 1800, w: 24, h: 36, shirt: '#9b59b6', hair: '#e74c3c', dx: 0, dy: 0, timer: 0, getDialogue: () => { if(questState === 8) { return ["Sếp ơi cứu em!", "Em đang lên Master Plan IMC năm 2027 cho nhãn hàng Malto-LOF.", "Theme chiến dịch là 'Đủ', nhưng timeline dài lê thê quá..."]; } return ["Plan Master chạy mượt lắm sếp ạ."]; }, sideQuest: { prompt: "Sửa Plan: Rút gọn chạy 4 tuần thôi!", rewardK: 400, rewardC: 80, acceptMsg: "Sếp chốt chuẩn quá! Khởi động Master Plan 4 tuần chủ đề 'Đủ' ngay!", rejectMsg: "Khách chê plan dài quá sếp ơi...", isMainQuest: true } },
+            { id: "puzzle", map: "town", name: "🧩 Trùm Giải Đố", x: 2200, y: 2000, w: 24, h: 36, shirt: '#3498db', hair: '#fff', dx: 0, dy: 0, timer: 0, getDialogue: () => { if(questState === 9) { return ["Đố sếp biết thông điệp bí mật của sự kiện là gì?", "Gợi ý: Cấu trúc của nó là 8 chữ - 7 chữ - 1 chữ."]; } return ["Bí ẩn 8-7-1..."]; }, sideQuest: { prompt: "Giải mã: TUYỆTVỜI VĂNLANG A !", rewardK: 500, rewardC: 100, acceptMsg: "Sếp giải đố đỉnh quá! Tìm Bà Trùm nha.", rejectMsg: "Khó quá bỏ qua ha sếp.", isMainQuest: true } },
+
+            { map: "highlands", name: "💻 Web Dev (F8)", x: 400, y: 200, w: 24, h: 36, shirt: '#000', hair: '#bdc3c7', dx: 0, dy: 0, timer: 0, getDialogue: () => ["Mới học HTML CSS trên F8 mà bug hoài...", "Ngồi Highlands cả ngày mà code không chạy sếp ạ."], sideQuest: { prompt: "Fix bug HTML/CSS dùm? (+250 🪙)", rewardK: 250, rewardC: 20, acceptMsg: "Mượt rồi sếp ơi! Đúng là chuyên gia!", rejectMsg: "Thôi sếp để em tự mò StackOverflow." } },
+            { map: "kpub", name: "🥩 Bếp Trưởng K-PUB", x: 300, y: 150, w: 24, h: 36, shirt: '#fff', hair: '#000', dx: 0, dy: 0, timer: 0, getDialogue: () => ["Khách VIP đòi order 10 mâm thịt nướng BBQ.", "Sếp phụ em tẩm ướp gia vị một tay được không?"], sideQuest: { prompt: "Nêm nếm gia vị? (+300 🪙)", rewardK: 300, rewardC: 10, acceptMsg: "Ngon bá cháy bọ chét sếp ơi! Lên mâm!", rejectMsg: "Chắc sếp chê dầu mỡ." } },
+
+            { map: "house_anna", name: "⛪ Sơ Anna", x: 250, y: 200, w: 24, h: 36, shirt: '#fff', hair: '#333', dx: 0, dy: 0, timer: 0, getDialogue: () => ["Bình an của Chúa ở cùng con.", "Vườn rụng nhiều lá quá, con quét sân phụ Sơ nhé?"], sideQuest: { prompt: "Nhận quét sân? (+50 🪙)", rewardK: 50, rewardC: 10, acceptMsg: "Con quét sạch bong rồi nha Sơ. Cảm tạ Chúa!", rejectMsg: "Dạ con đang bận việc ạ." } },
+            { map: "house_tu", name: "👴 Ông Tư", x: 250, y: 200, w: 24, h: 36, shirt: '#7f8c8d', hair: '#bdc3c7', dx: 0, dy: 0, timer: 0, getDialogue: () => ["Khụ khụ... Mái nhà ông dột quá.", "Trưởng ban trai tráng, leo lên sửa phụ ông một tay được không?"], sideQuest: { prompt: "Sửa mái nhà? (+150 🪙)", rewardK: 150, rewardC: 5, acceptMsg: "Cám ơn con trai. Trưởng ban đúng là số dách!", rejectMsg: "Ông ráng đợi thợ nha ông." } },
+            { map: "house_nam", name: "🎮 Thanh Niên Nam", x: 250, y: 200, w: 24, h: 36, shirt: '#e84118', hair: '#00a8ff', dx: 0, dy: 0, timer: 0, getDialogue: () => ["Sếp ơi, máy lạnh phòng giới trẻ hư rồi.", "Sếp chạy đi mua gas bơm giùm em nghen?"], sideQuest: { prompt: "Chạy vặt? (+80 🪙)", rewardK: 80, rewardC: 0, acceptMsg: "Tuyệt vời, để em vô chiến game tiếp.", rejectMsg: "Sếp chảnh quá nha." } },
+            { map: "town", name: "🏸 Tuyển Thủ", x: 1300, y: 2300, w: 24, h: 36, shirt: '#f39c12', hair: '#2c3e50', dx: 0, dy: 0, timer: 0, getDialogue: () => ["Sân chuẩn BWF đánh êm quá sếp!", "Sếp rảnh căng dùm em cây vợt Yonex 11kg với?"], sideQuest: { prompt: "Căng vợt 11kg? (+150 🪙)", rewardK: 150, rewardC: 5, acceptMsg: "Tension chuẩn quá, đập nổ sân luôn!", rejectMsg: "Để em đem ra tiệm vậy." } },
+            { map: "hotpot", name: "🍲 Chủ Quán Lẩu", x: 300, y: 200, w: 24, h: 36, shirt: '#e67e22', hair: '#000', dx: 0, dy: 0, timer: 0, getDialogue: () => ["Chào Trưởng ban, quán em đang cháy hàng.", "Sếp chạy đi mua thêm thịt bò giùm em được không?"], sideQuest: { prompt: "Mua đồ tiếp tế? (+120 🪙)", rewardK: 120, rewardC: 5, acceptMsg: "Có đồ rồi, cám ơn sếp!", rejectMsg: "Để em kêu Grab dặm vậy." } }
+        ];
+
+        const dayStamp = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+        let dailyKey = dayStamp();
+        const contractPool = [
+            { id: 'talk', title: 'Chuyện trò quanh xứ', description: 'Làm quen với 3 cư dân khác nhau.', target: 3, rewardK: 180, rewardC: 20 },
+            { id: 'explore', title: 'Một vòng thị trấn', description: 'Ghé thăm 3 khu vực khác nhau.', target: 3, rewardK: 220, rewardC: 15 },
+            { id: 'gather', title: 'Sắc hoa sân nhà', description: 'Nhặt 5 bông hoa dại quanh làng bằng phím E.', target: 5, rewardK: 240, rewardC: 25 },
+            { id: 'clean', title: 'Đường làng sạch đẹp', description: 'Dọn 3 đống lá vàng bằng phím E.', target: 3, rewardK: 160, rewardC: 35 },
+            { id: 'build', title: 'Góp một viên gạch', description: 'Xây một công trình mới cho thị trấn.', target: 1, rewardK: 260, rewardC: 30 }
+        ];
+        const makeDailyContracts = () => {
+            const seed = new Date().getFullYear() * 372 + (new Date().getMonth()+1) * 31 + new Date().getDate();
+            return [0, 1, 2].map((offset) => {
+                const template = contractPool[(seed + offset * 2) % contractPool.length];
+                return { ...template, progress: 0, accepted: false, claimed: false, unique: [] };
+            });
+        };
+        let dailyContracts = savedGame.dailyKey === dailyKey && Array.isArray(savedGame.dailyContracts)
+            ? savedGame.dailyContracts.filter(q => q && contractPool.some(t => t.id === q.id)).slice(0, 3).map(q => {
+                const template = contractPool.find(t => t.id === q.id);
+                return { ...q, ...template, progress: Number.isFinite(q.progress) ? Math.max(0, Math.min(template.target, Math.floor(q.progress))) : 0, accepted: !!q.accepted, claimed: !!q.claimed, unique: Array.isArray(q.unique) ? q.unique : [] };
+            })
+            : makeDailyContracts();
+        const petals = [
+            {x:850,y:820},{x:1450,y:930},{x:2850,y:1080},{x:3500,y:2050},{x:950,y:1780},
+            {x:1550,y:2480},{x:2700,y:2360},{x:800,y:550},{x:2900,y:450},{x:1500,y:1650}
+        ];
+        let petalPickedIds = savedGame.dailyKey === dailyKey && Array.isArray(savedGame.petalPickedIds) ? savedGame.petalPickedIds : [];
+        let leafCleanedIds = savedGame.dailyKey === dailyKey && Array.isArray(savedGame.leafCleanedIds) ? savedGame.leafCleanedIds : [];
+        const leafPiles = [{x:1100,y:900},{x:2800,y:2050},{x:1550,y:1700}];
+
+        function renderContractBoard() {
+            const host = document.getElementById('contract-list');
+            host.innerHTML = dailyContracts.map(q => {
+                const complete = q.progress >= q.target;
+                const action = q.claimed ? 'claimed' : complete ? 'claim' : q.accepted ? 'active' : 'accept';
+                const label = { claimed: 'Đã nhận thưởng ✓', claim: 'Nhận thưởng', active: 'Đang thực hiện', accept: 'Nhận hợp đồng' }[action];
+                return `<article class="contract-card"><h3>${q.title}</h3><p>${q.description}</p><div class="contract-meta"><span>${q.progress}/${q.target} mục tiêu</span><span>🪙 ${q.rewardK} · 💖 ${q.rewardC} · XP +65</span></div><div class="contract-actions"><button data-contract="${q.id}" data-action="${action}" ${action === 'claimed' || action === 'active' ? 'disabled' : ''}>${label}</button></div></article>`;
+            }).join('');
+        }
+
+        function registerContractEvent(type, detail = '') {
+            dailyContracts.forEach(q => {
+                if (!q.accepted || q.claimed || q.id !== type) return;
+                if (['talk', 'explore'].includes(type)) {
+                    if (q.unique.includes(detail)) return;
+                    q.unique.push(detail);
+                }
+                q.progress = Math.min(q.target, q.progress + 1);
+                if (q.progress === q.target) addFloatingText(player.x + 12, player.y - 48, 'HỢP ĐỒNG HOÀN THÀNH!', '#c7ef8d');
+            });
+            renderContractBoard(); saveGame();
+        }
+
+        document.getElementById('btn-questboard').addEventListener('click', () => { renderContractBoard(); document.getElementById('quest-board').classList.add('show-menu'); });
+        document.getElementById('quest-board-close').addEventListener('click', () => document.getElementById('quest-board').classList.remove('show-menu'));
+        document.getElementById('contract-list').addEventListener('click', event => {
+            const button = event.target.closest('button[data-contract]');
+            if (!button) return;
+            const contract = dailyContracts.find(q => q.id === button.dataset.contract);
+            if (!contract) return;
+            if (button.dataset.action === 'accept') contract.accepted = true;
+            if (button.dataset.action === 'claim' && contract.progress >= contract.target && !contract.claimed) {
+                contract.claimed = true; updateEconomy(contract.rewardK, contract.rewardC); awardXP(65);
+            }
+            renderContractBoard(); saveGame();
+        });
+
+        function collectNearbyActivity() {
+            if (currentMap !== 'town') return false;
+            const px = player.x + player.w/2, py = player.y + player.h/2;
+            const petalIndex = petals.findIndex((p, i) => !petalPickedIds.includes(i) && Math.hypot(px-p.x, py-p.y) < 54);
+            if (petalIndex !== -1) {
+                petalPickedIds.push(petalIndex); updateEconomy(15, 2); registerContractEvent('gather'); awardXP(8);
+                addFloatingText(player.x, player.y - 20, '🌼 Hoa dại +15', '#ffdf91'); saveGame(); return true;
+            }
+            const leafIndex = leafPiles.findIndex((p, i) => !leafCleanedIds.includes(i) && Math.hypot(px-p.x, py-p.y) < 62);
+            if (leafIndex !== -1) {
+                leafCleanedIds.push(leafIndex); updateEconomy(20, 8); registerContractEvent('clean'); awardXP(12);
+                addFloatingText(player.x, player.y - 20, '🍂 Sân sạch rồi!', '#c7ef8d'); saveGame(); return true;
+            }
+            return false;
+        }
+
+        let dialogueActive = false; let currentDialogueLines = []; let currentLineIndex = 0; let currentCharIndex = 0;
+        let isTyping = false; let typeTimer; let activeNPC = null; let displayedText = ""; 
+
+        function startDialogue(npc) {
+            dialogueActive = true; activeNPC = npc; currentDialogueLines = npc.getDialogue(); currentLineIndex = 0;
+            registerContractEvent('talk', npc.id);
+            document.getElementById('dialogue-box').classList.add('show-dialogue'); document.getElementById('npc-name').innerText = npc.name;
+            document.getElementById('dialogue-options').style.display = 'none'; document.getElementById('dlg-hint').style.display = 'block';
+            if (interactHint) interactHint.style.display = 'none'; typeLine();
+        }
+
+        function typeLine() {
+            isTyping = true; currentCharIndex = 0; displayedText = ""; document.getElementById('dialogue-text').innerText = '';
+            clearInterval(typeTimer);
+            typeTimer = setInterval(() => {
+                displayedText += currentDialogueLines[currentLineIndex][currentCharIndex];
+                document.getElementById('dialogue-text').innerText = displayedText;
+                currentCharIndex++;
+                if (currentCharIndex >= currentDialogueLines[currentLineIndex].length) { 
+                    clearInterval(typeTimer); isTyping = false; 
+                    if (currentLineIndex === currentDialogueLines.length - 1 && activeNPC.sideQuest && !completedSideQuests.has(activeNPC.id)) {
+                        let isValidQuest = !activeNPC.sideQuest.isMainQuest || (activeNPC.id === "intern" && questState === 8) || (activeNPC.id === "puzzle" && questState === 9) || (activeNPC.id === "ba_trum" && questState === 10 && batteriesCollected >= 3);
+                        if(isValidQuest) {
+                            document.getElementById('dialogue-text').innerText = displayedText + "\n\n👉 " + activeNPC.sideQuest.prompt;
+                            document.getElementById('dialogue-options').style.display = 'flex'; document.getElementById('dlg-hint').style.display = 'none';
+                        }
+                    }
+                }
+            }, 25);
+        }
+
+        function nextDialogue() {
+            if (isTyping) { 
+                clearInterval(typeTimer); document.getElementById('dialogue-text').innerText = currentDialogueLines[currentLineIndex]; isTyping = false; 
+                if (currentLineIndex === currentDialogueLines.length - 1 && activeNPC.sideQuest && !completedSideQuests.has(activeNPC.id)) {
+                    let isValidQuest = !activeNPC.sideQuest.isMainQuest || (activeNPC.id === "intern" && questState === 8) || (activeNPC.id === "puzzle" && questState === 9) || (activeNPC.id === "ba_trum" && questState === 10 && batteriesCollected >= 3);
+                    if(isValidQuest) {
+                        document.getElementById('dialogue-text').innerText += "\n\n👉 " + activeNPC.sideQuest.prompt;
+                        document.getElementById('dialogue-options').style.display = 'flex'; document.getElementById('dlg-hint').style.display = 'none';
+                    }
+                }
+            } else { 
+                if (currentLineIndex === currentDialogueLines.length - 1) {
+                    let isValidQuest = activeNPC.sideQuest && !completedSideQuests.has(activeNPC.id) && (!activeNPC.sideQuest.isMainQuest || (activeNPC.id === "intern" && questState === 8) || (activeNPC.id === "puzzle" && questState === 9) || (activeNPC.id === "ba_trum" && questState === 10 && batteriesCollected >= 3));
+                    // SỬA LỖI ĐỨNG IM: Nếu không phải nhiệm vụ hợp lệ, cho phép tự động đóng hộp thoại
+                    if (isValidQuest) return; 
+                    else closeDialogue(); 
+                } else {
+                    currentLineIndex++; typeLine(); 
+                }
+            }
+        }
+
+        function closeDialogue() { dialogueActive = false; activeNPC = null; document.getElementById('dialogue-box').classList.remove('show-dialogue'); }
+
+        document.getElementById('opt-accept').addEventListener('click', () => {
+            if (activeNPC && activeNPC.sideQuest) {
+                if (activeNPC.sideQuest.openShop) { closeDialogue(); document.getElementById('item-shop-menu').classList.add('show-menu'); return; }
+                if (activeNPC.sideQuest.isMainQuest) { questState++; updateQuestUI(); }
+                completedSideQuests.add(activeNPC.id);
+                updateEconomy(activeNPC.sideQuest.rewardK, activeNPC.sideQuest.rewardC);
+                awardXP(activeNPC.sideQuest.isMainQuest ? 100 : 35);
+                document.getElementById('dialogue-options').style.display = 'none'; document.getElementById('dialogue-text').innerText = activeNPC.sideQuest.acceptMsg;
+                setTimeout(closeDialogue, 2000);
+            }
+        });
+        
+        document.getElementById('opt-reject').addEventListener('click', () => {
+            if (activeNPC && activeNPC.sideQuest) {
+                document.getElementById('dialogue-options').style.display = 'none'; document.getElementById('dialogue-text').innerText = activeNPC.sideQuest.rejectMsg;
+                setTimeout(closeDialogue, 1500);
+            }
+        });
+
+        // Phím E mở hội thoại hoặc nhặt hoạt động gần nhất.
+        window.addEventListener('keydown', e => { 
+            if (!e.repeat && !isTypingTarget(e.target) && e.key.toLowerCase() === 'e' && !dialogueActive && !document.querySelector('.menu-popup.show-menu')) processAction(); 
+        });
+
+        // PROCEDURAL GRAPHICS OVERHAUL
+        function drawRect(x, y, w, h, color) { ctx.fillStyle = color; ctx.fillRect(Math.floor(x - camera.x), Math.floor(y - camera.y), w, h); }
+        
+        function drawCharacter(x, y, w, h, shirt, hair, isMoving, faceRight) {
+            let cx = x - camera.x; let cy = y - camera.y; if (cx < -w || cx > GAME_WIDTH || cy < -h || cy > GAME_HEIGHT) return;
+            
+            // Tính toán nhịp bước đi bằng hàm lượng giác
+            let time = Date.now();
+            let walkCycle = isMoving ? Math.sin(time / 100) : 0; 
+            let breathCycle = !isMoving ? Math.sin(time / 300) * 1.5 : 0;
+            let dyOffset = isMoving ? Math.abs(walkCycle) * -3 : breathCycle; 
+
+            // Vẽ Bóng dưới chân
+            ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(cx + w/2, cy + h, w/2, 4, 0, 0, Math.PI*2); ctx.fill();
+            
+            // Nhân vật dạng sprite bo góc, có viền sáng và chi tiết áo/quần.
+            const radius = Math.min(5, Math.max(2, w * .18));
+            ctx.fillStyle = '#273b38';
+            let legSwing = isMoving ? walkCycle * 6 : 0;
+            ctx.beginPath(); ctx.roundRect(cx + 4 + legSwing, cy + h - 10 + dyOffset, w/2 - 4, 9, 3); ctx.fill();
+            ctx.beginPath(); ctx.roundRect(cx + w/2 - legSwing, cy + h - 10 + dyOffset, w/2 - 4, 9, 3); ctx.fill();
+
+            ctx.fillStyle = '#d89d70';
+            ctx.beginPath(); ctx.roundRect(cx + (faceRight ? 1 : w-6) - legSwing, cy + 20 + dyOffset, 5, 11, 2); ctx.fill();
+
+            ctx.fillStyle = '#f1c9a5'; ctx.beginPath(); ctx.roundRect(cx + 2, cy + 4 + dyOffset, w - 4, 13, radius); ctx.fill();
+            ctx.fillStyle = hair; ctx.beginPath(); ctx.roundRect(cx + 1, cy + dyOffset, w - 2, 8, [5,5,2,2]); ctx.fill();
+            ctx.fillStyle = '#f4d8b9'; ctx.fillRect(cx + 4, cy + 13 + dyOffset, Math.max(4,w-8), 2);
+            
+            ctx.fillStyle = '#342a28';
+            ctx.fillRect(cx + (faceRight ? w-8 : 5), cy + 9 + dyOffset, 2, 2);
+            ctx.fillStyle = 'rgba(196,112,91,.55)'; ctx.fillRect(cx + (faceRight ? w-11 : 4), cy + 13 + dyOffset, 3, 2);
+            
+            ctx.fillStyle = shirt; ctx.beginPath(); ctx.roundRect(cx + 2, cy + 16 + dyOffset, w - 4, h - 24, radius); ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,.33)'; ctx.fillRect(cx + w/2 - 1, cy + 18 + dyOffset, 2, Math.max(5,h-29));
+
+            ctx.fillStyle = '#e5ad82';
+            ctx.beginPath(); ctx.roundRect(cx + (faceRight ? w-6 : 2) + legSwing, cy + 19 + dyOffset, 5, 11, 2); ctx.fill();
+        }
+
+        // TEXTURED HOUSES CAO CẤP (Đổ bóng thời gian thực)
+        function drawHouse(x, y, w, h, color, roofColor, labelText, isBrick = false) {
+            let cx = x - camera.x; let cy = y - camera.y; if (cx < -w-200 || cx > GAME_WIDTH+200 || cy < -h-200 || cy > GAME_HEIGHT+200) return;
+            
+            // Tính toán bóng đổ (Dynamic Drop Shadow) nghiêng theo giờ
+            let tDay = (Date.now() % 120000) / 120000; 
+            let shadowOffset = Math.sin(tDay * Math.PI * 2) * 50; 
+            ctx.fillStyle = 'rgba(0,0,0,0.35)';
+            ctx.beginPath(); ctx.moveTo(cx, cy + h); ctx.lineTo(cx + w, cy + h); 
+            ctx.lineTo(cx + w + shadowOffset, cy + h - 40); ctx.lineTo(cx + shadowOffset, cy + h - 40); ctx.fill();
+            
+            ctx.fillStyle = color; ctx.fillRect(cx, cy, w, h); 
+
+            if (isBrick) {
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                for(let i=0; i<h; i+=10) { for(let j=0; j<w; j+=20) { let offset = (i/10)%2 === 0 ? 0 : 10; ctx.fillRect(cx + j + offset, cy + i, 18, 8); } }
+            } else {
+                ctx.fillStyle = 'rgba(0,0,0,0.15)'; for(let i = 10; i < h; i+=15) { ctx.fillRect(cx, cy + i, w, 2); }
+            }
+            
+            ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(cx, cy + h - 20, w, 20); 
+
+            ctx.fillStyle = roofColor; ctx.beginPath(); ctx.moveTo(cx - 25, cy); ctx.lineTo(cx + w/2, cy - 90); ctx.lineTo(cx + w + 25, cy); ctx.fill(); 
+            ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 4; ctx.stroke(); 
+            ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 20, cy-2); ctx.lineTo(cx + w/2, cy - 88); ctx.lineTo(cx + w + 20, cy-2); ctx.stroke();
+
+            ctx.fillStyle = '#4e342e'; ctx.fillRect(cx + w/2 - 22, cy + h - 55, 44, 55); 
+            ctx.fillStyle = '#5d4037'; ctx.fillRect(cx + w/2 - 18, cy + h - 52, 36, 52); 
+            ctx.fillStyle = '#f1c40f'; ctx.beginPath(); ctx.arc(cx + w/2 + 10, cy + h - 25, 4, 0, Math.PI*2); ctx.fill(); 
+
+            const drawWindow = (wx, wy) => {
+                ctx.fillStyle = '#3e2723'; ctx.fillRect(wx - 4, wy - 4, 38, 38); 
+                let isNight = Math.sin(tDay * Math.PI * 2) > 0.3;
+                if (isNight) { ctx.shadowBlur = 25; ctx.shadowColor = 'rgba(241, 196, 15, 1)'; ctx.fillStyle = '#f1c40f'; } 
+                else { ctx.fillStyle = '#85c1e9'; }
+                ctx.fillRect(wx, wy, 30, 30); ctx.shadowBlur = 0; 
+                ctx.fillStyle = '#3e2723'; ctx.fillRect(wx + 13, wy, 4, 30); ctx.fillRect(wx, wy + 13, 30, 4);
+            };
+            drawWindow(cx + 20, cy + 30); drawWindow(cx + w - 50, cy + 30);
+
+            if (labelText) { 
+                ctx.fillStyle = '#5d4037'; ctx.fillRect(cx + w/2 - 80, cy - 30, 160, 35); 
+                ctx.strokeStyle = '#d35400'; ctx.lineWidth = 4; ctx.strokeRect(cx + w/2 - 80, cy - 30, 160, 35);
+                ctx.fillStyle = '#f1c40f'; ctx.font = 'bold 22px VT323'; ctx.textAlign = 'center'; ctx.fillText(labelText, cx + w/2, cy - 5); ctx.textAlign = 'left'; 
+            }
+
+            ctx.fillStyle = '#1e8449'; ctx.beginPath(); ctx.arc(cx, cy + h, 25, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(cx + w, cy + h, 25, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#2ecc71'; ctx.beginPath(); ctx.arc(cx - 5, cy + h - 5, 15, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(cx + w + 5, cy + h - 5, 15, 0, Math.PI*2); ctx.fill();
+        }
+
+        // CÂY CỐI CAO CẤP (Hoạt hình Gió thổi)
+        function drawTree(x, y) {
+            let cx = x - camera.x; let cy = y - camera.y; if (cx < -150 || cx > GAME_WIDTH + 150 || cy < -150 || cy > GAME_HEIGHT + 150) return;
+            
+            // Tính toán lực gió (Wind Sway)
+            let t = Date.now() / 800;
+            let sway = Math.sin(t + x/200) * 8; 
+            let breath = Math.cos(t * 1.5 + y/200) * 2; 
+
+            // Bóng cây
+            ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(cx + 25, cy + 80, 40, 15, 0, 0, Math.PI*2); ctx.fill();
+            
+            // Thân cây
+            let trunkGrad = ctx.createLinearGradient(cx + 15, 0, cx + 35, 0); trunkGrad.addColorStop(0, '#5c3a21'); trunkGrad.addColorStop(1, '#8e5834'); 
+            ctx.fillStyle = trunkGrad; ctx.fillRect(cx + 15, cy + 40, 20, 45);
+            
+            // Tán cây (Lắc lư theo gió)
+            const drawLeafCluster = (lx, ly, radius, baseColor, highlightColor) => {
+                ctx.fillStyle = baseColor; ctx.beginPath(); ctx.arc(lx + sway, ly + breath, radius + breath/2, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = highlightColor; ctx.beginPath(); ctx.arc(lx + sway - radius*0.2, ly + breath - radius*0.2, (radius*0.6) + breath/2, 0, Math.PI*2); ctx.fill();
+            };
+            drawLeafCluster(cx + 25, cy + 25, 45, '#196f3d', '#27ae60'); 
+            drawLeafCluster(cx, cy + 10, 35, '#1e8449', '#2ecc71'); 
+            drawLeafCluster(cx + 50, cy + 10, 35, '#1e8449', '#2ecc71'); 
+            drawLeafCluster(cx + 25, cy - 20, 35, '#229954', '#58d68d');
+        }
+
+        // CẬP NHẬT: HỖ TRỢ VẼ CẢ ĐƯỜNG ĐẤT LẪN ĐƯỜNG ĐÁ
+        function drawPathRect(x, y, w, h, isStone) {
+            let cx = x - camera.x; let cy = y - camera.y;
+            ctx.fillStyle = isStone ? '#95a5a6' : '#d4b483'; // Màu xám cho Đá, Cát vàng cho Đất
+            ctx.beginPath(); ctx.roundRect(cx, cy, w, h, 15); ctx.fill();
+            ctx.strokeStyle = isStone ? '#7f8c8d' : '#c49c63'; ctx.lineWidth = 4; ctx.beginPath(); ctx.roundRect(cx+2, cy+2, w-4, h-4, 13); ctx.stroke();
+            
+            // Sỏi đá chi tiết
+            ctx.fillStyle = isStone ? '#bdc3c7' : '#bfa57d';
+            for(let i=10; i<w-10; i+=30) {
+                for(let j=10; j<h-10; j+=30) {
+                    if((i+j)%4===0) { ctx.beginPath(); ctx.arc(cx+i, cy+j, 4, 0, Math.PI*2); ctx.fill(); }
+                }
+            }
+        }
+
+        // WOOD FENCE
+        function drawFence(x, y, w, h) {
+            let cx = x - camera.x; let cy = y - camera.y;
+            ctx.fillStyle = '#8B4513';
+            if (w > h) { // Horizontal fence
+                ctx.fillRect(cx, cy + 10, w, 5); ctx.fillRect(cx, cy + 25, w, 5);
+                for(let i=0; i<=w; i+=30) { ctx.fillRect(cx+i, cy, 8, 40); ctx.fillStyle='#A0522D'; ctx.fillRect(cx+i+2, cy+2, 4, 36); ctx.fillStyle='#8B4513'; }
+            } else { // Vertical fence
+                ctx.fillRect(cx + 10, cy, 5, h); ctx.fillRect(cx + 25, cy, 5, h);
+                for(let i=0; i<=h; i+=30) { ctx.fillRect(cx, cy+i, 40, 8); ctx.fillStyle='#A0522D'; ctx.fillRect(cx+2, cy+i+2, 36, 4); ctx.fillStyle='#8B4513'; }
+            }
+        }
+
+        function update() {
+            const currentMapData = maps[currentMap];
+            if (viralTimer > 0) viralTimer--; // Trừ dần thời gian chiến dịch
+            // Xử lý Thời tiết Mưa
+            let isRaining = (Date.now() % 240000) < 60000; // Mưa 1 phút mỗi 4 phút
+            
+            // Mỗi chu kỳ chỉ phát sinh một lần; các nâng cấp thật sự rút ngắn thời gian thu nhập.
+            tycoonBuildings.forEach(b => {
+                if (!upgrades[b.id] || b.hasCoin) return;
+                let currentRate = b.rate;
+                if (upgrades.avatar) currentRate /= 2;
+                if (isRaining && b.id === 'highlands') currentRate /= 1.5;
+                if (Date.now() - b.lastGen <= currentRate) return;
+                if (upgrades.ebuzz) {
+                    b.lastGen = Date.now(); updateEconomy(b.amount, 0);
+                    if (currentMap === 'town') addFloatingText(b.x, b.y - 40, `+${b.amount} (E-Buzz)`, '#f1c40f');
+                } else b.hasCoin = true;
+            });
+
+            // Logic Trạm MindCare sinh Công Đức mỗi 25s
+            if (upgrades.mindcare && Date.now() - mindcareTimer > 25000) {
+                updateEconomy(0, 15); mindcareTimer = Date.now();
+                if (currentMap === "town") addFloatingText(1850, 1450, "+15💖 Chữa Lành", "#ff9ff3");
+            }
+            
+            // Trạm Pin Cocoon sinh Công Đức
+            if (upgrades.cocoon && Date.now() - ecoTimer > 15000) {
+                updateEconomy(0, 15); ecoTimer = Date.now();
+                if (currentMap === "town") addFloatingText(1850, 1350, "+15💖 Tái chế", "#2ecc71");
+            }
+
+            // Giảm tốc độ nếu trời mưa (trừ khi có giày Yonex)
+            player.speed = hasShoes ? 12 : 6;
+            if (isRaining && !hasShoes) player.speed = 4;
+
+            if (questState === 10 && currentMap === "town") {
+                cocoonBatteries.forEach(b => {
+                    if(!b.collected) {
+                        let dxb = (player.x + player.w/2) - b.x; let dyb = (player.y + player.h/2) - b.y;
+                        if (Math.hypot(dxb, dyb) < 30) {
+                            b.collected = true; batteriesCollected++;
+                            addFloatingText(player.x, player.y, "+1 Lõi Pin Cocoon", "#2ecc71");
+                            awardXP(20); saveGame();
+                        }
+                    }
+                });
+            }
+            if (!dialogueActive) {
+                player.isMoving = false; let dx = 0; let dy = 0;
+                
+                if (keys['w'] || keys['arrowup']) dy = -player.speed; if (keys['s'] || keys['arrowdown']) dy = player.speed;
+                if (keys['a'] || keys['arrowleft']) { dx = -player.speed; player.facingRight = false; } if (keys['d'] || keys['arrowright']) { dx = player.speed; player.facingRight = true; }
+
+                if (player.joyX !== 0 || player.joyY !== 0) { dx = player.joyX * player.speed; dy = player.joyY * player.speed; if (player.joyX > 0.1) player.facingRight = true; if (player.joyX < -0.1) player.facingRight = false; }
+
+if (dx !== 0 || dy !== 0) {
+                    player.isMoving = true; if (dx !== 0 && dy !== 0 && player.joyX === 0 && player.joyY === 0) { dx *= 0.707; dy *= 0.707; }
+                    player.x = Math.max(0, Math.min(currentMapData.w - player.w, player.x + dx)); player.y = Math.max(0, Math.min(currentMapData.h - player.h, player.y + dy));
+                    spawnDust(player.x + 12, player.y + 36);
+                }
+
+                // CƠ CHẾ KIỂM TRA CHUYỂN MAP (ĐÃ FIX)
+                doors.forEach(door => {
+                    // Kiểm tra xem công trình đã được nâng cấp chưa (nếu yêu cầu)
+                    if (!door.reqUpgrade || upgrades[door.reqUpgrade]) {
+                        // Tính toán vùng va chạm (Hitbox) của cửa và người chơi
+                        let pRight = player.x + player.w;
+                        let pBottom = player.y + player.h;
+                        let dRight = door.x + door.w;
+                        let dBottom = door.y + door.h;
+
+                        // Nếu người chơi chạm vào cửa -> Chuyển Map
+                        if (currentMap === door.map && player.x < dRight && pRight > door.x && player.y < dBottom && pBottom > door.y) {
+                            currentMap = door.targetMap; 
+                            player.x = door.tx; 
+                            player.y = door.ty; 
+                            document.getElementById('map-name').innerText = maps[currentMap].name;
+                            registerContractEvent('explore', currentMap); saveGame();
+                        }
+                    }
+                });
+
+                activeNPC = npcs.find(npc => npc.map === currentMap && Math.hypot((player.x + player.w/2) - (npc.x + npc.w/2), (player.y + player.h/2) - (npc.y + npc.h/2)) < 60);
+                if (interactHint) {
+                    const nearPetal = currentMap === 'town' && petals.some((p,i) => !petalPickedIds.includes(i) && Math.hypot(player.x+player.w/2-p.x,player.y+player.h/2-p.y)<54);
+                    const nearLeaves = currentMap === 'town' && leafPiles.some((p,i) => !leafCleanedIds.includes(i) && Math.hypot(player.x+player.w/2-p.x,player.y+player.h/2-p.y)<62);
+                    const hintTarget = activeNPC || (nearPetal || nearLeaves ? {x:player.x,y:player.y} : null);
+                    if (hintTarget) { interactHint.innerText = activeNPC ? '💬 Giao Tiếp · E' : nearPetal ? '🌼 Nhặt Hoa · E' : '🍂 Dọn Lá · E'; interactHint.style.display = 'block'; interactHint.style.left = ((hintTarget.x - camera.x) * (document.getElementById('game-wrapper').offsetWidth / GAME_WIDTH) + 15) + 'px'; interactHint.style.top = ((hintTarget.y - camera.y) * (document.getElementById('game-wrapper').offsetHeight / GAME_HEIGHT) - 35) + 'px';
+                    } else interactHint.style.display = 'none';
+                }
+            }
+
+            npcs.forEach(npc => {
+                if (npc.map === currentMap && npc !== activeNPC) {
+                    npc.timer++; if (npc.timer > (Math.random() * 80 + 40)) { npc.dx = (Math.random() - 0.5) * 2; npc.dy = (Math.random() - 0.5) * 2; npc.timer = 0; }
+                    npc.x += npc.dx; npc.y += npc.dy; if (npc.x <= 0 || npc.x >= currentMapData.w - npc.w) npc.dx *= -1; if (npc.y <= 0 || npc.y >= currentMapData.h - npc.h) npc.dy *= -1;
+                }
+            });
+
+            camera.x += ((player.x + player.w / 2) - GAME_WIDTH / 2 - camera.x) * 0.1; camera.y += ((player.y + player.h / 2) - GAME_HEIGHT / 2 - camera.y) * 0.1;
+            camera.x = Math.max(0, Math.min(currentMapData.w - GAME_WIDTH, camera.x)); camera.y = Math.max(0, Math.min(currentMapData.h - GAME_HEIGHT, camera.y));
+            if (Date.now() - lastNetworkUpdate > 100) {
+                sendOnline({ type: 'move', map: currentMap, x: player.x, y: player.y, facingRight: player.facingRight, moving: player.isMoving });
+                lastNetworkUpdate = Date.now();
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = maps[currentMap].bg; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            const cycle = (Date.now() % 120000) / 120000;
+            const nightAlpha = Math.max(0, Math.sin(cycle * Math.PI * 2));
+
+            if (currentMap === "town") {
+                const tileSize = 60; const startX = Math.max(0, Math.floor(camera.x / tileSize) * tileSize); const startY = Math.max(0, Math.floor(camera.y / tileSize) * tileSize);
+                const endX = Math.min(maps["town"].w, startX + GAME_WIDTH + tileSize); const endY = Math.min(maps["town"].h, startY + GAME_HEIGHT + tileSize);
+
+                // TEXTURED GRASS
+                for(let i = startX; i < endX; i += tileSize) { 
+                    for(let j = startY; j < endY; j += tileSize) { 
+                        const grassPalette = ['#669d56', '#6ba45b', '#639751'];
+                        const grassTone = Math.abs(Math.floor((i * 17 + j * 29) / tileSize)) % grassPalette.length;
+                        ctx.fillStyle = grassPalette[grassTone]; ctx.fillRect(Math.floor(i - camera.x), Math.floor(j - camera.y), tileSize + 1, tileSize + 1); 
+                        
+                        // Noise patches
+                        ctx.fillStyle = '#559930'; 
+                        if((i+j)%7===0) ctx.fillRect(Math.floor(i - camera.x)+10, Math.floor(j - camera.y)+10, 5, 5);
+                        if((i+j)%11===0) ctx.fillRect(Math.floor(i - camera.x)+40, Math.floor(j - camera.y)+30, 7, 5);
+                        
+                        // Flowers
+                        if ((i+j) % 310 === 0) { ctx.fillStyle = '#fff'; ctx.fillRect(Math.floor(i - camera.x + 20), Math.floor(j - camera.y + 20), 4, 4); }
+                        if ((i+j) % 470 === 0) { ctx.fillStyle = '#f1c40f'; ctx.fillRect(Math.floor(i - camera.x + 50), Math.floor(j - camera.y + 50), 4, 4); }
+                    } 
+                }
+                
+                // VẼ ĐƯỜNG LÀNG (TỰ ĐỘNG CHUYỂN TỪ ĐẤT SANG ĐÁ KHI ĐÃ MUA)
+                let isStone = upgrades.road;
+                drawPathRect(1900, 700, 200, 2300, isStone); drawPathRect(200, 1200, 3600, 200, isStone);
+                drawPathRect(500, 1000, 100, 200, isStone); drawPathRect(3400, 1000, 100, 200, isStone); 
+                drawPathRect(600, 1400, 100, 200, isStone); drawPathRect(3200, 1400, 100, 1200, isStone); 
+                drawPathRect(2600, 1000, 100, 200, isStone); drawPathRect(1200, 1400, 100, 800, isStone); 
+                drawPathRect(2900, 700, 100, 200, isStone); drawPathRect(2300, 1200, 100, 700, isStone);
+
+                // WOOD FENCES
+                drawFence(350, 2150, 400, 40); drawFence(350, 2150, 40, 600); drawFence(750, 2150, 40, 600);
+                drawFence(2400, 450, 400, 40);
+
+                if (upgrades.park) { 
+                    let t = Date.now() / 200;
+                    ctx.fillStyle = '#2980b9'; ctx.beginPath(); ctx.roundRect(1900 - camera.x, 1300 - camera.y, 200, 200, 100); ctx.fill();
+                    ctx.fillStyle = '#3498db'; ctx.beginPath(); ctx.roundRect(1910 - camera.x, 1310 - camera.y, 180, 180, 90); ctx.fill();
+                    ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.arc(2000 - camera.x, 1400 - camera.y, 30 + Math.sin(t)*15, 0, Math.PI*2); ctx.stroke();
+                    ctx.beginPath(); ctx.arc(2000 - camera.x, 1400 - camera.y, 60 + Math.cos(t)*15, 0, Math.PI*2); ctx.stroke();
+                    ctx.fillStyle = '#ecf0f1'; ctx.beginPath(); ctx.arc(2000 - camera.x, 1400 - camera.y, 25, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(1990 - camera.x, 1340 - camera.y + Math.sin(t)*5, 20, 40);
+                }
+                if (upgrades.bell) { drawHouse(2450, 200, 150, 600, '#bdc3c7', '#c0392b', "THÁP CHUÔNG", true); }
+                
+                if (upgrades.mindcare) { 
+                    drawRect(1800, 1400, 100, 80, '#81ecec'); drawRect(1810, 1370, 80, 40, '#00cec9'); 
+                    ctx.fillStyle = '#fff'; ctx.font = '22px VT323'; ctx.fillText("MindCare", 1815 - camera.x, 1395 - camera.y);
+                }
+                
+                if (upgrades.cocoon) { 
+                    drawRect(1850, 1350, 60, 60, '#27ae60'); drawRect(1860, 1340, 40, 10, '#f1c40f');
+                    if (currentMap === "town" && Math.hypot(player.x - 1850, player.y - 1350) < 100) {
+                        ctx.fillStyle = '#fff'; ctx.font = '20px VT323'; ctx.fillText("Dự án Pin Cocoon", 1850 - camera.x, 1330 - camera.y);
+                    }
+                }
+                
+                if (upgrades.avatar && currentMap === "town") {
+                    let ax = 2050 + Math.sin(Date.now()/1500)*250; let ay = 1500 + Math.cos(Date.now()/1200)*150;
+                    ctx.shadowBlur = 20; ctx.shadowColor = '#00ffff';
+                    drawCharacter(ax, ay, 24, 36, '#00ffff', '#fff', true, Math.cos(Date.now()/1500) > 0);
+                    ctx.shadowBlur = 0; ctx.fillStyle = '#00ffff'; ctx.font = '18px VT323'; ctx.fillText("Đại Sứ Ảo", ax - camera.x - 10, ay - camera.y - 10);
+                }
+
+                if (upgrades.highlands) { drawHouse(2150, 1300, 300, 280, '#e67e22', '#c0392b', "HIGHLANDS COFFEE"); drawRect(2280, 1530, 40, 50, '#000'); }
+                if (upgrades.kpub) { drawHouse(2150, 1650, 300, 280, '#34495e', '#e74c3c', "K-PUB BBQ"); drawRect(2280, 1880, 40, 50, '#000'); }
+
+                drawHouse(1600, 200, 800, 500, '#ecf0f1', '#34495e', "NHÀ THỜ CHÍNH", true); ctx.fillStyle = '#000'; ctx.fillRect(1900 - camera.x, 630 - camera.y, 200, 20); 
+                drawHouse(400, 2300, 300, 280, '#95a5a6', '#2c3e50', "TIỆM TẠP HÓA", false); ctx.fillStyle = '#000'; ctx.fillRect(500 - camera.x, 2580 - camera.y, 100, 20); 
+                drawHouse(3300, 1300, 300, 280, '#c0392b', '#34495e', "NHÀ BÀ TRÙM", true); ctx.fillStyle = '#000'; ctx.fillRect(3400 - camera.x, 1580 - camera.y, 100, 20); 
+                drawHouse(500, 1200, 300, 280, '#2980b9', '#34495e', "NHÀ ÔNG TƯ", false); ctx.fillStyle = '#000'; ctx.fillRect(600 - camera.x, 1480 - camera.y, 100, 20); 
+                if (upgrades.ebuzz) {
+                    drawHouse(3100, 2200, 400, 380, '#2c3e50', '#f1c40f', "TRỤ SỞ E-BUZZ MEDIA", true); ctx.fillStyle = '#000'; ctx.fillRect(3200 - camera.x, 2580 - camera.y, 100, 20);
+                } else {
+                    drawHouse(3100, 2300, 300, 280, '#16a085', '#2c3e50', "PHÒNG GIỚI TRẺ", false); ctx.fillStyle = '#000'; ctx.fillRect(3200 - camera.x, 2580 - camera.y, 100, 20); 
+                } 
+                drawHouse(2500, 600, 300, 280, '#f39c12', '#d35400', "NHÀ SƠ ANNA", false); ctx.fillStyle = '#000'; ctx.fillRect(2600 - camera.x, 880 - camera.y, 100, 20); 
+                drawHouse(1100, 1900, 300, 280, '#27ae60', '#2c3e50', "THANH NIÊN NAM", false); ctx.fillStyle = '#000'; ctx.fillRect(1200 - camera.x, 2180 - camera.y, 100, 20); 
+                drawHouse(2800, 600, 300, 280, '#8e44ad', '#e74c3c', "TIỆM LẨU KHÓI", true); ctx.fillStyle = '#000'; ctx.fillRect(2900 - camera.x, 880 - camera.y, 100, 20); 
+
+                let cx = 1200 - camera.x; let cy = 2200 - camera.y;
+                ctx.fillStyle = '#1e90ff'; ctx.fillRect(cx, cy, 400, 300); ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
+                ctx.strokeRect(cx+20, cy+20, 360, 260); ctx.strokeRect(cx+40, cy+20, 320, 260); ctx.beginPath(); ctx.moveTo(cx+200, cy+20); ctx.lineTo(cx+200, cy+280); ctx.stroke(); 
+                ctx.beginPath(); ctx.moveTo(cx+140, cy+20); ctx.lineTo(cx+140, cy+280); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx+260, cy+20); ctx.lineTo(cx+260, cy+280); ctx.stroke(); 
+                ctx.beginPath(); ctx.moveTo(cx+40, cy+150); ctx.lineTo(cx+140, cy+150); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx+260, cy+150); ctx.lineTo(cx+360, cy+150); ctx.stroke();
+                
+                let sx = 450 - camera.x; let sy = 2600 - camera.y;
+                ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(sx+20, sy+30, 25, 8, 0, 0, Math.PI*2); ctx.fill(); 
+                ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(sx+5, sy+25, 8, 0, Math.PI*2); ctx.arc(sx+35, sy+25, 8, 0, Math.PI*2); ctx.fill(); 
+                ctx.fillStyle = '#c0392b'; ctx.beginPath(); ctx.moveTo(sx-5, sy+20); ctx.lineTo(sx+10, sy+10); ctx.lineTo(sx+30, sy+10); ctx.lineTo(sx+45, sy+20); ctx.lineTo(sx+40, sy+25); ctx.lineTo(sx, sy+25); ctx.fill();
+                ctx.fillStyle = '#333'; ctx.fillRect(sx+15, sy+5, 15, 5); ctx.fillRect(sx+35, sy, 2, 10); ctx.fillRect(sx+32, sy, 8, 2); 
+
+                const treePos = [{x:300,y:300}, {x:500,y:200}, {x:200,y:600}, {x:3200,y:400}, {x:3500,y:500}, {x:3400,y:800}, {x:1200,y:2600}, {x:2500,y:2500}, {x:2800,y:250}, {x:900,y:1000}, {x:1000,y:1100}, {x:850,y:720}, {x:980,y:1830}, {x:1500,y:820}, {x:1650,y:1950}, {x:2700,y:2240}, {x:3000,y:2500}, {x:3650,y:1080}, {x:850,y:2850}, {x:2700,y:500}, {x:1450,y:2600}, {x:3800,y:2500}]; 
+                treePos.forEach(t => drawTree(t.x, t.y)); 
+
+                // Đèn đường, ghế nghỉ và bồn cây tạo các điểm dừng trong quảng trường.
+                const lamps = [{x:1000,y:720},{x:2850,y:1000},{x:1500,y:1510},{x:3010,y:2350},{x:820,y:2180}];
+                lamps.forEach(({x,y}) => {
+                    drawRect(x-3,y-75,6,78,'#493b32'); drawRect(x-13,y-78,26,9,'#dbbd74');
+                    drawRect(x-18,y-70,36,4,'#f4d995');
+                    if (nightAlpha > 0.25) { const glow = ctx.createRadialGradient(x-camera.x,y-camera.y-68,2,x-camera.x,y-camera.y-68,66); glow.addColorStop(0,`rgba(255,222,142,${nightAlpha*.3})`); glow.addColorStop(1,'rgba(255,222,142,0)'); ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(x-camera.x,y-camera.y-68,66,0,Math.PI*2); ctx.fill(); }
+                });
+                [{x:1600,y:1500},{x:2850,y:1550},{x:900,y:1950}].forEach(({x,y}) => {
+                    drawRect(x,y,78,8,'#79543b'); drawRect(x+5,y-14,68,8,'#a77b52'); drawRect(x+8,y+8,7,16,'#604331'); drawRect(x+63,y+8,7,16,'#604331');
+                });
+
+                petals.forEach((p,i) => {
+                    if (petalPickedIds.includes(i)) return;
+                    const sx=p.x-camera.x, sy=p.y-camera.y;
+                    if (sx < -12 || sx > GAME_WIDTH+12 || sy < -12 || sy > GAME_HEIGHT+12) return;
+                    const bob=Math.sin(Date.now()/420+i)*2;
+                    ctx.fillStyle='rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(sx,sy+5,8,3,0,0,Math.PI*2); ctx.fill();
+                    ctx.fillStyle=i%2?'#fff0cc':'#ffe28b'; ctx.beginPath();
+                    for(let petal=0;petal<5;petal++){ const a=petal*Math.PI*2/5; ctx.arc(sx+Math.cos(a)*4,sy+bob+Math.sin(a)*4,3,0,Math.PI*2); }
+                    ctx.fill(); ctx.fillStyle='#d99446'; ctx.beginPath(); ctx.arc(sx,sy+bob,2,0,Math.PI*2); ctx.fill();
+                });
+                leafPiles.forEach((p,i) => {
+                    if (leafCleanedIds.includes(i)) return;
+                    const sx=p.x-camera.x, sy=p.y-camera.y;
+                    ctx.fillStyle='#ba7944'; ctx.beginPath(); ctx.ellipse(sx-5,sy,10,5,-.5,0,Math.PI*2); ctx.ellipse(sx+4,sy-3,10,5,.55,0,Math.PI*2); ctx.ellipse(sx+6,sy+3,8,4,.2,0,Math.PI*2); ctx.fill();
+                });
+                
+                // TÍNH TOÁN HIỆU ỨNG HẠT MÔI TRƯỜNG TỰ NHIÊN
+                let timeCycle = (Date.now() % 120000) / 120000;
+                let isNightTime = Math.sin(timeCycle * Math.PI * 2) > 0.2;
+                ctx.fillStyle = isNightTime ? 'rgba(200, 255, 100, 0.9)' : 'rgba(230, 126, 34, 0.8)'; // Xanh lá mạ cho đom đóm, Vàng cho lá rụng
+                
+                envParticles.forEach(p => {
+                    p.y += isNightTime ? Math.sin(Date.now()/500 + p.phase)*0.5 : 1.5 + Math.sin(Date.now()/500 + p.phase)*0.5;
+                    p.x += isNightTime ? Math.cos(Date.now()/300 + p.phase)*1 : 2 + Math.sin(Date.now()/300 + p.phase)*1.5;
+                    if(p.y > 3200) p.y = 0; if(p.x > 4000) p.x = 0;
+                    
+                    let px = p.x - camera.x; let py = p.y - camera.y;
+                    if (px > -10 && px < GAME_WIDTH+10 && py > -10 && py < GAME_HEIGHT+10) {
+                        if (isNightTime) {
+                            ctx.shadowBlur = 12; ctx.shadowColor = '#ccff00';
+                            ctx.beginPath(); ctx.arc(px, py, 2 + Math.sin(Date.now()/150+p.phase)*1.5, 0, Math.PI*2); ctx.fill();
+                            ctx.shadowBlur = 0;
+                        } else {
+                            // Cú xoay lá rụng
+                            ctx.save(); ctx.translate(px, py); ctx.rotate(Date.now()/200 + p.phase);
+                            ctx.fillRect(-3, -2, 6, 4); ctx.restore();
+                        }
+                    }
+                });
+                
+                if (questState === 10) {
+                    cocoonBatteries.forEach(b => {
+                        if(!b.collected) { drawRect(b.x-5, b.y-10, 10, 20, '#2ecc71'); drawRect(b.x-2, b.y-13, 4, 3, '#bdc3c7'); }
+                    });
+                }
+
+                tycoonBuildings.forEach(b => {
+                    if (upgrades[b.id] && b.hasCoin) {
+                        let bounce = Math.sin(Date.now()/200)*5; drawRect(b.x-10, b.y-60+bounce, 20, 20, '#f1c40f');
+                    }
+                });
+            } 
+            else {
+                let w = maps[currentMap].w; let h = maps[currentMap].h; ctx.fillStyle = maps[currentMap].bg; ctx.fillRect(-camera.x, -camera.y, w, h); 
+                
+                if (currentMap === "church") {
+                    for(let i=0; i<w; i+=100) { for(let j=0; j<h; j+=100) { ctx.fillStyle = ((i+j)/100)%2===0 ? '#2c3e50' : '#34495e'; drawRect(i, j, 100, 100, ctx.fillStyle); } }
+                    drawRect(w/2 - 60, 0, 120, h, '#c0392b'); drawRect(w/2 - 50, 0, 100, h, '#f1c40f');
+                    drawRect(w/2 - 150, 50, 300, 100, '#f39c12'); drawRect(w/2 - 130, 60, 260, 80, '#fff'); drawRect(w/2 - 10, 10, 20, 80, '#e74c3c'); drawRect(w/2 - 30, 40, 60, 20, '#e74c3c'); 
+                    for(let i=300; i<h-150; i+=120) { drawRect(100, i, 300, 40, '#8e44ad'); drawRect(100, i-10, 300, 10, '#9b59b6'); drawRect(w - 400, i, 300, 40, '#8e44ad'); drawRect(w - 400, i-10, 300, 10, '#9b59b6'); }
+                    let grd = ctx.createLinearGradient(w/2 - camera.x, 0 - camera.y, w/2 - camera.x, 400 - camera.y); grd.addColorStop(0, 'rgba(255, 255, 255, 0.4)'); grd.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    ctx.fillStyle = grd; ctx.fillRect(w/2 - 200 - camera.x, 0 - camera.y, 400, 400); drawRect(w/2 - 100, h - 50, 200, 50, '#000'); 
+                } 
+                else if (currentMap === "shop") {
+                    for(let i=0; i<w; i+=40) { for(let j=0; j<h; j+=40) { ctx.fillStyle = ((i/40+j/40)%2===0) ? '#ecf0f1' : '#bdc3c7'; drawRect(i, j, 40, 40, ctx.fillStyle); } }
+                    drawRect(150, 250, w-300, 80, '#d35400'); drawRect(160, 260, w-320, 60, '#f39c12'); drawRect(200, 230, 50, 40, '#34495e'); drawRect(205, 235, 40, 20, '#2ecc71'); 
+                    drawRect(50, 50, w-100, 100, '#8e44ad'); drawRect(80, 60, 30, 40, '#e74c3c'); drawRect(140, 80, 40, 20, '#3498db'); drawRect(220, 50, 25, 50, '#2ecc71'); drawRect(300, 70, 50, 30, '#f1c40f'); 
+                    drawRect(w/2 - 60, h - 60, 120, 60, '#34495e'); drawRect(w/2 - 50, h - 40, 100, 40, '#000'); 
+                } 
+                else if (currentMap === "hotpot" || currentMap === "kpub") {
+                    for(let i=0; i<w; i+=50) { ctx.fillStyle = (i/50)%2===0 ? '#34495e' : '#2c3e50'; drawRect(i, 0, 50, h, ctx.fillStyle); }
+                    drawRect(50, 50, w-100, 80, '#e67e22'); drawRect(w/2 - 50, 60, 100, 60, '#e74c3c'); 
+                    for(let i=150; i<w; i+=250) { for(let j=200; j<h-100; j+=150) { let cx = i - camera.x; let cy = j - camera.y; ctx.fillStyle = '#ecf0f1'; ctx.beginPath(); ctx.arc(cx, cy, 60, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#c0392b'; ctx.beginPath(); ctx.arc(cx, cy, 30, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#f1c40f'; ctx.beginPath(); ctx.arc(cx, cy, 25, 0, Math.PI*2); ctx.fill(); drawRect(i-10, j-10, 20, 20, '#e74c3c'); } }
+                    drawRect(w/2 - 60, h - 60, 120, 60, '#34495e'); drawRect(w/2 - 50, h - 40, 100, 40, '#000'); 
+                } 
+                else if (currentMap === "highlands") {
+                    for(let i=0; i<w; i+=40) { ctx.fillStyle = (i/40)%2===0 ? '#d35400' : '#e67e22'; drawRect(i, 0, 40, h, ctx.fillStyle); } 
+                    drawRect(w/2 - 100, 50, 200, 80, '#2c3e50'); 
+                    for(let i=150; i<w; i+=200) { for(let j=200; j<h-100; j+=150) { drawRect(i-40, j-40, 80, 80, '#f1c40f'); drawRect(i-20, j-50, 40, 20, '#ecf0f1'); drawRect(i-20, j+30, 40, 20, '#ecf0f1'); } }
+                    drawRect(w/2 - 60, h - 60, 120, 60, '#34495e'); drawRect(w/2 - 50, h - 40, 100, 40, '#000'); 
+                }
+                else { 
+                    for(let i=0; i<w; i+=40) { ctx.fillStyle = (i/40)%2===0 ? '#d35400' : '#e67e22'; drawRect(i, 0, 40, h, ctx.fillStyle); } 
+                    drawRect(w/2 - 100, h/2 - 80, 200, 160, '#27ae60'); drawRect(w/2 - 80, h/2 - 60, 160, 120, '#2ecc71'); 
+                    drawRect(50, 50, 120, 180, '#2980b9'); drawRect(60, 60, 100, 40, '#ecf0f1'); drawRect(50, 110, 120, 120, '#e74c3c'); 
+                    drawRect(w - 150, 100, 100, 80, '#8e44ad'); drawRect(w - 130, 110, 40, 30, '#bdc3c7'); 
+                    drawRect(50, h - 200, 60, 120, '#5c3a21'); drawRect(55, h - 190, 50, 20, '#f1c40f'); drawRect(55, h - 150, 40, 20, '#3498db'); 
+                    drawRect(w/2 - 60, h - 60, 120, 60, '#34495e'); drawRect(w/2 - 50, h - 40, 100, 40, '#000'); 
+                }
+            }
+
+            drawParticles();
+
+            npcs.forEach(npc => {
+                if (npc.map === currentMap) {
+                    drawCharacter(npc.x, npc.y, npc.w, npc.h, npc.shirt, npc.hair, npc.dx !== 0 || npc.dy !== 0, npc.dx > 0);
+                    let hasQuest = false; let hasSide = npc.sideQuest !== undefined && !completedSideQuests.has(npc.id);
+                    if (questState===0 && npc.id==='cha_xu') hasQuest = true; if (questState===1 && npc.id==='ba_trum') hasQuest = true; if (questState===2 && npc.id==='maria') hasQuest = true;
+                    if (questState===3 && npc.id==='cha_xu') hasQuest = true; if (questState===4 && npc.id==='admin') hasQuest = true; if (questState===5 && npc.id==='thu_quy') hasQuest = true;
+                    if (questState===6 && npc.id==='cha_xu') hasQuest = true; if (questState===7 && npc.id==='boy_buon') hasQuest = true;
+                    if (questState===8 && npc.id==='intern') hasQuest = true; if (questState===9 && npc.id==='puzzle') hasQuest = true;
+                    
+                    if (hasQuest) { ctx.fillStyle = '#e74c3c'; ctx.font = '35px VT323'; ctx.fillText('!', npc.x - camera.x + 5, npc.y - camera.y - 20); }
+                    else if (hasSide) { ctx.fillStyle = '#f1c40f'; ctx.font = '35px VT323'; ctx.fillText('?', npc.x - camera.x + 5, npc.y - camera.y - 20); }
+                }
+            });
+
+            onlinePlayers.forEach(other => {
+                if (other.map !== currentMap) return;
+                drawCharacter(other.x, other.y, 24, 36, other.color || '#8fc65a', '#314046', !!other.moving, !!other.facingRight);
+                const nameX = other.x - camera.x + 12, nameY = other.y - camera.y - 14;
+                ctx.font = '18px VT323'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(8,20,22,.85)'; ctx.strokeText(other.name, nameX, nameY); ctx.fillStyle = '#f5efdc'; ctx.fillText(other.name, nameX, nameY); ctx.textAlign = 'left';
+            });
+
+            drawCharacter(player.x, player.y, player.w, player.h, player.shirt, player.hair, player.isMoving, player.facingRight);
+            if (onlineSocket && onlineSocket.readyState === WebSocket.OPEN) {
+                const nameX = player.x - camera.x + player.w/2, nameY = player.y - camera.y - 14;
+                ctx.font = '18px VT323'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(8,20,22,.85)'; ctx.strokeText(playerName, nameX, nameY); ctx.fillStyle = '#c7ef8d'; ctx.fillText(playerName, nameX, nameY); ctx.textAlign = 'left';
+            }
+            drawFloatingTexts();
+
+            if (viralTimer > 0) {
+                ctx.fillStyle = 'rgba(231, 76, 60, 0.9)';
+                ctx.fillRect(15, 75, 340, 40);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 22px VT323';
+                ctx.fillText(`🔥 PLAN IMC ĐANG CHẠY: ${Math.ceil(viralTimer/60)}s (x2 TIỀN)`, 25, 102);
+            }
+
+            let target = getQuestTarget();
+            if (target && !dialogueActive) {
+                if (activeNPC && activeNPC.id === target.id) { } 
+                else {
+                    let drawTx = target.x, drawTy = target.y;
+                    if (currentMap !== target.map) {
+                        let door = doors.find(d => d.map === currentMap && d.targetMap === target.map);
+                        if (door) { drawTx = door.x + door.w / 2; drawTy = door.y + door.h / 2; } 
+                        else { let exitDoor = doors.find(d => d.map === currentMap && d.targetMap === "town"); if (exitDoor) { drawTx = exitDoor.x + exitDoor.w / 2; drawTy = exitDoor.y + exitDoor.h / 2; } }
+                    }
+                    let px = player.x + player.w / 2; let py = player.y + player.h / 2; let angle = Math.atan2(drawTy - py, drawTx - px); let dist = Math.hypot(drawTx - px, drawTy - py);
+                    if (dist > 80) { 
+                        let arrowLen = 25; let startX = px + Math.cos(angle) * 35; let startY = py + Math.sin(angle) * 35; let endX = startX + Math.cos(angle) * arrowLen; let endY = startY + Math.sin(angle) * arrowLen;
+                        ctx.strokeStyle = 'rgba(255, 234, 0, 0.8)'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+                        ctx.beginPath(); ctx.moveTo(startX - camera.x, startY - camera.y); ctx.lineTo(endX - camera.x, endY - camera.y);
+                        ctx.lineTo(endX - Math.cos(angle - 0.5) * 10 - camera.x, endY - Math.sin(angle - 0.5) * 10 - camera.y);
+                        ctx.moveTo(endX - camera.x, endY - camera.y); ctx.lineTo(endX - Math.cos(angle + 0.5) * 10 - camera.x, endY - Math.sin(angle + 0.5) * 10 - camera.y); ctx.stroke();
+                    }
+                }
+            }
+
+            // CHU KỲ NGÀY ĐÊM
+            ctx.fillStyle = `rgba(10, 10, 30, ${nightAlpha * 0.7})`; 
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            if (nightAlpha > 0.3 && currentMap === "town") {
+                const drawGlow = (x, y) => {
+                    let grd = ctx.createRadialGradient(x - camera.x, y - camera.y, 10, x - camera.x, y - camera.y, 80);
+                    grd.addColorStop(0, `rgba(241, 196, 15, ${nightAlpha * 0.5})`); grd.addColorStop(1, 'rgba(241, 196, 15, 0)');
+                    ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(x - camera.x, y - camera.y, 80, 0, Math.PI*2); ctx.fill();
+                };
+                drawGlow(450, 2400); drawGlow(3450, 1400); drawGlow(650, 1300); drawGlow(3250, 2400); drawGlow(2650, 700); drawGlow(1250, 2000);
+                if (upgrades.highlands) { drawGlow(2300, 1400); } 
+                if (upgrades.kpub) { drawGlow(2300, 1750); }
+            }
+
+            if (hasFilmora) { 
+                ctx.fillStyle = 'rgba(142, 68, 173, 0.3)'; 
+                ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT); 
+            }
+
+            // VẼ HIỆU ỨNG MƯA (ĐÃ FIX: Chỉ rơi khi ở ngoài Thị Trấn)
+            let isRaining = (Date.now() % 240000) < 60000;
+            if (isRaining && currentMap === "town") {
+                ctx.fillStyle = 'rgba(0, 30, 80, 0.25)'; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+                ctx.strokeStyle = 'rgba(174, 214, 241, 0.6)'; ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                rainDrops.forEach(drop => {
+                    ctx.moveTo(drop.x, drop.y); ctx.lineTo(drop.x - drop.speed*0.3, drop.y + drop.speed);
+                    drop.x -= drop.speed*0.3; drop.y += drop.speed;
+                    if (drop.y > GAME_HEIGHT) { drop.y = -20; drop.x = Math.random() * GAME_WIDTH + 200; }
+                });
+                ctx.stroke();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+        }
+
+        console.log("Khởi động Premium Graphics...");
+        updateQuestUI(); gameLoop(); 
+    })();
+    </script>
+</body>
+</html>

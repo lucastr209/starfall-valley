@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Quyền riêng tư — Thung Lũng Sao Rơi</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="privacy-page">
+  <main class="privacy-content">
+    <a href="/">← Trở về Thung Lũng Sao Rơi</a>
+    <h1>Quyền riêng tư trong bản chơi thử</h1>
+    <p>Bản thử không yêu cầu email, mật khẩu hoặc tên thật. Hãy dùng biệt danh.</p>
+    <h2>Tên nhân vật và trò chuyện</h2>
+    <p>Khi kết nối online, tên nhân vật, vị trí trong game và tin nhắn được gửi đến server và chia sẻ với những người đang chơi. Chat là công khai trong phiên chơi; không gửi số điện thoại, địa chỉ, mật khẩu hay thông tin riêng tư.</p>
+    <p>Server không ghi lịch sử chat hoặc tiến trình vào cơ sở dữ liệu. Redis lưu tạm biệt danh, vị trí và trạng thái hiện diện để đồng bộ giữa các phiên server. Hiện diện được dọn khi ngắt kết nối; khi server mất kết nối đột ngột, phiên hết hạn sau khoảng 45 giây và các khóa dữ liệu tự hết hạn sau tối đa 120 giây nếu không còn cập nhật. Địa chỉ IP được băm bằng khóa riêng để giới hạn lạm dụng; khóa giới hạn tự hết hạn sau 60 giây. Nhà cung cấp có thể xử lý IP và nhật ký kỹ thuật theo chính sách của họ.</p>
+    <h2>Tiến trình trên thiết bị</h2>
+    <p>Tiến trình được lưu trong trình duyệt của bạn, chưa đồng bộ giữa các máy. Xóa dữ liệu của trang sẽ xóa tiến trình trên thiết bị đó. Dữ liệu ở localhost, địa chỉ preview và địa chỉ game chính thức là các bản lưu riêng.</p>
+    <h2>Dịch vụ bên ngoài</h2>
+    <p>Game chạy qua Vercel và Upstash Redis, không tích hợp quảng cáo hoặc công cụ phân tích hành vi. <a href="https://vercel.com/legal/privacy-policy">Chính sách Vercel</a> và <a href="https://upstash.com/trust/privacy.pdf">chính sách Upstash</a>.</p>
+    <p>Bản thử này chưa có giao dịch, thanh toán hoặc tài khoản cá nhân.</p>
+  </main>
+</body>
+</html>

@@ -1,0 +1,14 @@
+node_modules/
+/.deploy-tools/
+/.vercel/
+/dist/
+.env
+.env.*
+!.env.example
+*.log
+/starfall-valley/
+/.vscode/
+/test-artifacts/
+
+/.agents/
+/skills-lock.json

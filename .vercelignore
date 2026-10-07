@@ -1,0 +1,14 @@
+.git
+.vscode
+.deploy-tools
+starfall-valley
+archive
+test-artifacts
+tests
+.env
+.env.*
+AGENTS.md
+TEST_REPORT.md
+SECURITY.md
+.agents
+skills-lock.json
