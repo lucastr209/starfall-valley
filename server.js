@@ -25,6 +25,8 @@ const ASSETS = Object.freeze({
   '/world-paths.js': ['world-paths.js', 'text/javascript; charset=utf-8'],
   '/world-effects.js': ['world-effects.js', 'text/javascript; charset=utf-8'],
   '/world-actors.js': ['world-actors.js', 'text/javascript; charset=utf-8'],
+  '/minimap.js': ['minimap.js', 'text/javascript; charset=utf-8'],
+  '/onboarding.js': ['onboarding.js', 'text/javascript; charset=utf-8'],
   '/game.js': ['game.js', 'text/javascript; charset=utf-8']
 });
 const MAX_FRAME_BYTES = 16 * 1024;

@@ -9,7 +9,7 @@ const actorArt = require('../world-actors.js');
 
 // Exercise the shipped browser source. The stubs model events, storage and canvas
 // calls; real browser rendering/fullscreen remains a separate visual check.
-function loadGame({ storage = new Map(), saved, search = '?qa=1', now = 1700000000000, width = 960, height = 600, reducedMotion = false, expectQA = true } = {}) {
+function loadGame({ storage = new Map(), saved, search = '?qa=1', now = 1700000000000, width = 960, height = 600, viewportWidth, viewportHeight, reducedMotion = false, expectQA = true } = {}) {
   const calls = [], elements = new Map(), raf = [], sockets = [], timers = new Map(), observers = [];
   const markup = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   let clock = now, performanceClock = 0, created = 0, timerId = 0;
@@ -53,6 +53,10 @@ function loadGame({ storage = new Map(), saved, search = '?qa=1', now = 17000000
     setPointerCapture(pointerId) { this.capturedPointers.add(pointerId); }
     hasPointerCapture(pointerId) { return this.capturedPointers.has(pointerId); }
     releasePointerCapture(pointerId) { if (this.capturedPointers.delete(pointerId)) void this.dispatch('lostpointercapture', { pointerId }); }
+    getBoundingClientRect() {
+      const rect = this.rect || (this.id === 'touch-joystick' ? {left:20,top:180,width:116,height:116} : {left:0,top:0,width:this.clientWidth || this.width,height:this.clientHeight || this.height});
+      return {...rect,right:rect.left+rect.width,bottom:rect.top+rect.height,x:rect.left,y:rect.top};
+    }
     focus() { document.activeElement = this; void this.dispatch('focus', { bubbles: false }); }
     blur() { if (document.activeElement === this) document.activeElement = null; void this.dispatch('blur', { bubbles: false }); }
     getContext() { if (!this.context) this.context = makeContext(this); return this.context; }
@@ -89,6 +93,8 @@ function loadGame({ storage = new Map(), saved, search = '?qa=1', now = 17000000
   const directions = ['up', 'down', 'left', 'right'].map(move => { const e = new Element(`move-${move}`, 'BUTTON'); e.setAttribute('data-move', move); e.parent = document.getElementById('play-screen'); return e; });
   document.querySelectorAll = selector => selector === '[data-move]' ? directions : [];
   const window = new Target();
+  if (viewportWidth != null) window.innerWidth = viewportWidth;
+  if (viewportHeight != null) window.innerHeight = viewportHeight;
   const motionPreference = new Target(); motionPreference.matches = reducedMotion;
   const matchMedia = () => motionPreference; window.matchMedia = matchMedia;
   class FakeDate extends Date { static now() { return clock; } }
@@ -102,7 +108,7 @@ function loadGame({ storage = new Map(), saved, search = '?qa=1', now = 17000000
     matchMedia, ResizeObserver: FakeResizeObserver, requestAnimationFrame: callback => raf.push(callback), setTimeout: (fn, delay) => { timers.set(++timerId, { fn, delay }); return timerId; }, clearTimeout: id => timers.delete(id), console };
   if (saved) storage.set(search.includes('qa=1') ? 'starfall-valley-qa-save' : 'starfall-valley-save-v1', JSON.stringify(saved));
   vm.createContext(sandbox);
-  for (const file of ['game-data.js', 'game-core.js', 'npc-ai.js', 'world-paths.js', 'world-effects.js', 'world-actors.js', 'game.js']) {
+  for (const file of ['game-data.js', 'game-core.js', 'npc-ai.js', 'world-paths.js', 'world-effects.js', 'world-actors.js', 'minimap.js', 'onboarding.js', 'game.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), sandbox, { filename: file });
     // Production exports stay frozen; a test-owned wrapper lets this harness
     // observe the real renderer inputs without changing the shipped module.
@@ -110,15 +116,16 @@ function loadGame({ storage = new Map(), saved, search = '?qa=1', now = 17000000
   }
   const qa = sandbox.StardropQA;
   if (expectQA) assert.ok(qa, 'Local QA API is available'); else assert.equal(qa, undefined, 'Debug API is absent outside QA mode');
-  const env = { qa, elements, calls, storage, sockets, document, window, directions, raf, timers, motionPreference, effects: sandbox.StardropEffects, paths: sandbox.StardropPaths, actors: sandbox.StardropActors,
+  const env = { qa, elements, calls, storage, sockets, document, window, directions, raf, timers, motionPreference, effects: sandbox.StardropEffects, paths: sandbox.StardropPaths, actors: sandbox.StardropActors, minimap: sandbox.StardropMinimap,
     el: id => document.getElementById(id),
     advance(ms) { clock += ms; performanceClock += ms; },
     resize(width, height) { const stage = this.el('canvas-stage'); stage.clientWidth = width; stage.clientHeight = height; observers.forEach(o => o.callback()); },
+    async viewport(width, height) { window.innerWidth = width; window.innerHeight = height; await window.dispatch('resize'); },
     step(seconds) { this.advance(seconds * 1000); qa.update(seconds); },
     set(patch) { qa.setState({ ...qa.getState(), ...patch }); },
     at(o, patch = {}) { this.set({ map: o.map || qa.getState().map, x: o.x, y: o.y, ...patch }); },
     async start(name = 'QA Lữ khách') { this.el('player-name').value = name; await this.el('start-form').dispatch('submit'); },
-    async button(data) { const b = new Element('virtual-button', 'BUTTON'); Object.entries(data).forEach(([key, value]) => { b.dataset[key] = value; b.setAttribute(`data-${key}`, value); }); await document.dispatch('click', { target: b }); },
+    async button(data) { const b = new Element('virtual-button', 'BUTTON'); Object.entries(data).forEach(([key, value]) => { b.setAttribute(`data-${key.replace(/[A-Z]/g, letter => '-'+letter.toLowerCase())}`, value); }); await document.dispatch('click', { target: b }); },
     async key(key, type = 'keydown', extra = {}) { await document.dispatch(type, { key, repeat: false, ...extra }); },
     tick(ms = 16) { this.advance(ms); const callback = raf.shift(); assert.ok(callback); callback(performanceClock); }
   };
@@ -130,6 +137,10 @@ const object = (e, kind, item, map) => objects(e, map).find(o => o.kind === kind
 const unlocked = e => e.qa.data.upgrades.map(u => u.id);
 const npc = (e, id) => e.qa.getNPCs().find(n => n.id === id);
 const residentPositions = e => JSON.stringify(e.qa.getNPCs().map(n => [n.id, n.map, n.x, n.y]));
+function joystickPointer(e, x = 0, y = 0, pointerId = 201, extra = {}) {
+  const rect = e.el('touch-joystick').getBoundingClientRect();
+  return {pointerId,pointerType:'touch',button:0,isPrimary:true,clientX:rect.left+rect.width/2+x*rect.width,clientY:rect.top+rect.height/2+y*rect.height,...extra};
+}
 function advanceResidents(e, seconds) { for (let i = 0; i < Math.ceil(seconds * 10); i++) e.step(.1); }
 function moveResidentFromHome(e, id, minimum = 110) {
   const catalog = e.qa.data.npcs.find(n => n.id === id);
@@ -510,6 +521,154 @@ test('Native and fallback fullscreen can enter and shrink repeatedly', async () 
   for (let i = 0; i < 2; i++) { await button.dispatch('click'); assert.equal(button.attributes['aria-pressed'], 'true'); assert.equal(wrapper.classList.contains('pseudo-fullscreen'), false); await button.dispatch('click'); assert.equal(button.attributes['aria-pressed'], 'false'); }
   wrapper.requestFullscreen = undefined; await button.dispatch('click'); assert.equal(wrapper.classList.contains('pseudo-fullscreen'), true); await button.dispatch('click'); assert.equal(wrapper.classList.contains('pseudo-fullscreen'), false);
   wrapper.requestFullscreen = async () => { throw Error('Blocked'); }; await button.dispatch('click'); assert.equal(wrapper.classList.contains('pseudo-fullscreen'), true); await button.dispatch('click'); assert.equal(wrapper.classList.contains('pseudo-fullscreen'), false);
+});
+
+test('Landscape joystick deadzone, cardinal directions and diagonals follow the finger without faster diagonal travel', async () => {
+  const e = loadGame({width:640,height:300,viewportWidth:852,viewportHeight:393}); await e.start(); e.set({x:800,y:550});
+  const stick = e.el('touch-joystick');
+  const down = await stick.dispatch('pointerdown', joystickPointer(e));
+  assert.equal(down.defaultPrevented, true, 'Joystick suppresses native touch selection and pan');
+  assert.equal(stick.hasPointerCapture(201), true);
+  e.step(.05); assert.equal(e.qa.getState().x, 800); assert.equal(e.qa.getState().y, 550);
+  await stick.dispatch('pointermove', joystickPointer(e,.02,.02)); e.step(.05);
+  assert.equal(e.qa.getState().x, 800); assert.equal(e.qa.getState().y, 550, 'Small center jitter remains inside the deadzone');
+  for (const [x,y,direction] of [[1,0,'right'],[0,-1,'up'],[-1,0,'left'],[0,1,'down'],[1,-1,'up']]) {
+    e.set({x:800,y:550}); await e.document.dispatch('pointermove', joystickPointer(e,x,y));
+    const before = e.qa.getState(); e.step(.05); const after = e.qa.getState();
+    almost(Math.hypot(after.x-before.x,after.y-before.y),9,'Full joystick deflection retains 180px/s speed');
+    assert.equal(locomotion(e).direction,direction);
+    assert.equal(Math.sign(after.x-before.x),x); assert.equal(Math.sign(after.y-before.y),y);
+    assert.ok(Math.hypot(locomotion(e).joystick.x,locomotion(e).joystick.y)<=1.00001,'Joystick vector is bounded');
+  }
+  await e.document.dispatch('pointerup',joystickPointer(e,1,-1));
+  const stopped = e.qa.getState(), distance = locomotion(e).distance; e.step(.05);
+  assert.equal(e.qa.getState().x,stopped.x); assert.equal(e.qa.getState().y,stopped.y); assert.equal(locomotion(e).distance,distance);
+  assert.equal(locomotion(e).joystick.x,0); assert.equal(locomotion(e).joystick.y,0); assert.equal(locomotion(e).joystickPointer,null);
+});
+
+test('Joystick has one owner and unrelated fingers cannot steer or release it', async () => {
+  const e = loadGame({viewportWidth:852,viewportHeight:393}); await e.start(); e.set({x:800,y:550}); const stick = e.el('touch-joystick');
+  await stick.dispatch('pointerdown',joystickPointer(e,1,0,211));
+  await stick.dispatch('pointerdown',joystickPointer(e,-1,0,212,{isPrimary:false}));
+  await e.document.dispatch('pointermove',joystickPointer(e,-1,0,212));
+  await e.document.dispatch('pointerup',joystickPointer(e,-1,0,212)); e.step(.05);
+  almost(e.qa.getState().x-800,9,'The first finger still owns the rightward motion');
+  assert.equal(locomotion(e).joystickPointer,211);
+  await stick.dispatch('lostpointercapture',{pointerId:211}); const before = e.qa.getState(); e.step(.05);
+  assert.equal(e.qa.getState().x,before.x); assert.equal(locomotion(e).joystickPointer,null);
+  const rejected = await stick.dispatch('pointerdown',joystickPointer(e,-1,0,213,{pointerType:'mouse',button:2}));
+  assert.equal(rejected.defaultPrevented,true); assert.equal(locomotion(e).joystickPointer,null);
+});
+
+test('Joystick capture failure still supports document drag, cancel and fresh input with the run button', async () => {
+  const e = loadGame({viewportWidth:852,viewportHeight:393}); await e.start(); e.set({x:800,y:550}); const stick = e.el('touch-joystick');
+  stick.setPointerCapture = () => {throw new Error('Pointer capture unavailable');};
+  await e.el('touch-run').dispatch('click'); await stick.dispatch('pointerdown',joystickPointer(e,0,0,221));
+  await e.document.dispatch('pointermove',joystickPointer(e,1,0,221)); e.step(.1);
+  almost(e.qa.getState().x-800,29.7,'Joystick sprint matches keyboard sprint'); assert.equal(locomotion(e).running,true);
+  await e.document.dispatch('pointercancel',joystickPointer(e,1,0,221)); const before = e.qa.getState(); e.step(.1);
+  assert.equal(e.qa.getState().x,before.x); assert.equal(locomotion(e).running,false);
+  await stick.dispatch('pointerdown',joystickPointer(e,-1,0,222)); e.step(.05);
+  assert.ok(e.qa.getState().x<before.x,'A cancelled gesture does not trap the joystick');
+  await stick.dispatch('contextmenu'); assert.equal(locomotion(e).joystickPointer,null); assert.equal(locomotion(e).touchRun,false);
+});
+
+test('Opening a dialog, chat or returning home clears joystick input and never persists its vector', async () => {
+  const e = loadGame({viewportWidth:852,viewportHeight:393}); await e.start(); e.set({x:800,y:550,coins:731}); const stick = e.el('touch-joystick');
+  for (const reset of [async()=>{await e.el('btn-journal').dispatch('click');await e.el('dialog-close').dispatch('click');},async()=>{e.el('chat-input').focus();e.el('chat-input').blur();},async()=>{await e.el('btn-home').dispatch('click');await e.start();}]) {
+    await stick.dispatch('pointerdown',joystickPointer(e,1,0,231)); await e.el('touch-run').dispatch('click'); e.step(.02);
+    await reset(); const before = e.qa.getState(); e.step(.05);
+    assert.equal(e.qa.getState().x,before.x); assert.equal(e.qa.getState().y,before.y); assert.equal(locomotion(e).joystickPointer,null); assert.equal(locomotion(e).joystick.x,0); assert.equal(locomotion(e).joystick.y,0); assert.equal(locomotion(e).touchRun,false);
+    await e.document.dispatch('pointermove',joystickPointer(e,1,0,231)); e.step(.05); assert.equal(e.qa.getState().x,before.x,'An old drag cannot resume after a modal or focus reset');
+  }
+  await e.window.dispatch('pagehide'); const save = JSON.parse(e.storage.get(e.qa.storageKey));
+  assert.equal(save.coins,731); for (const key of ['joystick','joystickPointer','orientationBlocked','tutorial','minimapCollapsed']) assert.equal(Object.hasOwn(save,key),false,`${key} stays outside progress`);
+});
+
+test('Portrait phone pauses world and gameplay input until landscape; rotating back clears held controls', async () => {
+  const e = loadGame({width:393,height:520,viewportWidth:393,viewportHeight:852}); await e.start(); e.set({x:800,y:550});
+  assert.equal(e.el('rotate-notice').hidden,false);
+  const before = e.qa.getState(), positions = residentPositions(e), animation = e.qa.getAnimationTime();
+  await e.key('d'); await e.key('Shift'); await e.el('touch-run').dispatch('click'); await e.el('touch-joystick').dispatch('pointerdown',joystickPointer(e,1,0));
+  e.step(.5); e.qa.interact(); e.qa.attack();
+  assert.equal(e.qa.getState().x,before.x); assert.equal(e.qa.getState().y,before.y); assert.equal(e.qa.getState().stamina,before.stamina); assert.equal(e.qa.getState().minutes,before.minutes); assert.equal(residentPositions(e),positions); assert.equal(e.qa.getAnimationTime(),animation); assert.equal(locomotion(e).touchRun,false);
+  await e.viewport(852,393); e.resize(660,300); assert.equal(e.el('rotate-notice').hidden,true);
+  e.step(.05); assert.equal(e.qa.getState().x,before.x,'Input attempted behind the rotation notice cannot latch');
+  await e.el('touch-joystick').dispatch('pointerdown',joystickPointer(e,1,0)); await e.el('touch-run').dispatch('click'); e.step(.05); assert.ok(e.qa.getState().x>before.x);
+  await e.viewport(393,852); assert.equal(e.el('rotate-notice').hidden,false); assert.equal(locomotion(e).joystickPointer,null); assert.equal(locomotion(e).touchRun,false); const rotated = e.qa.getState();
+  await e.viewport(852,393); e.step(.05); assert.equal(e.qa.getState().x,rotated.x,'Rotation never resumes an old joystick gesture');
+  await e.viewport(1000,800); assert.equal(e.el('rotate-notice').hidden,true,'Desktop portrait-shaped windows are not forced to rotate');
+});
+
+test('Rotation closes the information drawer and releases chat focus without discarding its draft', async () => {
+  const e=loadGame({viewportWidth:852,viewportHeight:393});await e.start();
+  await e.el('btn-mobile-chat').dispatch('click');const input=e.el('chat-input');input.value='Bản nháp khi xoay máy';input.focus();
+  await e.viewport(393,852);
+  assert.equal(e.el('rotate-notice').hidden,false);assert.equal(e.el('play-screen').dataset.mobilePanelOpen,'');
+  assert.equal(e.el('mobile-panel-backdrop').hidden,true);assert.equal(e.el('btn-mobile-chat').getAttribute('aria-expanded'),'false');
+  assert.equal(e.document.activeElement,null);assert.equal(input.value,'Bản nháp khi xoay máy');
+  await e.viewport(852,393);assert.equal(e.el('rotate-notice').hidden,true);assert.equal(e.el('play-screen').dataset.mobilePanelOpen,'');
+});
+
+test('First-player tutorial waits for landscape, pauses gameplay and completion uses a separate QA flag', async () => {
+  const playerSave = '{"sentinel":"player-progress"}', storage = new Map([['starfall-valley-save-v1',playerSave]]);
+  const e = loadGame({search:'?qa=1&tutorial=1',storage,viewportWidth:393,viewportHeight:852}); await e.start();
+  const flag = e.qa.storageKey+'-tutorial-v1'; assert.equal(e.el('game-dialog').open,false); assert.equal(storage.has(flag),false);
+  await e.viewport(852,393); assert.equal(e.el('game-dialog').open,true); assert.match(e.el('dialog-body').innerHTML,/Bước 1 trên 4.*joystick/s);
+  const before = e.qa.getState(); await e.key('d'); await e.el('touch-joystick').dispatch('pointerdown',joystickPointer(e,1,0)); e.step(.05); assert.equal(e.qa.getState().x,before.x);
+  await e.button({tutorialNext:''}); assert.match(e.el('dialog-body').innerHTML,/Bước 2 trên 4.*Mira/s); assert.equal(storage.has(flag),false);
+  await e.viewport(393,852); assert.equal(e.el('game-dialog').open,false); assert.equal(e.el('rotate-notice').hidden,false); assert.equal(storage.has(flag),false);
+  await e.viewport(852,393); assert.equal(e.el('game-dialog').open,true); assert.match(e.el('dialog-body').innerHTML,/Bước 2 trên 4/,'Rotating back resumes the same guide page');
+  await e.button({tutorialPrev:''}); assert.match(e.el('dialog-body').innerHTML,/Bước 1 trên 4/);
+  for (let index=0;index<3;index++) await e.button({tutorialNext:''}); assert.match(e.el('dialog-body').innerHTML,/Bắt đầu chơi/); assert.equal(storage.has(flag),false);
+  await e.button({tutorialNext:''}); assert.equal(e.el('game-dialog').open,false); assert.equal(storage.get(flag),'done'); assert.equal(storage.get('starfall-valley-save-v1'),playerSave);
+  const loaded = loadGame({search:'?qa=1&tutorial=1',storage,viewportWidth:852,viewportHeight:393}); await loaded.start(); assert.equal(loaded.el('game-dialog').open,false,'Finished tutorial does not reappear on reload');
+});
+
+test('Tutorial skip is explicit, closing X leaves it incomplete and existing players can replay help', async () => {
+  const e = loadGame({search:'?qa=1&tutorial=1'}); await e.start(); const flag = e.qa.storageKey+'-tutorial-v1';
+  assert.equal(e.el('game-dialog').open,true); await e.el('dialog-close').dispatch('click'); assert.equal(e.storage.has(flag),false,'Closing the dialog is not tutorial completion');
+  await e.el('btn-help').dispatch('click'); await e.button({tutorialSkip:''}); assert.equal(e.storage.get(flag),'done'); assert.equal(e.el('game-dialog').open,false);
+  const saved = JSON.parse(e.storage.get(e.qa.storageKey)), loaded = loadGame({saved}); await loaded.start(); assert.equal(loaded.el('game-dialog').open,false,'Existing saves are not interrupted by an automatic guide');
+  await loaded.el('btn-help').dispatch('click'); assert.equal(loaded.el('game-dialog').open,true); assert.match(loaded.el('dialog-body').innerHTML,/Bước 1 trên 4.*WASD/s);
+  const state = JSON.stringify(loaded.qa.getState()); await loaded.button({tutorialSkip:''}); assert.equal(JSON.stringify(loaded.qa.getState()),state,'Help navigation does not rewrite quests or items');
+});
+
+test('Default QA scenarios skip onboarding while fresh production players receive it once', async () => {
+  const qa = loadGame({search:'?qa=1&scene=actors'}); await qa.start(); assert.equal(qa.el('game-dialog').open,false); assert.equal(qa.storage.has(qa.qa.storageKey+'-tutorial-v1'),false);
+  const production = loadGame({search:'',expectQA:false}); await production.start(); assert.equal(production.el('game-dialog').open,true); assert.match(production.el('dialog-body').innerHTML,/Bước 1 trên 4/);
+  await production.button({tutorialSkip:''}); assert.equal(production.storage.get('starfall-valley-save-v1-tutorial-v1'),'done');
+  const loaded = loadGame({search:'',expectQA:false,storage:production.storage}); await loaded.start(); assert.equal(loaded.el('game-dialog').open,false);
+});
+
+test('Minimap integration follows the camera and guided resident, throttles redraws, and can collapse without pausing gameplay', async () => {
+  const e = loadGame({width:640,height:300,viewportWidth:852,viewportHeight:393}); await e.start();
+  const renders = [], original = e.minimap.draw;
+  e.minimap.draw = (context,options) => {renders.push({context,options});return original(context,options);};
+  e.set({x:800,y:550}); e.advance(201); e.qa.update(0); e.qa.drawGame();
+  assert.equal(renders.length,1); const first = renders[0];
+  assert.equal(first.context.canvas.id,'minimapCanvas'); assert.equal(first.options.map,'village'); assert.equal(first.options.player.x,e.qa.getState().x); assert.equal(first.options.player.y,e.qa.getState().y);
+  assert.equal(first.options.camera.width,e.el('gameCanvas').width); assert.equal(first.options.camera.height,e.el('gameCanvas').height); assert.equal(first.options.target.id,'mira'); assert.equal(first.options.target.x,npc(e,'mira').x);
+  e.qa.drawGame(); e.advance(100); e.qa.drawGame(); assert.equal(renders.length,1,'Repeated animation frames do not redraw the minimap before 200ms');
+  e.advance(101); e.qa.drawGame(); assert.equal(renders.length,2);
+  e.set({x:1500,y:100}); advanceResidents(e,1); e.qa.drawGame();
+  const latest = renders.at(-1).options; assert.equal(latest.target.x,npc(e,'mira').x); assert.equal(latest.target.y,npc(e,'mira').y,'The minimap target follows the resident patrol');
+  const toggle = e.el('btn-minimap'); await toggle.dispatch('click'); assert.equal(toggle.getAttribute('aria-expanded'),'false'); assert.equal(e.el('minimap-shell').getAttribute('data-collapsed'),'true');
+  const count = renders.length; e.advance(250); e.qa.drawGame(); assert.equal(renders.length,count,'Collapsed minimap avoids rendering work');
+  e.set({x:800,y:550}); await e.key('d'); e.step(.05); await e.key('d','keyup'); almost(e.qa.getState().x-800,9,'Collapsing the map does not suspend movement');
+  await toggle.dispatch('click'); assert.equal(toggle.getAttribute('aria-expanded'),'true'); assert.equal(e.el('minimap-shell').getAttribute('data-collapsed'),'false'); e.qa.drawGame(); assert.equal(renders.length,count+1,'Reopening redraws immediately');
+});
+
+test('Minimap renders only the current region online peers and updates after map travel without changing saved progress', async () => {
+  const e = loadGame(); await e.start(); e.set({x:800,y:550,coins:732}); const socket = e.sockets[0];
+  socket.readyState=1; socket.onopen(); socket.onmessage({data:JSON.stringify({type:'welcome',id:'self'})});
+  socket.onmessage({data:JSON.stringify({type:'snapshot',players:[{id:'self',name:'You',map:'village',x:800,y:550,moving:false},{id:'nearby',name:'Nearby',map:'village',x:850,y:550,moving:false},{id:'another-region',name:'Far',map:'forest',x:800,y:550,moving:false}]})});
+  e.advance(201); e.calls.length=0; e.qa.drawGame();
+  const peerDots = e.calls.filter(call=>call.context==='minimapCanvas'&&call.name==='fill'&&call.fillStyle==='#89baff'); assert.equal(peerDots.length,1,'The other region and local self are not duplicated on the minimap');
+  const renders = [], original = e.minimap.draw; e.minimap.draw=(context,options)=>{renders.push(options);return original(context,options);};
+  e.at(objects(e,'village').find(o=>o.kind==='gate'&&o.to==='forest')); e.qa.interact(); e.advance(201); e.qa.drawGame();
+  assert.equal(renders.at(-1).map,'forest'); assert.equal(renders.at(-1).player.map,'forest'); assert.equal(renders.at(-1).player.x,e.qa.getState().x);
+  await e.window.dispatch('pagehide'); const save=JSON.parse(e.storage.get(e.qa.storageKey)); assert.equal(save.coins,732); assert.equal(save.map,'forest'); assert.equal(Object.hasOwn(save,'minimap'),false);
 });
 
 test('Every generated NPC, resource, plot, shrine, chest and gate has a reachable selectable interaction point', () => {

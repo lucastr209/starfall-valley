@@ -4,7 +4,7 @@ RPG pixel 2D trong trình duyệt, phát triển từ nền Canvas và server c�
 
 ## Chạy game
 
-Dùng Node.js 22 trở lên (máy phát triển hiện dùng Node 26):
+Dùng Node.js 24 (cùng phiên bản major với Vercel):
 
 ```powershell
 node server.js
@@ -17,8 +17,10 @@ Không cần tải package, font hay ảnh ngoài. Mở trực tiếp `index.htm
 ## Cách chơi
 
 - WASD / các phím mũi tên: đi; giữ **Shift** để chạy. Nhân vật quay theo bốn hướng và giữ hướng nhìn khi nhả phím. **E**: tương tác, ưu tiên cư dân trong tầm trò chuyện. **Space**: vung kiếm, có khoảng nghỉ 0,4 giây.
-- **Q** mở sổ nhiệm vụ, **B** mở xây làng, **I** mở túi/chế tạo; **Esc** đóng cửa sổ hoặc hủy câu cá. Mobile có phím điều hướng, kiếm, tương tác và nút **Chạy** để bật/tắt chạy.
-- Mobile ưu tiên bản đồ và phóng nhân vật rõ hơn; bảng **Nhiệm vụ & cư dân** và **Trò chuyện online** mở khi cần. Xoay ngang đặt điều khiển bên phải bản đồ. Các nút có vùng chạm ít nhất 44px và không chọn chữ/mở menu nhấn giữ; ô tên/chat vẫn nhập và chọn chữ bình thường.
+- **Q** mở sổ nhiệm vụ, **B** mở xây làng, **I** mở túi/chế tạo; **Esc** đóng cửa sổ hoặc hủy câu cá. Mobile có joystick bên trái, kiếm/tương tác và nút **Chạy** bên phải để bật/tắt chạy.
+- Mobile chơi theo chiều ngang, bản đồ chiếm toàn bộ vùng dưới thanh trạng thái. Màn hình dọc nhắc xoay máy và tạm dừng game; xoay máy, mở dialog/bảng thông tin hoặc rời trang đều xóa thao tác đang giữ. Bảng **Cư dân** và **Chat** mở thành drawer có nút đóng. Các nút có vùng chạm ít nhất 44px, nút hành động cách nhau 14px; ô tên/chat vẫn nhập và chọn chữ bình thường.
+- Người chơi mới được hướng dẫn bốn bước; có thể bỏ qua hoặc mở lại bằng **Hướng dẫn**. Cờ hoàn tất lưu riêng với tiến trình; save cũ không bị buộc xem lại. QA mặc định không mở hướng dẫn; `?qa=1&tutorial=1` thử hướng dẫn khi chưa có save QA.
+- Minimap góc trên phải hiển thị vùng hiện tại, bạn (chấm trắng), cư dân/nhiệm vụ, mục tiêu (hình thoi vàng), người chơi online cùng vùng và cổng (ô xanh). Khung trắng là vùng nhìn hiện tại. Nút **⌖** thu/mở minimap; cập nhật tối đa năm lần/giây từ dữ liệu đang có trong game.
 - Tốc độ đi là 180 pixel/giây, tăng lên 225 khi có Giày Lướt Cỏ. Chạy nhanh gấp 1,65 lần: tương ứng 297 và 371,25 pixel/giây, không mất thêm thể lực. Đi chéo có cùng tốc độ với đi thẳng; khi bị vật cản chặn, nhân vật không tiếp tục bước tại chỗ.
 - Chạy và phím di chuyển tự tắt khi mở cửa sổ, tập trung vào chat, câu cá, qua cổng, trở về màn hình đầu hoặc rời cửa sổ trình duyệt. Sau đó nhấn lại Shift hoặc nút Chạy nếu muốn tiếp tục chạy.
 - Nhận nhiệm vụ trước khi thu thập, chế tạo, chiến đấu hoặc trò chuyện để ghi tiến độ. Các mốc xây dựng, khám phá, bia và rương đã làm vẫn được công nhận.

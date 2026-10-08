@@ -3,6 +3,7 @@
   const D = globalThis.STARDROP_DATA, C = globalThis.StardropCore, NPC = globalThis.StardropNPC, P = globalThis.StardropPaths, E = globalThis.StardropEffects, A = globalThis.StardropActors;
   if (!D || !C || !NPC || !P || !E || !A) { document.getElementById('save-label').textContent = 'Không tải được dữ liệu game. Hãy tải lại trang.'; return; }
   const actorMetrics=A.artMetrics||{bodyWidth:40,bodyHeight:60,nameOffset:64};
+  const Mini=globalThis.StardropMinimap, Tutorial=globalThis.StardropOnboarding;
   const $ = id => document.getElementById(id), esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const SAVE_KEY = 'starfall-valley-save-v1', qaMode = new URLSearchParams(location.search).get('qa') === '1';
   const storageKey = qaMode ? 'starfall-valley-qa-save' : SAVE_KEY;
@@ -12,11 +13,17 @@
   if(state.health<=0){state.health=100;state.stamina=70;state.map='village';state.x=800;state.y=720;}
   const canvas = $('gameCanvas'), ctx = canvas.getContext('2d'); ctx.imageSmoothingEnabled = false;
   const title = $('titleCanvas'), tc = title.getContext('2d'); tc.imageSmoothingEnabled = false;
+  const miniCanvas=$('minimapCanvas'),miniContext=miniCanvas.getContext('2d');miniCanvas.width=200;miniCanvas.height=140;
   let viewWidth=960,viewHeight=600;
   const darkCanvas = document.createElement('canvas'); darkCanvas.width = 960; darkCanvas.height = 600;
   const dc = darkCanvas.getContext('2d'), camera = { x: 0, y: 0 }, keys = new Set(), touchKeys = new Set();
   const touchPointers=new Map();
   let mobilePanel='';
+  let joystickPointer=null,joystickX=0,joystickY=0,orientationBlocked=false,minimapOpen=true,lastMinimap=-Infinity,lastMinimapMap=null,tutorialIndex=0;
+  const tutorialKey=storageKey+'-tutorial-v1';
+  let tutorialCompleted=false;try{tutorialCompleted=localStorage.getItem(tutorialKey)==='done';}catch(_){}
+  let tutorialPending=!!Tutorial&&!tutorialCompleted&&(!saved||saved.version!==1)&&(!qaMode||new URLSearchParams(location.search).get('tutorial')==='1');
+  const mobileLayout=()=>!!window.innerWidth&&(window.innerWidth<=780||window.innerWidth<=1100&&window.innerHeight<=600&&window.innerWidth>window.innerHeight);
   let near = null, swing = 0, attackCooldown = 0, hurtCooldown = 0, animation = 0, facing = 1;
   let fishing = null, toastUntil = 0, lastSaved = 0, hudTimer = 0, regenTimer = 0;
   let socket = null, onlineId = null, reconnectTimer = null, moveTimer = 0, reconnectAttempts = 0;
@@ -46,6 +53,7 @@
   }
   function clearMovement() {
     const held=[...touchPointers];touchPointers.clear();
+    resetJoystick();
     keys.clear();touchKeys.clear();touchRun=false;playerRunning=false;state.moving=false;stepTimer=0;syncRunControl();
     held.forEach(([id,{button}])=>{try{if(button.hasPointerCapture?.(id))button.releasePointerCapture(id);}catch(_){}});
     actorMotions.forEach(m=>{m.motionWeight=0;m.runWeight=0;});
@@ -207,12 +215,21 @@
     fishing=null; $('fishing').hidden=true; clearMovement(); modal=kind;
     npcs.forEach(n=>{n.moving=false;});state.moving=false;
     $('dialog-title').textContent=title; $('dialog-eyebrow').textContent=eyebrow; $('dialog-body').innerHTML=html;
+    $('game-dialog').classList.remove('tutorial-dialog');if(kind==='tutorial')$('game-dialog').classList.add('tutorial-dialog');
     if(!$('game-dialog').open)$('game-dialog').showModal();
   }
   function closeDialog() { $('game-dialog').close(); modal=null; clearMovement();save(); }
   $('dialog-close').addEventListener('click',closeDialog);
   $('game-dialog').addEventListener('cancel',()=>{modal=null;clearMovement();save();});
   $('game-dialog').addEventListener('close',()=>{modal=null;});
+  function showTutorial(index=0) {
+    if(!Tutorial||!running||orientationBlocked)return;
+    tutorialPending=false;tutorialIndex=clamp(index,0,Tutorial.count-1);
+    const step=Tutorial.step(tutorialIndex,mobileLayout());
+    openDialog('tutorial',step.title,step.subtitle,Tutorial.render(tutorialIndex,mobileLayout()));
+  }
+  function finishTutorial(){tutorialCompleted=true;tutorialPending=false;try{localStorage.setItem(tutorialKey,'done');}catch(_){}closeDialog();}
+  $('btn-help').addEventListener('click',()=>showTutorial());
   function showJournal(tab=journalTab) {
     journalTab=tab;
     let list=tab==='daily'?C.dailyQuests(state,D):D.quests.filter(q=>q.kind===tab);
@@ -251,6 +268,11 @@
   }
   document.addEventListener('click',e=>{
     const b=e.target.closest('button');if(!b)return;
+    if(modal==='tutorial'){
+      if(b.hasAttribute('data-tutorial-next')){if(tutorialIndex===Tutorial.count-1)finishTutorial();else showTutorial(tutorialIndex+1);return;}
+      if(b.hasAttribute('data-tutorial-prev')){showTutorial(tutorialIndex-1);return;}
+      if(b.hasAttribute('data-tutorial-skip')){finishTutorial();return;}
+    }
     if(b.dataset.tab)showJournal(b.dataset.tab);
     if(b.hasAttribute('data-close'))closeDialog();
     if(b.hasAttribute('data-open-journal'))showJournal();
@@ -273,15 +295,19 @@
     $('play-screen').setAttribute('data-mobile-panel-open',panel);
     $('btn-mobile-quests').setAttribute('aria-expanded',String(panel==='quests'));
     $('btn-mobile-chat').setAttribute('aria-expanded',String(panel==='chat'));
-    if(panel){clearMovement();if(fishing){fishing=null;$('fishing').hidden=true;}$('mobile-'+panel+'-panel').scrollIntoView?.({block:'nearest',behavior:reducedMotion?'instant':'smooth'});}
+    $('mobile-panel-backdrop').hidden=!panel;
+    if(panel){clearMovement();if(fishing){fishing=null;$('fishing').hidden=true;}}
   }
   for(const panel of ['quests','chat'])$('btn-mobile-'+panel).addEventListener('click',()=>setMobilePanel(mobilePanel===panel?'':panel));
+  for(const id of ['mobile-panel-close','mobile-panel-backdrop'])$(id).addEventListener('click',()=>setMobilePanel(''));
+  $('btn-portrait-home').addEventListener('click',()=>$('btn-home').click());
+  $('btn-minimap').addEventListener('click',()=>{minimapOpen=!minimapOpen;$('minimap-shell').setAttribute('data-collapsed',String(!minimapOpen));$('btn-minimap').setAttribute('aria-expanded',String(minimapOpen));$('btn-minimap').setAttribute('aria-label',minimapOpen?'Ẩn bản đồ thu nhỏ':'Hiện bản đồ thu nhỏ');lastMinimap=-Infinity;});
   $('start-form').addEventListener('submit',e=>{
     e.preventDefault();state.name=C.cleanName($('player-name').value);clearMovement();running=true;$('start-screen').hidden=true;$('play-screen').hidden=false;window.scrollTo?.(0,0);resizeViewport();
     const first=D.quests.find(q=>q.kind==='story'&&C.available(state,q,D)&&!state.quests[q.id]);if(first)C.accept(state,first.id,D);
     refreshHUD();save();connect();toast('Chào mừng tới Làng Sao! E để trò chuyện; Q để mở sổ nhiệm vụ.');
   });
-  $('btn-home').addEventListener('click',async e=>{e.preventDefault();clearMovement();setMobilePanel('');save();running=false;if(socket){socket.onclose=null;socket.close();socket=null;}clearTimeout(reconnectTimer);peers.clear();onlineId=null;closeDialog();if(nativeFull())try{await(document.exitFullscreen||document.webkitExitFullscreen).call(document);}catch(_){}$('game-wrapper').classList.remove('pseudo-fullscreen');syncFullscreen();$('play-screen').hidden=true;$('start-screen').hidden=false;$('btn-start').innerHTML='Tiếp tục hành trình <span>→</span>';$('save-label').textContent=`Ngày ${state.day} · Cấp ${C.level(state)} · Tiến trình đã lưu`;$('player-name').value=state.name;window.scrollTo?.(0,0);});
+  $('btn-home').addEventListener('click',async e=>{e.preventDefault();clearMovement();setMobilePanel('');save();running=false;syncOrientation();if(socket){socket.onclose=null;socket.close();socket=null;}clearTimeout(reconnectTimer);peers.clear();onlineId=null;closeDialog();if(nativeFull())try{await(document.exitFullscreen||document.webkitExitFullscreen).call(document);}catch(_){}$('game-wrapper').classList.remove('pseudo-fullscreen');syncFullscreen();$('play-screen').hidden=true;$('start-screen').hidden=false;$('btn-start').innerHTML='Tiếp tục hành trình <span>→</span>';$('save-label').textContent=`Ngày ${state.day} · Cấp ${C.level(state)} · Tiến trình đã lưu`;$('player-name').value=state.name;window.scrollTo?.(0,0);});
   function chatLine(name,text,notice=false) {
     const p=document.createElement('p');if(notice)p.className='notice';if(name){const b=document.createElement('b');b.textContent=name;p.append(b);}p.append(document.createTextNode(text));$('chat-log').append(p);while($('chat-log').children.length>40)$('chat-log').firstChild.remove();$('chat-log').scrollTop=$('chat-log').scrollHeight;
   }
@@ -319,10 +345,12 @@
   });
   for(const e of ['fullscreenchange','webkitfullscreenchange'])document.addEventListener(e,()=>{if(nativeFull())$('game-wrapper').classList.remove('pseudo-fullscreen');syncFullscreen();});
   const typing = () => ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName);
+  const panelBlocks=()=>!!mobilePanel&&mobileLayout();
+  const gamePaused=()=>!!modal||typing()||orientationBlocked||panelBlocks();
   document.addEventListener('keydown',e=>{
     const k=e.key.toLowerCase();
     if(k==='escape'){clearMovement();if(fishing){fishing=null;$('fishing').hidden=true;}else if(mobilePanel)setMobilePanel('');else if($('game-wrapper').classList.contains('pseudo-fullscreen')){$('game-wrapper').classList.remove('pseudo-fullscreen');syncFullscreen();}return;}
-    if(typing()||!running||modal)return;
+    if(!running||gamePaused())return;
     if(fishing){if(['e','enter'].includes(k)){e.preventDefault();interact();}return;}
     if(['BUTTON','A'].includes(document.activeElement?.tagName)&&[' ','enter'].includes(k))return;
     if(['arrowup','arrowdown','arrowleft','arrowright',' ','e','q','b','i'].includes(k))e.preventDefault();
@@ -350,20 +378,46 @@
   document.querySelectorAll('[data-move]').forEach(b=>{
     b.addEventListener('pointerdown',e=>{
       e.preventDefault();
-      if(e.button>0||!running||modal||fishing||typing())return;
+      if(e.button>0||!running||gamePaused()||fishing)return;
       const id=e.pointerId??b;touchPointers.set(id,{button:b});syncTouchKeys();
       try{b.setPointerCapture(e.pointerId);}catch(_){}
     });
     for(const type of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(type,e=>releaseTouch(e,b));
   });
   for(const type of ['pointerup','pointercancel'])document.addEventListener(type,e=>releaseTouch(e));
+  function resetJoystick() {
+    const id=joystickPointer;joystickPointer=null;joystickX=joystickY=0;
+    $('joystick-knob').style.transform='translate(-50%, -50%)';$('touch-joystick').setAttribute('data-active','false');
+    try{if(id!==null&&$('touch-joystick').hasPointerCapture?.(id))$('touch-joystick').releasePointerCapture(id);}catch(_){}
+  }
+  function moveJoystick(e) {
+    if(joystickPointer!==e.pointerId)return;
+    e.preventDefault();
+    if(!running||gamePaused()||fishing){resetJoystick();return;}
+    const r=$('touch-joystick').getBoundingClientRect(),radius=Math.max(12,Math.min(r.width,r.height)/2-23);
+    if(!Number.isFinite(e.clientX)||!Number.isFinite(e.clientY))return;
+    const dx=e.clientX-r.left-r.width/2,dy=e.clientY-r.top-r.height/2,length=Math.hypot(dx,dy),scale=length>radius?radius/length:1;
+    const x=dx*scale,y=dy*scale;
+    joystickX=length<radius*.18?0:x/radius;joystickY=length<radius*.18?0:y/radius;
+    $('joystick-knob').style.transform=`translate(-50%, -50%) translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+  }
+  $('touch-joystick').addEventListener('pointerdown',e=>{
+    e.preventDefault();if(e.button>0||joystickPointer!==null||!running||gamePaused()||fishing)return;
+    joystickPointer=e.pointerId;$('touch-joystick').setAttribute('data-active','true');
+    try{$('touch-joystick').setPointerCapture(e.pointerId);}catch(_){}moveJoystick(e);
+  });
+  for(const target of [$('touch-joystick'),document]){
+    target.addEventListener('pointermove',moveJoystick);
+    for(const type of ['pointerup','pointercancel'])target.addEventListener(type,e=>{if(joystickPointer===e.pointerId)resetJoystick();});
+  }
+  $('touch-joystick').addEventListener('lostpointercapture',e=>{if(joystickPointer===e.pointerId)resetJoystick();});
   for(const type of ['contextmenu','selectstart','dragstart'])document.addEventListener(type,e=>{
     const target=e.target?.closest?e.target:e.target?.parentElement;
-    if(!target?.closest('#game-wrapper')||target.closest('input, textarea, select, [contenteditable="true"]')||!target.closest('button, #btn-home, #gameCanvas'))return;
+    if(!target?.closest('#game-wrapper')||target.closest('input, textarea, select, [contenteditable="true"]')||!target.closest('button, #btn-home, #gameCanvas, #minimapCanvas'))return;
     e.preventDefault();if(type==='contextmenu')clearMovement();
   });
   $('touch-interact').addEventListener('click',interact);$('touch-attack').addEventListener('click',attack);
-  $('touch-run').addEventListener('click',()=>{if(!running||modal||fishing||typing())return;touchRun=!touchRun;playerRunning=!!state.moving&&wantsRun();syncRunControl();});
+  $('touch-run').addEventListener('click',()=>{if(!running||gamePaused()||fishing)return;touchRun=!touchRun;playerRunning=!!state.moving&&wantsRun();syncRunControl();});
   function resourceReady(o) {return Date.now()-(state.resources[o.id]||0)>=30000;}
   function pickNearest() {
     const residents=npcs.filter(n=>n.map===state.map&&distance(n,state)<78).sort((a,b)=>distance(a,state)-distance(b,state));
@@ -373,7 +427,7 @@
     return candidates.filter(o=>distance(o,state)<(o.kind==='gate'?100:78)).sort((a,b)=>distance(a,state)-distance(b,state))[0]||null;
   }
   function interact() {
-    if(!running||modal||typing())return;
+    if(!running||gamePaused())return;
     if(fishing){finishFishing();return;}
     near=pickNearest();if(!near){toast('Tới gần cư dân, tài nguyên hoặc biển chỉ dẫn rồi nhấn E.');return;}
     if(C.isNight(state)&&state.map==='village')C.event(state,'night','village',1,D);
@@ -430,7 +484,7 @@
     fishing=null;$('fishing').hidden=true;clearMovement();refreshHUD();save();
   }
   function attack() {
-    if(!running||modal||fishing||typing()||attackCooldown>0)return;
+    if(!running||gamePaused()||fishing||attackCooldown>0)return;
     if(state.stamina<2){toast('Cần thêm thể lực để vung kiếm.');return;}
     swing=.25;attackCooldown=.4;state.stamina-=2;
     effect('slash',state.x,state.y-24,'','#fff4bc');
@@ -467,13 +521,14 @@
     }
   }
   function update(dt) {
-    const paused=!!modal||typing();
+    const paused=gamePaused();
     if(!paused){animation+=dt;attackCooldown=Math.max(0,attackCooldown-dt);swing=Math.max(0,swing-dt);hurtCooldown=Math.max(0,hurtCooldown-dt);}
-    if(!modal&&!typing()){
+    if(!paused){
       if(fishing){fishing.elapsed+=dt;fishing.rippleTimer+=dt;if(fishing.rippleTimer>=.85){effect('ripple',fishing.spot.x+30,fishing.spot.y,'','#bfe6dc');fishing.rippleTimer=0;}fishing.position=(Math.sin(fishing.elapsed*3.8-Math.PI/2)+1)/2;$('fish-marker').style.left=`${fishing.position*98}%`;}
       else{
         const oldX=state.x,oldY=state.y;
         let dx=(keys.has('d')||keys.has('arrowright')||touchKeys.has('right')?1:0)-(keys.has('a')||keys.has('arrowleft')||touchKeys.has('left')?1:0),dy=(keys.has('s')||keys.has('arrowdown')||touchKeys.has('down')?1:0)-(keys.has('w')||keys.has('arrowup')||touchKeys.has('up')?1:0);
+        if(!dx&&!dy){dx=joystickX;dy=joystickY;}
         if(dx||dy){playerDirection=directionFor(dx,dy);if(dx)facing=dx>0?1:-1;const len=Math.hypot(dx,dy),travel=moveSpeed()*Math.min(dt,.25);movePlayer(dx/len*travel,dy/len*travel);}
         const travelled=Math.hypot(state.x-oldX,state.y-oldY);
         state.moving=travelled>.01;playerRunning=state.moving&&wantsRun();walkDistance+=travelled;
@@ -500,7 +555,7 @@
     updateActorMotions(dt,paused||!!fishing);
     syncRunControl();
     updateCamera();
-    near=modal||fishing?null:pickNearest();
+    near=paused||fishing?null:pickNearest();
     const descriptions={npc:'Trò chuyện',resource:'Thu thập',gate:'Đi tới',plot:state.crops[near?.i]===null?'Gieo mâm xôi':'Kiểm tra / thu hoạch',fish:'Thả câu',camp:'Nghỉ / chờ tối',bench:'Hồi sức',well:'Hồi sức',shrine:'Đánh thức',chest:'Khám phá'};
     $('interaction-hint').textContent=near?`E · ${descriptions[near.kind]} ${near.name||''}`:'';
     for(let i=particles.length-1;i>=0;i--){const p=particles[i];if(p.map!==state.map){particles.splice(i,1);continue;}if(!paused){p.age+=dt;p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=100*dt;}if(p.life<=0)particles.splice(i,1);}
@@ -690,6 +745,15 @@
     if(C.weather(state)==='rain'){const rainTime=reducedMotion?0:animation;ctx.strokeStyle='#d8e6eb80';ctx.lineWidth=1;for(let i=0;i<(reducedMotion?40:120);i++){const x=(i*73+rainTime*140)%(viewWidth+50)-25,y=(i*97+rainTime*330)%(viewHeight+50)-25;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-6,y+12);ctx.stroke();}}
     drawLighting();
     if(!reducedMotion&&state.upgrades.includes('beacon')&&state.map==='village'){for(let i=0;i<15;i++){const x=(i*79+Math.sin(animation+i)*40)%viewWidth,y=70+(i*31)%350+Math.sin(animation*1.5+i)*10;rect(ctx,x,y,3,3,'#fff1a9');}}
+    drawMinimap();
+  }
+  function drawMinimap() {
+    if(!Mini||!minimapOpen||orientationBlocked)return;
+    const time=performance.now();if(state.map===lastMinimapMap&&time-lastMinimap<200)return;
+    lastMinimap=time;lastMinimapMap=state.map;
+    Mini.draw(miniContext,{width:miniCanvas.width,height:miniCanvas.height,map:state.map,terrain:terrain(state.map),worldWidth:1600,worldHeight:1100,
+      player:state,npcs:npcs.map(n=>({...n,marker:npcMarker(n)})),peers:[...peers.values()],objects:world[state.map].objects,target:guideNPC(),
+      camera:{...camera,width:viewWidth,height:viewHeight}});
   }
   function drawTitle() {
     const c=tc;rect(c,0,0,1440,900,'#f8d8a4');rect(c,0,0,1440,175,'#fbe1b7');rect(c,0,175,1440,170,'#e6d8ad');
@@ -716,14 +780,26 @@
     requestAnimationFrame(loop);
   }
   function updateCamera(){camera.x=clamp(Math.round(state.x-viewWidth/2),0,Math.max(0,1600-viewWidth));camera.y=clamp(Math.round(state.y-viewHeight/2),0,Math.max(0,1100-viewHeight));}
+  function syncOrientation(){
+    const blocked=running&&mobileLayout()&&window.innerHeight>window.innerWidth;
+    if(blocked!==orientationBlocked){
+      clearMovement();if(fishing){fishing=null;$('fishing').hidden=true;}
+      if(blocked)setMobilePanel('');
+      if(blocked&&modal){if(modal==='tutorial')tutorialPending=true;closeDialog();}
+    }
+    orientationBlocked=blocked;$('rotate-notice').hidden=!blocked;
+    if(running&&!blocked&&tutorialPending&&!modal)showTutorial(tutorialIndex);
+  }
   function resizeViewport(){
+    syncOrientation();
     const stage=$('canvas-stage');if(!stage.clientWidth||!stage.clientHeight)return;
-    viewWidth=stage.clientWidth<=700?540:960;
+    viewWidth=mobileLayout()&&window.innerWidth>window.innerHeight?720:stage.clientWidth<=700?540:960;
     viewHeight=Math.max(1,Math.round(viewWidth*stage.clientHeight/stage.clientWidth));
     // Preserve pixel proportions even in tall fullscreen viewports at map bounds.
     if(viewHeight>1100){viewHeight=1100;viewWidth=Math.max(1,Math.round(viewHeight*stage.clientWidth/stage.clientHeight));}
-    canvas.width=darkCanvas.width=viewWidth;canvas.height=darkCanvas.height=viewHeight;ctx.imageSmoothingEnabled=false;updateCamera();
+    canvas.width=darkCanvas.width=viewWidth;canvas.height=darkCanvas.height=viewHeight;ctx.imageSmoothingEnabled=false;updateCamera();lastMinimap=-Infinity;
   }
+  window.addEventListener('resize',()=>{clearMovement();resizeViewport();});
   if(typeof ResizeObserver!=='undefined')new ResizeObserver(resizeViewport).observe($('canvas-stage'));
   refreshHUD();syncFullscreen();syncRunControl();requestAnimationFrame(loop);
   // Local QA scenarios use a separate save slot and never modify the player's save.
@@ -751,7 +827,7 @@
     globalThis.StardropQA={getState:()=>structuredClone(state),getWorld:()=>world,getNPCs:()=>npcs,npcMarker,getGuide:guideNPC,blockedAt,interact,attack,update,drawGame,lightSources,collides,resourceReady,
       getPaths:(map=state.map)=>layouts[map],pathContains:(map,x,y,margin=0)=>P.contains(layouts[map],x,y,margin),getAmbientScene:(map=state.map)=>world[map].ambient,
       getEffects:()=>({effects:structuredClone(effects),particles:structuredClone(particles)}),getAnimationTime:()=>animation,isReducedMotion:()=>reducedMotion,
-      getLocomotion:()=>({direction:playerDirection,distance:walkDistance,running:playerRunning,speed:moveSpeed(),touchRun,...(actorMotions.get('player')||{phase:0,motionWeight:0,runWeight:0})}),
+      getLocomotion:()=>({direction:playerDirection,distance:walkDistance,running:playerRunning,speed:moveSpeed(),touchRun,joystick:{x:joystickX,y:joystickY},joystickPointer,...(actorMotions.get('player')||{phase:0,motionWeight:0,runWeight:0})}),
       getActorMotion:id=>structuredClone(actorMotions.get(id==='player'?'player':`npc:${id}`)||{phase:0,motionWeight:0,runWeight:0,distance:0}),
       getActorLabels:actorLabels,
       getAmbientSample:(map=state.map)=>E.sampleAmbient(world[map].ambient,animation,{night:C.isNight(state),rain:C.weather(state)==='rain',upgrades:state.upgrades,shrineActive:state.shrines.includes(map),reducedMotion}),

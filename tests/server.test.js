@@ -166,7 +166,7 @@ async function snapshotAfterMove(sender, packet, predicate, receiver = sender) {
 
 test('HTTP serves only the client allowlist, with correct GET/HEAD types and query strings', async t => {
   const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'starfall-server-test-'));
-  const names = ['index.html', 'styles.css', 'game-data.js', 'game-core.js', 'npc-ai.js', 'world-paths.js', 'world-effects.js', 'world-actors.js', 'game.js'];
+  const names = ['index.html', 'styles.css', 'game-data.js', 'game-core.js', 'npc-ai.js', 'world-paths.js', 'world-effects.js', 'world-actors.js', 'minimap.js', 'onboarding.js', 'game.js'];
   for (const name of names) fs.writeFileSync(path.join(fixtureRoot, name), `fixture:${name}`);
   t.after(() => {
     const resolved = path.resolve(fixtureRoot);
@@ -175,7 +175,7 @@ test('HTTP serves only the client allowlist, with correct GET/HEAD types and que
     fs.rmSync(resolved, { recursive: true, force: true });
   });
   const server = await startServer(t, { rootDir: fixtureRoot });
-  for (const [file, type] of [['index.html', 'text/html'], ['styles.css', 'text/css'], ['game-data.js', 'text/javascript'], ['game-core.js', 'text/javascript'], ['npc-ai.js', 'text/javascript'], ['world-paths.js', 'text/javascript'], ['world-effects.js', 'text/javascript'], ['world-actors.js', 'text/javascript'], ['game.js', 'text/javascript']]) {
+  for (const [file, type] of [['index.html', 'text/html'], ['styles.css', 'text/css'], ['game-data.js', 'text/javascript'], ['game-core.js', 'text/javascript'], ['npc-ai.js', 'text/javascript'], ['world-paths.js', 'text/javascript'], ['world-effects.js', 'text/javascript'], ['world-actors.js', 'text/javascript'], ['minimap.js', 'text/javascript'], ['onboarding.js', 'text/javascript'], ['game.js', 'text/javascript']]) {
     const response = await request(server, `/${file}?v=123`);
     assert.equal(response.status, 200);
     assert.equal(response.body, `fixture:${file}`);
@@ -206,7 +206,7 @@ test('HTTP rejects traversal, non-game files, malformed encoding and unsupported
 
 test('The actual project client assets are all available through the game server', async t => {
   const server = await startServer(t);
-  for (const file of ['index.html', 'styles.css', 'game-data.js', 'game-core.js', 'npc-ai.js', 'world-paths.js', 'world-effects.js', 'world-actors.js', 'game.js']) {
+  for (const file of ['index.html', 'styles.css', 'game-data.js', 'game-core.js', 'npc-ai.js', 'world-paths.js', 'world-effects.js', 'world-actors.js', 'minimap.js', 'onboarding.js', 'game.js']) {
     const response = await request(server, `/${file}`);
     assert.equal(response.status, 200, file);
     assert.equal(response.body, fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), file);

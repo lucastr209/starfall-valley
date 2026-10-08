@@ -1,5 +1,22 @@
 # Báo cáo kiểm tra — Thung Lũng Sao Rơi
 
+## Gameplay ngang, joystick, hướng dẫn và minimap — 08/10/2026
+
+Runtime: Node.js 24.19.0 trên Windows. QA localhost dùng save riêng; không xóa/đọc/sửa save người chơi. Không thêm dependency hoặc thay sprite/server online.
+
+- Mobile chuyển thành vùng chơi ngang toàn màn hình: thanh HUD 44px, thanh vùng 22px, Canvas chiếm phần còn lại. iPhone 15 Pro viewport 852×393 dùng Canvas logical width720; joystick bên trái, Chạy/Kiếm/Tương tác bên phải cách nhau14px. Các bảng thông tin mở thành drawer. Portrait hiện hướng dẫn xoay và tạm dừng world/input; xoay máy xóa thao tác đang giữ, đóng drawer và trả focus chat nhưng giữ bản nháp.
+- Joystick có vùng chết18%, giới hạn bán kính, một pointer sở hữu, chuẩn hóa đi chéo và giữ nguyên tốc độ180/297px/s. Kiểm nhả tại document, lỗi capture, lostcapture, cancel, nhiều pointer, pause/dialog/blur/câu cá và không ghi input vào save.
+- Hướng dẫn bốn trang tự mở cho người mới sau khi xoay ngang; có quay lại, tiếp tục, bỏ qua và mở lại. Xoay dọc giữa hướng dẫn đóng modal, xoay ngang mở lại cùng trang. Cờ hoàn tất riêng và save QA riêng; save cũ không bị buộc xem lại.
+- Minimap dùng terrain cache của vùng hiện tại, cập nhật tối đa5Hz; đánh dấu bạn, NPC/nhiệm vụ, mục tiêu đang tìm, người online cùng vùng và cổng; khung camera đúng kích thước viewport. Có thu/mở, không thêm request mạng, tên/chat hoặc dữ liệu vào save.
+- `node --check`: PASS cho9file JS/CJS/test thay đổi. Nhóm gameplay+minimap+onboarding trước sửa cuối: **103/103 PASS**. Hồi quy portrait/drawer/tutorial sau sửa cuối: **3/3 PASS**. Full suite cuối: **333 bài, 331 PASS, 0 fail, 2 skip**,54,97giây. Hai bài Redis live tùy chọn không bật trong lượt này; không tuyên bố đã kiểm Redis TCP live local.
+- Build allowlist và asset HTTP tests gồm hai module mới PASS; quét45file source so với secret env PASS. Không đưa env, backend, tests, archive hoặc công cụ deploy vào client.
+- Browser thật localhost: landscape852×393,844×390,932×430,667×375,568×320; tất cả nút kiểm tra≥44px, không chồng nhau hoặc vượt viewport. 852×393 có Canvas stage327,6px (khoảng83%chiều cao). Portrait393×852 hiện rotate notice. Desktop1280×900 giữ sidebar, đi bốn hướng, giữ/nhả Shift và phóng/thu bằng nút; mobile phóng/thu cũngtrue→false.
+- Giữ joystick bốn hướng1giây, Chạy+chéo1,3giây; nhả trả knob về tâm/data-active=false. Giữ nút sổ/xây/túi1,3giây mở đúng modal, selection rỗng. Giữ joystick/kiếm1,5giây không chọn chữ. Bảng chat nhập/chọn được11ký tự, font16px; đóng/mở và xoay giữ bản nháp, focus thoát khi bị che. Câu cá mở bằng Tương tác, hủy bằngEsc. Quan sát bờ hồ chặn nhân vật, ban đêm, mưa ban ngày/rừng, mưa ban đêm/vịnh và tàn tích: ánh sáng/mưa phủ đúng Canvas, minimap đổi terrain đúng vùng. Các log warn/error đọc được rỗng.
+- Hướng dẫn người mới kiểm bằng cổng QA4174 chưa có save: portrait chưa mở modal, landscape tự mở trang1; bỏ qua→home→reload→vào lại không tự mở nữa. Mở lại hướng dẫn, kiểm bốn trang, quay lại và xoay giữa trang2 giữ đúng trang2.
+- Preview trước sửa đóng drawer khi xoay: `dpl_GnxqaEPEg6zJctTMknBdBjMnhDYZ` READY, giữ Vercel Authentication; CLI authenticated health200, minimap200+syntaxPASS, WebSocket101. Timeout curl8giây chủ động kết thúc socket QA.
+
+Giới hạn: dùng trình duyệt Chromium thật với viewport điện thoại và input giữ chuột; chưa có iPhone/Safari thật để xác nhận menu nhấn giữ của iOS, bàn phím ảo hoặc safe-area notch vật lý. Đa ngón/capture loss kiểm bằng source game thật trong VM. Không kiểm tải nhiều người.
+
 ## Nhấn giữ và bố cục mobile — 07–08/10/2026
 
 Runtime: Node.js 24.19.0. Luồng kiểm tra: giữ/thả nút → trạng thái di chuyển trong phiên → Canvas/camera; mở bảng mobile → nhập chat → trở lại điều khiển. Save QA riêng, không sửa/xóa save người chơi.

@@ -3,7 +3,7 @@
 const CLIENT_FILES = Object.freeze([
   'index.html', 'styles.css', 'client-config.js', 'privacy.html',
   'game-data.js', 'game-core.js', 'npc-ai.js', 'world-paths.js',
-  'world-effects.js', 'world-actors.js', 'game.js'
+  'world-effects.js', 'world-actors.js', 'minimap.js', 'onboarding.js', 'game.js'
 ]);
 
 function onlineEndpoint(value = '') {
