@@ -9,13 +9,14 @@ const actorArt = require('../world-actors.js');
 
 // Exercise the shipped browser source. The stubs model events, storage and canvas
 // calls; real browser rendering/fullscreen remains a separate visual check.
-function loadGame({ storage = new Map(), saved, search = '?qa=1', now = 1700000000000, width = 960, height = 600, viewportWidth, viewportHeight, reducedMotion = false, expectQA = true } = {}) {
-  const calls = [], elements = new Map(), raf = [], sockets = [], timers = new Map(), observers = [];
+function loadGame({ storage = new Map(), saved, search = '?qa=1', hostname = 'localhost', now = 1700000000000, width = 960, height = 600, viewportWidth, viewportHeight, visualViewportWidth, visualViewportHeight, userAgent = '', platform = '', maxTouchPoints = 0, standalone = false, legacyStandalone = false, reducedMotion = false, expectQA = true } = {}) {
+  const calls = [], elements = new Map(), raf = [], sockets = [], timers = new Map(), observers = [], clicks = [], downloads = [], objectURLs = new Map();
   const markup = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   let clock = now, performanceClock = 0, created = 0, timerId = 0;
   class Target {
     constructor() { this.listeners = new Map(); }
     addEventListener(type, fn) { const list = this.listeners.get(type) || []; list.push(fn); this.listeners.set(type, list); }
+    removeEventListener(type, fn) { this.listeners.set(type, (this.listeners.get(type) || []).filter(listener => listener !== fn)); }
     async dispatch(type, event = {}) {
       const e = { type, target: this, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() { this.propagationStopped = true; }, ...event };
       for (let target = this; target; target = e.bubbles === false || e.propagationStopped ? null : target.parent) {
@@ -27,7 +28,7 @@ function loadGame({ storage = new Map(), saved, search = '?qa=1', now = 17000000
   }
   class Element extends Target {
     constructor(id, tagName = 'DIV') {
-      super(); this.id = id; this.tagName = tagName; this.dataset = {}; this.attributes = {}; this.style = {}; this.children = []; this.value = ''; this.textContent = ''; this.innerHTML = ''; this.hidden = false; this.open = false; this.width = 960; this.height = 600; this.capturedPointers = new Set();
+      super(); this.id = id; this.tagName = tagName; this.dataset = {}; this.attributes = {}; this.style = { setProperty(name, value) { this[name] = String(value); }, getPropertyValue(name) { return this[name] || ''; }, removeProperty(name) { const value = this[name] || ''; delete this[name]; return value; } }; this.children = []; this.value = ''; this.textContent = ''; this.innerHTML = ''; this.hidden = false; this.open = false; this.width = 960; this.height = 600; this.capturedPointers = new Set();
       const classes = new Set(); this.classList = { add: (...names) => names.forEach(n => classes.add(n)), remove: (...names) => names.forEach(n => classes.delete(n)), contains: n => classes.has(n) };
     }
     setAttribute(name, value) { this.attributes[name] = String(value); if (name.startsWith('data-')) this.dataset[name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = String(value); }
@@ -59,6 +60,7 @@ function loadGame({ storage = new Map(), saved, search = '?qa=1', now = 17000000
     }
     focus() { document.activeElement = this; void this.dispatch('focus', { bubbles: false }); }
     blur() { if (document.activeElement === this) document.activeElement = null; void this.dispatch('blur', { bubbles: false }); }
+    click() { clicks.push(this); const name=this.download||this.getAttribute('download'),href=this.href||this.getAttribute('href'); if (name) downloads.push({name,blob:objectURLs.get(href)}); void this.dispatch('click'); }
     getContext() { if (!this.context) this.context = makeContext(this); return this.context; }
   }
   function makeContext(element) {
@@ -92,11 +94,23 @@ function loadGame({ storage = new Map(), saved, search = '?qa=1', now = 17000000
   document.createTextNode = text => ({ textContent: String(text) });
   const directions = ['up', 'down', 'left', 'right'].map(move => { const e = new Element(`move-${move}`, 'BUTTON'); e.setAttribute('data-move', move); e.parent = document.getElementById('play-screen'); return e; });
   document.querySelectorAll = selector => selector === '[data-move]' ? directions : [];
+  document.documentElement = new Element('document-root', 'HTML');
+  document.body = new Element('document-body', 'BODY'); document.documentElement.parent = document; document.documentElement.append(document.body);
   const window = new Target();
   if (viewportWidth != null) window.innerWidth = viewportWidth;
   if (viewportHeight != null) window.innerHeight = viewportHeight;
+  const visualViewport = new Target();
+  if (visualViewportWidth != null || visualViewportHeight != null) {
+    visualViewport.width = visualViewportWidth ?? viewportWidth ?? width;
+    visualViewport.height = visualViewportHeight ?? viewportHeight ?? height;
+    visualViewport.scale = 1;
+    visualViewport.offsetTop = visualViewport.offsetLeft = 0;
+    window.visualViewport = visualViewport;
+  }
   const motionPreference = new Target(); motionPreference.matches = reducedMotion;
-  const matchMedia = () => motionPreference; window.matchMedia = matchMedia;
+  const displayMode = new Target(); displayMode.matches = standalone;
+  const matchMedia = query => query === '(display-mode: standalone)' ? displayMode : motionPreference; window.matchMedia = matchMedia;
+  const navigator = { userAgent, platform, maxTouchPoints, standalone: legacyStandalone }; window.navigator = navigator;
   class FakeDate extends Date { static now() { return clock; } }
   class FakeSocket {
     constructor(url) { this.url = url; this.readyState = 0; this.sent = []; sockets.push(this); }
@@ -104,11 +118,19 @@ function loadGame({ storage = new Map(), saved, search = '?qa=1', now = 17000000
     close() { this.readyState = 3; if (this.onclose) this.onclose(); }
   }
   class FakeResizeObserver { constructor(callback) { this.callback = callback; observers.push(this); } observe(element) { this.element = element; this.callback(); } }
-  const sandbox = { document, window, location: { search, protocol: 'http:', host: 'localhost:4173', hostname: 'localhost' }, localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, String(value)) }, Date: FakeDate, performance: { now: () => performanceClock }, URLSearchParams, structuredClone, WebSocket: FakeSocket,
-    matchMedia, ResizeObserver: FakeResizeObserver, requestAnimationFrame: callback => raf.push(callback), setTimeout: (fn, delay) => { timers.set(++timerId, { fn, delay }); return timerId; }, clearTimeout: id => timers.delete(id), console };
+  class FakeBlob {
+    constructor(parts = [], options = {}) { this.parts = parts; this.type = options.type || ''; this.size = Buffer.byteLength(parts.join('')); }
+    async text() { return this.parts.join(''); }
+  }
+  class BrowserURL extends URL {
+    static createObjectURL(blob) { const url=`blob:qa-${objectURLs.size}`;objectURLs.set(url,blob);return url; }
+    static revokeObjectURL(url) { objectURLs.delete(url); }
+  }
+  const sandbox = { document, window, navigator, location: { search, protocol: 'http:', host: `${hostname}:4173`, hostname }, localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, String(value)) }, Date: FakeDate, performance: { now: () => performanceClock }, URLSearchParams, structuredClone, WebSocket: FakeSocket,
+    Blob:FakeBlob,URL:BrowserURL,matchMedia, ResizeObserver: FakeResizeObserver, requestAnimationFrame: callback => raf.push(callback), setTimeout: (fn, delay) => { timers.set(++timerId, { fn, delay }); return timerId; }, clearTimeout: id => timers.delete(id), console };
   if (saved) storage.set(search.includes('qa=1') ? 'starfall-valley-qa-save' : 'starfall-valley-save-v1', JSON.stringify(saved));
   vm.createContext(sandbox);
-  for (const file of ['game-data.js', 'game-core.js', 'npc-ai.js', 'world-paths.js', 'world-effects.js', 'world-actors.js', 'minimap.js', 'onboarding.js', 'game.js']) {
+  for (const file of ['game-data.js', 'game-core.js', 'npc-ai.js', 'world-paths.js', 'world-effects.js', 'world-actors.js', 'minimap.js', 'onboarding.js', 'save-transfer.js', 'game.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), sandbox, { filename: file });
     // Production exports stay frozen; a test-owned wrapper lets this harness
     // observe the real renderer inputs without changing the shipped module.
@@ -116,11 +138,12 @@ function loadGame({ storage = new Map(), saved, search = '?qa=1', now = 17000000
   }
   const qa = sandbox.StardropQA;
   if (expectQA) assert.ok(qa, 'Local QA API is available'); else assert.equal(qa, undefined, 'Debug API is absent outside QA mode');
-  const env = { qa, elements, calls, storage, sockets, document, window, directions, raf, timers, motionPreference, effects: sandbox.StardropEffects, paths: sandbox.StardropPaths, actors: sandbox.StardropActors, minimap: sandbox.StardropMinimap,
+  const env = { qa, elements, calls, storage, sockets, document, window, navigator, visualViewport, displayMode, directions, raf, timers, motionPreference, clicks, downloads, objectURLs, effects: sandbox.StardropEffects, paths: sandbox.StardropPaths, actors: sandbox.StardropActors, minimap: sandbox.StardropMinimap, saveTransfer:sandbox.StardropSaveTransfer,
     el: id => document.getElementById(id),
     advance(ms) { clock += ms; performanceClock += ms; },
     resize(width, height) { const stage = this.el('canvas-stage'); stage.clientWidth = width; stage.clientHeight = height; observers.forEach(o => o.callback()); },
     async viewport(width, height) { window.innerWidth = width; window.innerHeight = height; await window.dispatch('resize'); },
+    async visualViewportResize(width, height) { visualViewport.width = width; visualViewport.height = height; await visualViewport.dispatch('resize'); },
     step(seconds) { this.advance(seconds * 1000); qa.update(seconds); },
     set(patch) { qa.setState({ ...qa.getState(), ...patch }); },
     at(o, patch = {}) { this.set({ map: o.map || qa.getState().map, x: o.x, y: o.y, ...patch }); },
@@ -515,12 +538,202 @@ test('Opening a mobile information panel cancels fishing, Escape closes it, and 
 });
 
 test('Native and fallback fullscreen can enter and shrink repeatedly', async () => {
-  const e = loadGame(); const wrapper = e.el('game-wrapper'), button = e.el('btn-fullscreen');
+  const e = loadGame(); await e.start(); const wrapper = e.el('game-wrapper'), button = e.el('btn-fullscreen');
   wrapper.requestFullscreen = async () => { e.document.fullscreenElement = wrapper; await e.document.dispatch('fullscreenchange'); };
   e.document.exitFullscreen = async () => { e.document.fullscreenElement = null; await e.document.dispatch('fullscreenchange'); };
   for (let i = 0; i < 2; i++) { await button.dispatch('click'); assert.equal(button.attributes['aria-pressed'], 'true'); assert.equal(wrapper.classList.contains('pseudo-fullscreen'), false); await button.dispatch('click'); assert.equal(button.attributes['aria-pressed'], 'false'); }
   wrapper.requestFullscreen = undefined; await button.dispatch('click'); assert.equal(wrapper.classList.contains('pseudo-fullscreen'), true); await button.dispatch('click'); assert.equal(wrapper.classList.contains('pseudo-fullscreen'), false);
   wrapper.requestFullscreen = async () => { throw Error('Blocked'); }; await button.dispatch('click'); assert.equal(wrapper.classList.contains('pseudo-fullscreen'), true); await button.dispatch('click'); assert.equal(wrapper.classList.contains('pseudo-fullscreen'), false);
+});
+
+test('A native fullscreen request that resolves without entering fullscreen still opens the fallback view', async () => {
+  const e = loadGame(); await e.start(); const wrapper = e.el('game-wrapper'), button = e.el('btn-fullscreen');
+  let requested = 0; wrapper.requestFullscreen = async () => { requested++; };
+  await button.dispatch('click');
+  assert.equal(requested, 1); assert.equal(e.document.fullscreenElement, undefined);
+  assert.equal(wrapper.classList.contains('pseudo-fullscreen'), true, 'Promise resolution alone must not claim native fullscreen succeeded');
+  assert.equal(button.getAttribute('aria-pressed'), 'true'); assert.match(button.getAttribute('aria-label'), /Thu nhỏ/);
+  await button.dispatch('click'); assert.equal(requested, 1, 'Shrinking the fallback does not request native fullscreen again');
+  assert.equal(wrapper.classList.contains('pseudo-fullscreen'), false); assert.equal(button.getAttribute('aria-pressed'), 'false');
+});
+
+test('Repeated fullscreen taps wait for the current native transition', async () => {
+  const e = loadGame(); await e.start(); const wrapper = e.el('game-wrapper'), button = e.el('btn-fullscreen');
+  let resolveRequest, requested = 0; wrapper.requestFullscreen = () => { requested++; return new Promise(resolve => { resolveRequest = resolve; }); };
+  const entering = button.dispatch('click'); await button.dispatch('click');
+  assert.equal(requested, 1, 'An unresolved transition owns the fullscreen button');
+  e.document.fullscreenElement = wrapper; resolveRequest(); await entering;
+  assert.equal(button.getAttribute('aria-pressed'), 'true'); assert.equal(wrapper.classList.contains('pseudo-fullscreen'), false);
+  let resolveExit, exited = 0; e.document.exitFullscreen = () => { exited++; return new Promise(resolve => { resolveExit = resolve; }); };
+  const leaving = button.dispatch('click'); await button.dispatch('click'); assert.equal(exited, 1);
+  e.document.fullscreenElement = null; resolveExit(); await leaving;
+  assert.equal(button.getAttribute('aria-pressed'), 'false'); assert.equal(wrapper.classList.contains('pseudo-fullscreen'), false);
+});
+
+test('Returning home cancels a pending native fullscreen request and exits a late success', async () => {
+  const e = loadGame(); await e.start(); const wrapper = e.el('game-wrapper'), button = e.el('btn-fullscreen');
+  let resolveRequest, exited = 0;
+  wrapper.requestFullscreen = () => new Promise(resolve => { resolveRequest = resolve; });
+  e.document.exitFullscreen = async () => { exited++; e.document.fullscreenElement = null; await e.document.dispatch('fullscreenchange'); };
+  const entering = button.dispatch('click'); await e.el('btn-home').dispatch('click');
+  e.document.fullscreenElement = wrapper; resolveRequest(); await entering;
+  assert.equal(exited, 1); assert.equal(e.document.fullscreenElement, null);
+  assert.equal(e.el('start-screen').hidden, false); assert.equal(e.el('play-screen').hidden, true);
+  assert.equal(button.getAttribute('aria-pressed'), 'false'); assert.equal(wrapper.classList.contains('pseudo-fullscreen'), false);
+});
+
+test('Prefixed void fullscreen waits for the actual event and removes temporary listeners', async () => {
+  const e = loadGame(); await e.start(); const wrapper=e.el('game-wrapper'),button=e.el('btn-fullscreen');
+  const baseline=(e.document.listeners.get('webkitfullscreenchange')||[]).length;
+  wrapper.webkitRequestFullscreen = () => {};
+  const entering=button.dispatch('click'); await Promise.resolve();
+  e.document.webkitFullscreenElement=wrapper;await e.document.dispatch('webkitfullscreenchange');await entering;
+  assert.equal(button.getAttribute('aria-pressed'),'true');assert.equal(wrapper.classList.contains('pseudo-fullscreen'),false);
+  assert.equal((e.document.listeners.get('webkitfullscreenchange')||[]).length,baseline,'Transition listeners are removed after native entry');
+  e.document.webkitExitFullscreen=()=>{e.document.webkitFullscreenElement=null;void e.document.dispatch('webkitfullscreenchange');};
+  await button.dispatch('click');assert.equal(button.getAttribute('aria-pressed'),'false');
+});
+
+test('An ineffective prefixed void fullscreen request times out into fallback and can shrink', async () => {
+  const e=loadGame();await e.start();const wrapper=e.el('game-wrapper'),button=e.el('btn-fullscreen');
+  wrapper.webkitRequestFullscreen=()=>{};const entering=button.dispatch('click');await Promise.resolve();
+  const pending=[...e.timers.values()].filter(timer=>timer.delay===1200);assert.equal(pending.length,1,'Void APIs wait a bounded time for the native event');
+  pending[0].fn();await entering;assert.equal(wrapper.classList.contains('pseudo-fullscreen'),true);assert.equal(button.getAttribute('aria-pressed'),'true');
+  await button.dispatch('click');assert.equal(wrapper.classList.contains('pseudo-fullscreen'),false);assert.equal(button.getAttribute('aria-pressed'),'false');
+});
+
+const iPhoneSafari = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1';
+test('iPhone unsupported, rejected and ineffective native fullscreen give installation help without claiming fullscreen success', async () => {
+  for (const native of ['unsupported', 'rejected', 'noop']) {
+    const originalSave = '{"realPlayer":"preserved"}', storage = new Map([['starfall-valley-save-v1', originalSave]]);
+    const e = loadGame({storage,userAgent:iPhoneSafari,platform:'iPhone',maxTouchPoints:5,viewportWidth:852,viewportHeight:393,width:790,height:267});
+    await e.start(); e.set({x:800,y:550,coins:765});
+    const wrapper = e.el('game-wrapper'), button = e.el('btn-fullscreen'), stick = e.el('touch-joystick');
+    if (native === 'rejected') wrapper.requestFullscreen = async () => { throw Error('Not permitted'); };
+    if (native === 'noop') wrapper.requestFullscreen = async () => {};
+    await stick.dispatch('pointerdown',joystickPointer(e,.4)); await e.el('touch-run').dispatch('click'); e.step(.02);
+    await button.dispatch('click');
+    assert.equal(e.el('game-dialog').open,true,`${native}: iPhone gets actionable help`);
+    assert.match(e.el('dialog-body').innerHTML,/Safari/); assert.match(e.el('dialog-body').innerHTML,/Chia sẻ|Share/); assert.match(e.el('dialog-body').innerHTML,/Màn hình chính/);
+    assert.equal(wrapper.classList.contains('pseudo-fullscreen'),false,`${native}: CSS cannot hide iPhone browser chrome`);
+    assert.equal(button.getAttribute('aria-pressed'),'false'); assert.equal(locomotion(e).joystickPointer,null); assert.equal(locomotion(e).touchRun,false);
+    const stopped = e.qa.getState(); e.step(.05); assert.equal(e.qa.getState().x,stopped.x); assert.equal(e.qa.getState().y,stopped.y);
+    await e.el('dialog-close').dispatch('click'); assert.equal(e.el('game-dialog').open,false);
+    await e.window.dispatch('pagehide'); assert.equal(JSON.parse(storage.get(e.qa.storageKey)).coins,765); assert.equal(storage.get('starfall-valley-save-v1'),originalSave);
+  }
+});
+
+test('Standalone display modes are already fullscreen and do not enter a fake fullscreen state', async () => {
+  for (const mode of [{standalone:true},{legacyStandalone:true}]) {
+    const e = loadGame({...mode,userAgent:iPhoneSafari,platform:'iPhone',maxTouchPoints:5,viewportWidth:852,viewportHeight:393}); await e.start();
+    const wrapper = e.el('game-wrapper'), button = e.el('btn-fullscreen'); assert.equal(button.getAttribute('aria-pressed'),'true');
+    await button.dispatch('click'); assert.equal(button.getAttribute('aria-pressed'),'true'); assert.equal(wrapper.classList.contains('pseudo-fullscreen'),false);
+    assert.equal(e.el('game-dialog').open,true); assert.match(e.el('dialog-body').innerHTML,/Màn hình chính|toàn màn hình/);
+    await e.el('dialog-close').dispatch('click'); assert.equal(button.getAttribute('aria-pressed'),'true');
+    await e.el('btn-home').dispatch('click'); assert.equal(wrapper.classList.contains('pseudo-fullscreen'),false); assert.equal(button.getAttribute('aria-pressed'),'true','The standalone shell remains active on the title screen');
+  }
+});
+
+test('Exported local progress can be confirmed on the standalone title screen without changing the real player save', async () => {
+  const source=loadGame({userAgent:iPhoneSafari,platform:'iPhone',maxTouchPoints:5,viewportWidth:852,viewportHeight:393});await source.start('Người thử di chuyển');
+  const state=source.qa.getState();state.coins=843;state.inventory.star=7;state.quests.story01={status:'claimed',progress:[1]};source.qa.setState(state);
+  await source.el('btn-fullscreen').dispatch('click');await source.button({exportSave:''});
+  assert.equal(source.downloads.length,1);assert.match(source.downloads[0].name,/^starfall-valley-progress-\d{4}-\d{2}-\d{2}\.json$/);
+  const exported=await source.downloads[0].blob.text(),envelope=JSON.parse(exported);assert.equal(envelope.format,'starfall-valley-progress');assert.equal(envelope.progress.coins,843);
+  for(const key of ['touchRun','joystick','joystickPointer','viewWidth','viewHeight'])assert.equal(Object.hasOwn(envelope.progress,key),false,'Runtime input and view state are not transferred');
+  const originalSave='{"realPlayer":"untouched"}',storage=new Map([['starfall-valley-save-v1',originalSave]]);
+  const target=loadGame({storage,standalone:true,userAgent:iPhoneSafari,platform:'iPhone',maxTouchPoints:5,viewportWidth:852,viewportHeight:393});const previous=target.saveTransfer.encode(target.qa.getState(),target.qa.data);
+  await target.el('btn-import-start').dispatch('click');assert.ok(target.clicks.some(element=>element.id==='save-file'),'Title-screen import opens the local file picker');
+  const input=target.el('save-file');input.files=[{name:source.downloads[0].name,size:Buffer.byteLength(exported),text:async()=>exported}];await input.dispatch('change');
+  assert.equal(target.el('game-dialog').open,true);assert.equal(target.saveTransfer.encode(target.qa.getState(),target.qa.data),previous,'Selecting a file waits for explicit import confirmation');
+  await target.button({importSave:''});const restored=target.qa.getState();assert.equal(restored.coins,843);assert.equal(restored.inventory.star,7);assert.equal(restored.name,envelope.progress.name);assert.equal(restored.quests.story01.status,'claimed');
+  assert.equal(target.el('game-dialog').open,false);assert.match(target.el('btn-start').innerHTML,/Tiếp tục/);assert.equal(target.el('player-name').value,restored.name);
+  assert.equal(JSON.parse(storage.get(target.qa.storageKey)).coins,843);assert.equal(storage.get('starfall-valley-save-v1'),originalSave);
+  await target.start();assert.equal(target.qa.getState().coins,843);assert.equal(locomotion(target).touchRun,false);assert.equal(locomotion(target).joystickPointer,null);
+});
+
+test('Malformed and oversized imports show an error without replacing local progress', async () => {
+  const e=loadGame();await e.start();e.set({coins:844,inventory:{...e.qa.getState().inventory,star:8}});await e.window.dispatch('pagehide');
+  const state=JSON.stringify(e.qa.getState()),saved=e.storage.get(e.qa.storageKey),input=e.el('save-file');
+  for(const [name,text]of[['broken.json','{'],['other-game.json','{"format":"other-game","version":1}'],['empty.json','']]){
+    input.files=[{name,size:Buffer.byteLength(text),text:async()=>text}];await input.dispatch('change');
+    assert.equal(e.el('game-dialog').open,true);assert.match(e.el('dialog-title').textContent,/Không đọc được tiến trình/);assert.match(e.el('dialog-body').innerHTML,/file \.json/);
+    assert.equal(JSON.stringify(e.qa.getState()),state);assert.equal(e.storage.get(e.qa.storageKey),saved);
+    await e.el('dialog-close').dispatch('click');
+  }
+  let read=false;input.files=[{name:'too-large.json',size:e.saveTransfer.maxBytes+1,text:async()=>{read=true;return '{}';}}];await input.dispatch('change');
+  assert.equal(read,false,'Oversized files are rejected before allocating their contents');assert.equal(JSON.stringify(e.qa.getState()),state);assert.equal(e.storage.get(e.qa.storageKey),saved);
+});
+
+test('Importing during play clears input and requires confirmation while cancelling preserves progress', async () => {
+  const e=loadGame({viewportWidth:852,viewportHeight:393});await e.start();e.set({x:800,y:550,coins:845});
+  const incoming={...e.qa.getState(),coins:946},text=e.saveTransfer.encode(incoming,e.qa.data),input=e.el('save-file'),stick=e.el('touch-joystick');
+  await stick.dispatch('pointerdown',joystickPointer(e,.4));await e.el('touch-run').dispatch('click');e.step(.02);
+  input.files=[{name:'progress.json',size:Buffer.byteLength(text),text:async()=>text}];await input.dispatch('change');
+  assert.equal(locomotion(e).joystickPointer,null);assert.equal(locomotion(e).touchRun,false);assert.equal(e.qa.getState().coins,845);
+  await e.el('dialog-close').dispatch('click');await e.button({importSave:''});assert.equal(e.qa.getState().coins,845,'A stale confirmation button cannot import after the dialog closes');
+  await input.dispatch('change');await e.button({importSave:''});assert.equal(e.qa.getState().coins,946);assert.equal(locomotion(e).joystickPointer,null);assert.equal(locomotion(e).touchRun,false);
+  assert.equal(JSON.parse(e.storage.get(e.qa.storageKey)).coins,946);assert.equal(e.el('game-dialog').open,false);
+});
+
+test('A newer file selection owns import confirmation and home cancels an unfinished read', async () => {
+  const e=loadGame();await e.start();e.set({coins:846});const input=e.el('save-file');
+  const oldText=e.saveTransfer.encode({...e.qa.getState(),coins:947},e.qa.data),newText=e.saveTransfer.encode({...e.qa.getState(),coins:948},e.qa.data);
+  let resolveOld;input.value='old.json';input.files=[{name:'old.json',size:Buffer.byteLength(oldText),text:()=>new Promise(resolve=>{resolveOld=resolve;})}];
+  const oldRead=input.dispatch('change');assert.equal(input.value,'','The picker can choose the same file again after an attempt');
+  input.files=[{name:'new.json',size:Buffer.byteLength(newText),text:async()=>newText}];await input.dispatch('change');resolveOld(oldText);await oldRead;
+  await e.button({importSave:''});assert.equal(e.qa.getState().coins,948,'A late earlier read cannot replace the newest confirmation');
+  let resolvePending;input.files=[{name:'pending.json',size:Buffer.byteLength(oldText),text:()=>new Promise(resolve=>{resolvePending=resolve;})}];const pendingRead=input.dispatch('change');
+  await e.el('btn-home').dispatch('click');resolvePending(oldText);await pendingRead;
+  assert.equal(e.el('game-dialog').open,false);assert.equal(e.el('start-screen').hidden,false);assert.equal(e.qa.getState().coins,948);await e.button({importSave:''});assert.equal(e.qa.getState().coins,948);
+});
+
+test('Cancelling a dialog invalidates unfinished file reads before the browser close event', async () => {
+  const e=loadGame();await e.start();e.set({coins:849});await e.el('btn-journal').dispatch('click');
+  const input=e.el('save-file'),text=e.saveTransfer.encode({...e.qa.getState(),coins:950},e.qa.data);
+  let resolveRead;input.files=[{name:'pending.json',size:Buffer.byteLength(text),text:()=>new Promise(resolve=>{resolveRead=resolve;})}];
+  const reading=input.dispatch('change');await e.el('game-dialog').dispatch('cancel');resolveRead(text);await reading;
+  assert.doesNotMatch(e.el('dialog-body').innerHTML,/data-import-save/);await e.button({importSave:''});assert.equal(e.qa.getState().coins,849);
+});
+
+test('Fullscreen device overrides require local QA mode and never affect production or ordinary sessions', async () => {
+  for(const mode of ['ios','standalone']){
+    const local=loadGame({search:`?qa=1&fullscreen=${mode}`,viewportWidth:852,viewportHeight:393});await local.start();
+    if(mode==='standalone')assert.equal(local.el('btn-fullscreen').getAttribute('aria-pressed'),'true');
+    await local.el('btn-fullscreen').dispatch('click');assert.equal(local.el('game-dialog').open,true);assert.equal(local.el('game-wrapper').classList.contains('pseudo-fullscreen'),false);
+    if(mode==='ios')assert.equal(local.el('btn-fullscreen').getAttribute('aria-pressed'),'false');
+    const publicSession=loadGame({hostname:'starfall-valley.vercel.app',search:`?qa=1&fullscreen=${mode}`,expectQA:false});await publicSession.start();
+    assert.equal(publicSession.el('btn-fullscreen').getAttribute('aria-pressed'),'false');await publicSession.el('btn-fullscreen').dispatch('click');
+    assert.equal(publicSession.el('game-dialog').open,false);assert.equal(publicSession.el('game-wrapper').classList.contains('pseudo-fullscreen'),true);
+    const normal=loadGame({search:`?fullscreen=${mode}`,expectQA:false,storage:new Map([['starfall-valley-save-v1-tutorial-v1','done']])});await normal.start();
+    assert.equal(normal.el('btn-fullscreen').getAttribute('aria-pressed'),'false');await normal.el('btn-fullscreen').dispatch('click');assert.equal(normal.el('game-dialog').open,false);assert.equal(normal.el('game-wrapper').classList.contains('pseudo-fullscreen'),true);
+  }
+});
+
+test('Visual viewport height tracks browser chrome without releasing a held joystick, and ignores pinch zoom', async () => {
+  const e = loadGame({width:790,height:205,viewportWidth:852,viewportHeight:393,visualViewportWidth:852,visualViewportHeight:275}); await e.start(); e.set({x:800,y:550,coins:766});
+  const wrapper = e.el('game-wrapper'), stick = e.el('touch-joystick'); assert.equal(wrapper.style.getPropertyValue('--game-viewport-height'),'275px');
+  await stick.dispatch('pointerdown',joystickPointer(e,.4)); const pointer = locomotion(e).joystickPointer;
+  for (const [available,stageHeight] of [[393,323],[247,177],[310,240]]) {
+    e.resize(790,stageHeight); await e.visualViewportResize(852,available);
+    assert.equal(wrapper.style.getPropertyValue('--game-viewport-height'),`${available}px`);
+    assert.equal(locomotion(e).joystickPointer,pointer,'Browser bar resize does not cancel the gesture');
+    const before = e.qa.getState(); e.step(.05); almost(e.qa.getState().x-before.x,9,'Movement continues at 180px/s while the viewport changes');
+    assert.ok(Math.abs(e.el('gameCanvas').width*stageHeight-e.el('gameCanvas').height*790)<=790,'Camera and canvas keep the actual stage proportions');
+  }
+  e.visualViewport.scale = 2; await e.visualViewportResize(426,160); assert.equal(wrapper.style.getPropertyValue('--game-viewport-height'),'393px','Pinch zoom must not shrink the game layout');
+  e.visualViewport.scale = 1; await e.visualViewportResize(852,0); assert.equal(wrapper.style.getPropertyValue('--game-viewport-height'),'393px','A transient invalid visual viewport falls back to the window height');
+  await stick.dispatch('pointerup',joystickPointer(e,.4)); await e.window.dispatch('pagehide'); assert.equal(JSON.parse(e.storage.get(e.qa.storageKey)).coins,766);
+});
+
+test('Height-only window resize preserves the gesture while rotation clears joystick and run state', async () => {
+  const e = loadGame({width:790,height:230,viewportWidth:852,viewportHeight:393}); await e.start(); e.set({x:800,y:550}); const stick=e.el('touch-joystick'),wrapper=e.el('game-wrapper');
+  assert.equal(wrapper.style.getPropertyValue('--game-viewport-height'),'393px');
+  await stick.dispatch('pointerdown',joystickPointer(e,.4)); await e.el('touch-run').dispatch('click'); const pointer=locomotion(e).joystickPointer;
+  await e.viewport(852,330); assert.equal(wrapper.style.getPropertyValue('--game-viewport-height'),'330px'); assert.equal(locomotion(e).joystickPointer,pointer); assert.equal(locomotion(e).touchRun,true);
+  const before=e.qa.getState();e.step(.05);almost(e.qa.getState().x-before.x,14.85,'Held running continues through browser toolbar changes');
+  await e.viewport(393,852); assert.equal(locomotion(e).joystickPointer,null); assert.equal(locomotion(e).touchRun,false); assert.equal(e.el('rotate-notice').hidden,false);
+  await e.viewport(852,393);const rotated=e.qa.getState();e.step(.05);assert.equal(e.qa.getState().x,rotated.x,'Rotating back does not resume a stale contact');
 });
 
 test('Landscape joystick deadzone, cardinal directions and diagonals follow the finger without faster diagonal travel', async () => {

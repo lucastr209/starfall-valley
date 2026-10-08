@@ -3,8 +3,8 @@
 *{box-sizing:border-box} [hidden]{display:none!important}
 body{margin:0;background:#deded0;color:var(--ink);font:14px/1.5 Village,'Segoe UI',sans-serif}
 button,input{font:inherit}button{cursor:pointer;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink);padding:9px 13px;font-weight:600;box-shadow:0 2px 0 #bbae8d}button:hover{background:#fff0ca}button:active{transform:translateY(1px);box-shadow:none}button:disabled{opacity:.5;cursor:default}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #ce765c;outline-offset:3px}input{min-width:0;background:#fffdf3;border:1px solid #c5b88f;border-radius:6px;padding:11px 12px;color:var(--ink)}
-#game-wrapper{max-width:1440px;margin:auto;min-height:100dvh;position:relative;background:#f6f0dc}
-#start-screen{min-height:100dvh;position:relative;isolation:isolate;overflow:hidden;background:#d7e5b4}
+#game-wrapper{max-width:1440px;margin:auto;min-height:var(--game-viewport-height,100dvh);position:relative;background:#f6f0dc}
+#start-screen{min-height:var(--game-viewport-height,100dvh);position:relative;isolation:isolate;overflow:hidden;background:#d7e5b4}
 #titleCanvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;image-rendering:pixelated;z-index:-3}
 .title-wash{position:absolute;inset:0;z-index:-2;background:linear-gradient(90deg,#fff2dbe8 0%,#fff2dba8 37%,#fff2db00 65%)}
 .start-content{padding:clamp(45px,9vh,100px) 5.5%;max-width:770px}
@@ -17,7 +17,7 @@ h1{position:relative;font-family:Georgia,'Times New Roman',serif;font-size:clamp
 #game-dialog{width:min(860px,calc(100vw - 30px));max-height:85dvh;border:2px solid #b8a77d;border-radius:12px;padding:0;background:#fff9e8;color:var(--ink);box-shadow:0 20px 90px #1f353b55}#game-dialog::backdrop{background:#243b4569;backdrop-filter:blur(3px)}.dialog-heading{position:sticky;top:0;z-index:2;background:#fff9e8;border-bottom:1px solid #ddcfab;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:20px 24px}.dialog-heading h2{font-family:Georgia,serif;font-size:27px;margin:3px 0 0;color:#3f655b}.dialog-heading button{border:0;box-shadow:none;font-size:19px}#dialog-body{padding:22px 24px}.tab-strip{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:20px}.tab-strip button{font-size:12px}.tab-strip .selected{background:#46775f;color:#fff8df;border-color:#365f4b}.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.card{border:1px solid #dfd2b0;border-radius:8px;padding:17px;background:#fffdf3;display:flex;flex-direction:column}.card h3{font-size:15px;margin:4px 0 9px}.card p{font-size:12px;color:#6d7567;margin:0 0 10px;line-height:1.6}.badge{font-size:9px;font-weight:800;color:#af7450;letter-spacing:1px}.card ul{font-size:11px;list-style:none;padding:0;margin:6px 0}.card li{margin:5px 0}.card .reward{font-size:11px;color:#a47840;border-top:1px dashed #decfad;padding-top:10px;margin-top:auto}.card button{font-size:11px;margin-top:10px}.card-actions{display:flex;gap:6px}.card-actions button{flex:1}.locked{opacity:.67}.materials{font-size:11px;color:#8b7a50;margin-bottom:10px}.good{color:#508164}.bad{color:#b36b53}.dialog-intro{font-size:12px;color:#6e7768;margin:0 0 19px}.inventory-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:18px 0 25px}.inventory-item{padding:10px;border:1px solid #dfd2b0;border-radius:6px;font-size:11px;background:#fffdf3}.inventory-item b{display:block;font-size:15px;margin:4px 0}.inventory-item button{padding:4px 6px;font-size:10px;width:100%;margin:3px 0}.dialogue-text{font-family:Georgia,serif;font-size:19px;line-height:1.8;background:#f4ecd7;border-left:3px solid #d79561;padding:20px;margin-bottom:20px}.npc-actions{display:flex;gap:10px;flex-wrap:wrap}.npc-actions button{font-size:12px}.quest-direction{font-size:11px;color:#697961}.empty{padding:30px;text-align:center;color:#80806b;font-size:13px}
 #canvas-stage{height:max(320px,calc(100dvh - 238px));aspect-ratio:auto}#gameCanvas{object-fit:fill}
 #fishing{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff9e8f5;border:2px solid #bca270;border-radius:10px;padding:22px;width:min(350px,85%);font-size:10px;text-align:center;box-shadow:var(--shadow)}.fish-track{height:25px;background:#b4cfce;position:relative;margin:20px 0 10px;border:2px solid #789a96}.fish-zone{position:absolute;left:38%;width:24%;height:100%;background:#f4cb63}#fish-marker{position:absolute;left:0;top:-5px;bottom:-5px;width:5px;background:#ab5d4a}
-.touch-controls{display:none}.pseudo-fullscreen{position:fixed!important;inset:0!important;max-width:none!important;width:100vw!important;height:100dvh!important;overflow:auto;z-index:1000}#game-wrapper:fullscreen{width:100vw;max-width:none;height:100dvh;overflow:auto}#game-wrapper:-webkit-full-screen{width:100vw;max-width:none;height:100dvh;overflow:auto}
+.touch-controls{display:none}.pseudo-fullscreen{position:fixed!important;inset:0!important;max-width:none!important;width:100vw!important;height:var(--game-viewport-height,100dvh)!important;overflow:auto;z-index:1000}#game-wrapper:fullscreen{width:100vw;max-width:none;height:var(--game-viewport-height,100dvh);overflow:auto}#game-wrapper:-webkit-full-screen{width:100vw;max-width:none;height:var(--game-viewport-height,100dvh);overflow:auto}
 @media(min-width:1600px){#game-wrapper{box-shadow:0 0 80px #30433c29}}
 @media(max-width:1100px){.play-layout{grid-template-columns:minmax(0,1fr) 235px;gap:12px}.topbar{gap:9px}.stat{padding:5px 8px;font-size:11px}.game-brand{font-size:20px}.icon-button span{display:none}.game-actions{width:100%;justify-content:space-between}.game-actions button{flex:1}.sidebar .panel{padding:12px}.vitals{width:100%;justify-content:space-between}}
 
@@ -76,15 +76,30 @@ input,textarea,[contenteditable=true]{-webkit-user-select:text;user-select:text;
 .tutorial-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px}
 .tutorial-actions button{min-height:44px;padding:10px 18px}
 .tutorial-actions .primary,.tutorial-actions .tutorial-primary{background:#47765f;border-color:#345b49;color:#fff8df}
+.fullscreen-help{font-size:14px;line-height:1.65;color:#526555}
+.fullscreen-help p{margin:0 0 12px}
+.fullscreen-help ol{padding-left:24px;margin:12px 0 18px}
+.fullscreen-help li{margin:8px 0}
+.fullscreen-help strong{color:#365f4b}
+.save-transfer-actions{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0 8px}
+.save-transfer-actions button{flex:1 1 180px;min-height:44px;padding:9px 12px}
+.save-import{min-height:44px;margin:10px 0;padding:9px 14px;font-size:12px;box-shadow:0 2px 0 #bbae8d}
 
 @media(max-width:780px),(max-width:1100px) and (max-height:600px) and (orientation:landscape){
   #play-screen{
-    height:100dvh;min-height:0;overflow:hidden;
+    --mobile-stage-height:calc(var(--game-viewport-height,100dvh) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 66px);
+    --mobile-joystick-size:clamp(80px,calc(var(--mobile-stage-height) * .5 + 11px),116px);
+    --mobile-action-size:clamp(44px,calc(var(--mobile-stage-height) * .3 - 2px),60px);
+    --mobile-run-size:clamp(44px,calc(var(--mobile-action-size) - 6px),54px);
+    --mobile-interact-size:clamp(44px,calc(var(--mobile-stage-height) * .4 - 10px),66px);
+    --mobile-minimap-width:clamp(82px,calc(var(--mobile-stage-height) * .42 + 17px),152px);
+    height:var(--game-viewport-height,100dvh);min-height:0;overflow:hidden;
+    container:mobile-game / size;
     padding:max(0px,env(safe-area-inset-top)) max(0px,env(safe-area-inset-right)) max(0px,env(safe-area-inset-bottom)) max(0px,env(safe-area-inset-left));
   }
   .topbar{
     display:flex;flex-wrap:nowrap;align-items:center;gap:8px;height:44px;min-height:44px;
-    padding:0 6px;border-bottom:1px solid #d6ceb0;background:#fff9e8;
+    padding:0 6px;border-bottom:0;box-shadow:inset 0 -1px #d6ceb0;background:#fff9e8;
   }
   .game-brand{display:flex;align-items:center;justify-content:center;flex:0 0 44px;min-width:44px;min-height:44px;font-size:23px}
   .game-brand span{display:none}
@@ -136,7 +151,7 @@ input,textarea,[contenteditable=true]{-webkit-user-select:text;user-select:text;
     border-radius:0;pointer-events:none;touch-action:auto;
   }
   .joystick{
-    position:absolute;bottom:12px;left:14px;width:116px;height:116px;min-width:116px;min-height:116px;
+    position:absolute;bottom:12px;left:14px;width:var(--mobile-joystick-size);height:var(--mobile-joystick-size);min-width:var(--mobile-joystick-size);min-height:var(--mobile-joystick-size);
     border:2px solid #f8f0d6d9;border-radius:50%;padding:0;background:#304c4261;
     box-shadow:inset 0 0 0 8px #fff5d719,0 3px 10px #21382e33;
     pointer-events:auto;touch-action:none;overflow:visible;isolation:isolate;
@@ -156,17 +171,17 @@ input,textarea,[contenteditable=true]{-webkit-user-select:text;user-select:text;
   .joystick[data-active=true]{background:#315a477d;border-color:#fff6d4}
   .touch-actions{position:absolute;right:14px;bottom:20px;display:flex;align-items:flex-end;gap:14px;margin:0;padding:0;width:auto;max-width:none;pointer-events:none}
   .touch-actions button{
-    flex:0 0 auto;width:60px;height:60px;min-width:60px;min-height:60px;padding:6px 4px;
+    flex:0 0 auto;width:var(--mobile-action-size);height:var(--mobile-action-size);min-width:var(--mobile-action-size);min-height:var(--mobile-action-size);padding:6px 4px;
     border:2px solid #f2e4be;border-radius:50%;font-size:11px;line-height:1.25;
     background:#fff6dde8;box-shadow:0 3px 0 #877c5ba6,0 4px 12px #243b3b24;
     pointer-events:auto;touch-action:manipulation;
   }
-  .touch-actions #touch-run{width:54px;height:54px;min-width:54px;min-height:54px;font-size:10px;background:#e8efdcf0}
+  .touch-actions #touch-run{width:var(--mobile-run-size);height:var(--mobile-run-size);min-width:var(--mobile-run-size);min-height:var(--mobile-run-size);font-size:10px;background:#e8efdcf0}
   .touch-actions #touch-attack{background:#fae0cce8}
-  .touch-actions #touch-interact{width:66px;height:66px;min-width:66px;min-height:66px;background:#fff1c6ee}
+  .touch-actions #touch-interact{width:var(--mobile-interact-size);height:var(--mobile-interact-size);min-width:var(--mobile-interact-size);min-height:var(--mobile-interact-size);background:#fff1c6ee}
   #touch-run[aria-pressed=true]{background:#47765fe8;color:#fff8df;border-color:#d8edc5;box-shadow:0 3px 0 #284636a6}
-  #minimap-shell{top:8px;right:10px;width:152px;padding:5px;border-radius:7px}
-  #minimapCanvas{width:140px;height:98px}
+  #minimap-shell{top:8px;right:10px;width:var(--mobile-minimap-width);padding:5px;border-radius:7px}
+  #minimapCanvas{width:calc(var(--mobile-minimap-width) - 12px);height:auto;aspect-ratio:10/7}
   .minimap-key{font-size:8px;gap:2px 5px;padding-top:3px}
   #btn-minimap{right:calc(100% + 6px);font-size:11px;min-height:44px}
   #minimap-shell[data-collapsed=true]{width:44px;min-height:44px}
@@ -177,7 +192,9 @@ input,textarea,[contenteditable=true]{-webkit-user-select:text;user-select:text;
   #mobile-panel-backdrop{position:fixed;inset:0;z-index:30;margin:0;padding:0;width:100%;height:100%;border:0;border-radius:0;background:#223b3e88;box-shadow:none;touch-action:manipulation}
   .sidebar{
     display:none;position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:calc(env(safe-area-inset-right) + 8px);
-    bottom:calc(env(safe-area-inset-bottom) + 8px);z-index:31;width:min(350px,calc(100vw - 24px));
+    bottom:auto;height:calc(var(--game-viewport-height,100dvh) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
+    max-height:calc(var(--game-viewport-height,100dvh) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
+    min-height:0;z-index:31;width:min(350px,calc(100vw - 24px));
     margin:0;padding:8px;background:#fff9e8;border:1px solid #c3b48b;border-radius:10px;
     box-shadow:0 8px 35px #20352f55;overflow-y:auto;overscroll-behavior:contain;gap:6px;touch-action:pan-y;
   }
@@ -198,7 +215,7 @@ input,textarea,[contenteditable=true]{-webkit-user-select:text;user-select:text;
   #chat-form{position:sticky;bottom:0;background:#fff9e8;padding-top:6px}
   #chat-input{min-height:44px;padding:8px}
   #chat-form button{min-width:44px;min-height:44px;padding:6px}
-  #game-dialog{width:min(740px,calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 16px));max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)}
+  #game-dialog{top:calc(env(safe-area-inset-top) + 8px);bottom:auto;margin:0 auto;width:min(740px,calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 16px));max-height:calc(var(--game-viewport-height,100dvh) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)}
   .dialog-heading{padding:8px 12px;gap:8px}
   .dialog-heading h2{font-size:21px;margin:0}
   .dialog-heading button{min-width:44px;min-height:44px;padding:6px}
@@ -221,14 +238,16 @@ input,textarea,[contenteditable=true]{-webkit-user-select:text;user-select:text;
   .tutorial-card .tutorial-tip{padding:5px 8px;margin:6px 0}
   .tutorial-actions{margin-top:8px;gap:8px}
   .tutorial-actions button{padding:6px 14px;font-size:12px}
+  .fullscreen-help{font-size:12px;line-height:1.5}
+  .fullscreen-help ol{margin:8px 0 12px}
+  .fullscreen-help li{margin:6px 0}
+  .save-transfer-actions{gap:8px;margin:12px 0 6px}
+  .save-transfer-actions button{font-size:12px;padding:6px 10px}
 }
 
 @media(max-width:1100px) and (max-height:360px) and (orientation:landscape){
-  .joystick{width:104px;height:104px;min-width:104px;min-height:104px;bottom:10px}
   .joystick-knob{width:48px;height:48px}
   .touch-actions{bottom:14px}
-  #minimap-shell{width:138px;padding:4px}
-  #minimapCanvas{width:128px;height:90px}
   .minimap-key{font-size:7px}
   .tutorial-card{padding:8px 12px}
   .tutorial-card h3{font-size:18px}
@@ -245,6 +264,44 @@ input,textarea,[contenteditable=true]{-webkit-user-select:text;user-select:text;
   .game-actions{grid-template-columns:repeat(4,44px)}
   .mobile-panel-tabs{left:216px}
   .mobile-panel-tabs button{width:44px}
+}
+
+/* Safari's bars can leave much less space than its layout viewport reports. */
+@container mobile-game (max-height:300px){
+  .world-column{--mobile-joystick-size:clamp(80px,calc(var(--mobile-stage-height) * .5 + 11px),104px);--mobile-minimap-map-height:clamp(28px,calc(var(--mobile-stage-height) - var(--mobile-interact-size) - 42px),56px)}
+  .actionbar{left:calc(var(--mobile-joystick-size) + 24px)}
+  .game-actions{grid-template-columns:repeat(4,44px)}
+  .game-actions button{font-size:9px;padding:3px}
+  .mobile-panel-tabs{top:auto;bottom:14px;left:calc(var(--mobile-joystick-size) + 24px)}
+  .mobile-panel-tabs button{width:44px;font-size:9px;padding:3px}
+  .joystick{bottom:10px}
+  .joystick-knob{width:44px;height:44px}
+  .touch-actions{bottom:14px}
+  .touch-actions button{font-size:10px;padding:4px 2px}
+  #minimap-shell{width:calc(var(--mobile-minimap-map-height) * 1.428571 + 10px);padding:4px}
+  #minimapCanvas{width:calc(var(--mobile-minimap-map-height) * 1.428571);height:var(--mobile-minimap-map-height)}
+  .minimap-key{display:none}
+  #interaction-hint{bottom:70px;max-width:calc(100% - 300px);font-size:9px;padding:3px 6px}
+  #toast{top:58px;font-size:10px;padding:4px 8px}
+}
+
+/* Keep the same controls usable on browsers without size container queries. */
+@media(max-width:1100px) and (max-height:300px) and (orientation:landscape){
+  .world-column{--mobile-joystick-size:clamp(80px,calc(var(--mobile-stage-height) * .5 + 11px),104px);--mobile-minimap-map-height:clamp(28px,calc(var(--mobile-stage-height) - var(--mobile-interact-size) - 42px),56px)}
+  .actionbar{left:calc(var(--mobile-joystick-size) + 24px)}
+  .game-actions{grid-template-columns:repeat(4,44px)}
+  .game-actions button{font-size:9px;padding:3px}
+  .mobile-panel-tabs{top:auto;bottom:14px;left:calc(var(--mobile-joystick-size) + 24px)}
+  .mobile-panel-tabs button{width:44px;font-size:9px;padding:3px}
+  .joystick{bottom:10px}
+  .joystick-knob{width:44px;height:44px}
+  .touch-actions{bottom:14px}
+  .touch-actions button{font-size:10px;padding:4px 2px}
+  #minimap-shell{width:calc(var(--mobile-minimap-map-height) * 1.428571 + 10px);padding:4px}
+  #minimapCanvas{width:calc(var(--mobile-minimap-map-height) * 1.428571);height:var(--mobile-minimap-map-height)}
+  .minimap-key{display:none}
+  #interaction-hint{bottom:70px;max-width:calc(100% - 300px);font-size:9px;padding:3px 6px}
+  #toast{top:58px;font-size:10px;padding:4px 8px}
 }
 
 @media(max-width:780px) and (orientation:portrait){

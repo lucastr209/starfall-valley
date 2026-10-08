@@ -2,8 +2,9 @@
 
 const CLIENT_FILES = Object.freeze([
   'index.html', 'styles.css', 'client-config.js', 'privacy.html',
+  'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png',
   'game-data.js', 'game-core.js', 'npc-ai.js', 'world-paths.js',
-  'world-effects.js', 'world-actors.js', 'minimap.js', 'onboarding.js', 'game.js'
+  'world-effects.js', 'world-actors.js', 'minimap.js', 'onboarding.js', 'save-transfer.js', 'game.js'
 ]);
 
 function onlineEndpoint(value = '') {
@@ -20,7 +21,7 @@ function onlineEndpoint(value = '') {
 function securityHeaders(endpoint = '') {
   const connect = endpoint ? ` 'self' ${new URL(onlineEndpoint(endpoint)).origin}` : " 'self'";
   return {
-    'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src" + connect + "; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
+    'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src" + connect + "; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'Referrer-Policy': 'no-referrer',

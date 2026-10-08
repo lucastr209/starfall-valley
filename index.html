@@ -3,13 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#f5cf97">
+  <meta name="theme-color" content="#fff9e8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Sao Rơi">
   <title>Thung Lũng Sao Rơi — Một hành trình mới</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23fff3d3'/%3E%3Cpath d='M16 3l4 9 10 4-10 4-4 9-4-9-10-4 10-4z' fill='%23c36e51'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <script defer src="client-config.js"></script>
   <script defer src="game-data.js"></script>
   <script defer src="game-core.js"></script>
+  <script defer src="save-transfer.js"></script>
   <script defer src="npc-ai.js"></script>
   <script defer src="world-paths.js"></script>
   <script defer src="world-effects.js"></script>
@@ -32,6 +38,7 @@
           <div class="start-row"><input id="player-name" maxlength="18" placeholder="Tên của bạn" autocomplete="nickname" required value="Lữ khách"><button type="submit" id="btn-start">Bắt đầu hành trình <span>→</span></button></div>
         </form>
         <p id="save-label" class="save-label">Một câu chuyện mới đang đợi bạn.</p>
+        <button id="btn-import-start" class="save-import" type="button">Nhập tiến trình đã lưu</button>
         <p class="privacy-note">Hãy dùng biệt danh. Tên và chat online được người chơi khác nhìn thấy. <a href="privacy.html" target="_blank" rel="noopener">Quyền riêng tư</a></p>
         <div class="feature-strip"><span>✦ 4 miền khám phá</span><span>⌂ 12 nâng cấp</span><span>♧ Thu thập & chế tạo</span></div>
           <div class="start-controls">WASD / phím mũi tên: đi · Giữ Shift: chạy · E: tương tác · Space: vung kiếm<br>Trên điện thoại: xoay ngang, kéo joystick bên trái và dùng nút tương tác bên phải.</div>
@@ -76,5 +83,6 @@
     </section>
     <dialog id="game-dialog"><div class="dialog-heading"><div><span id="dialog-eyebrow" class="tiny-label"></span><h2 id="dialog-title"></h2></div><button id="dialog-close" aria-label="Đóng cửa sổ">✕</button></div><div id="dialog-body"></div></dialog>
   </main>
+  <input id="save-file" type="file" accept="application/json,.json" aria-label="Chọn file tiến trình" hidden>
 </body>
 </html>

@@ -3,10 +3,14 @@
   const D = globalThis.STARDROP_DATA, C = globalThis.StardropCore, NPC = globalThis.StardropNPC, P = globalThis.StardropPaths, E = globalThis.StardropEffects, A = globalThis.StardropActors;
   if (!D || !C || !NPC || !P || !E || !A) { document.getElementById('save-label').textContent = 'Không tải được dữ liệu game. Hãy tải lại trang.'; return; }
   const actorMetrics=A.artMetrics||{bodyWidth:40,bodyHeight:60,nameOffset:64};
-  const Mini=globalThis.StardropMinimap, Tutorial=globalThis.StardropOnboarding;
+  const Mini=globalThis.StardropMinimap, Tutorial=globalThis.StardropOnboarding, Transfer=globalThis.StardropSaveTransfer;
   const $ = id => document.getElementById(id), esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const SAVE_KEY = 'starfall-valley-save-v1', qaMode = new URLSearchParams(location.search).get('qa') === '1';
   const storageKey = qaMode ? 'starfall-valley-qa-save' : SAVE_KEY;
+  const localQA=qaMode&&['localhost','127.0.0.1'].includes(location.hostname);
+  const qaFullscreen=localQA?new URLSearchParams(location.search).get('fullscreen'):null;
+  let fullscreenBusy=false,fullscreenEpoch=0,pendingImport=null,saveReadEpoch=0;
+  let inputViewportWidth=window.innerWidth,viewportHeightValue='';
   let saved = null; try { saved = JSON.parse(localStorage.getItem(storageKey)); } catch (_) {}
   let state = C.restoreState(saved, D), running = false, modal = null, journalTab = 'story', lastTime = 0;
   if(!saved||saved.version!==1){state.x=850;state.y=565;}
@@ -138,11 +142,48 @@
   $('player-name').value = state.name;
   if(saved?.version===1) { $('btn-start').innerHTML='Tiếp tục hành trình <span>→</span>'; $('save-label').textContent=`Ngày ${state.day} · Cấp ${C.level(state)} · ${Object.values(state.quests).filter(q=>q.status==='claimed').length} nhiệm vụ đã hoàn tất`; }
   function save() {
-    try { localStorage.setItem(storageKey,JSON.stringify(state)); $('save-status').textContent='Đã lưu trên máy'; }
+    try { const {moving,...progress}=state;localStorage.setItem(storageKey,JSON.stringify(progress)); $('save-status').textContent='Đã lưu trên máy'; }
     catch(_) { $('save-status').textContent='Trình duyệt chưa cho phép lưu'; }
     lastSaved=performance.now();
   }
   function toast(message) { $('toast').textContent=message; $('toast').classList.add('visible'); toastUntil=performance.now()+4200; }
+  function chooseSave(){clearMovement();$('save-file').value='';$('save-file').click();}
+  function exportSave(){
+    if(!Transfer)return;
+    const blob=new Blob([Transfer.encode(state,D)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');
+    link.href=url;link.download=`starfall-valley-progress-${new Date().toISOString().slice(0,10)}.json`;
+    link.hidden=true;$('game-wrapper').append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+    $('save-transfer-status').textContent='Đã xuất tiến trình. Lưu file vào Tệp, rồi chọn Nhập tiến trình khi mở game từ Màn hình chính.';
+  }
+  function refreshStartSave(){
+    $('btn-start').innerHTML='Tiếp tục hành trình <span>→</span>';
+    $('save-label').textContent=`Ngày ${state.day} · Cấp ${C.level(state)} · Tiến trình đã lưu`;
+    $('player-name').value=state.name;
+  }
+  $('btn-import-start').addEventListener('click',chooseSave);
+  $('save-file').addEventListener('change',async()=>{
+    const file=$('save-file').files?.[0];$('save-file').value='';if(!file||!Transfer)return;
+    const ticket=++saveReadEpoch;pendingImport=null;clearMovement();
+    try{
+      if(file.size>Transfer.maxBytes)throw new Error('File quá lớn');
+      const text=await file.text();if(ticket!==saveReadEpoch)return;
+      pendingImport=Transfer.decode(text,D);
+      openDialog('save-import','Khôi phục tiến trình?','KIỂM TRA BẢN TIẾN TRÌNH',`<p class="dialogue-text">${esc(pendingImport.name)} · Ngày ${pendingImport.day} · Cấp ${C.level(pendingImport)} · ${pendingImport.coins} xu</p><p>Tiến trình này sẽ thay thế tiến trình đang lưu trên trình duyệt này.</p><div class="npc-actions"><button data-import-save>Khôi phục tiến trình</button><button data-close>Hủy</button></div>`);
+    }catch(_){
+      if(ticket!==saveReadEpoch)return;pendingImport=null;
+      openDialog('save-error','Không đọc được tiến trình','CHỌN LẠI FILE', '<p class="dialogue-text">Hãy chọn file .json đã xuất từ Thung Lũng Sao Rơi, tối đa 128 KB. Tiến trình hiện tại vẫn được giữ.</p><div class="npc-actions"><button data-choose-save>Chọn lại file</button><button data-close>Đóng</button></div>');
+    }
+  });
+  function importSave(){
+    if(modal!=='save-import'||!pendingImport)return;
+    state=pendingImport;pendingImport=null;tutorialPending=false;guidedNpcId=null;near=null;
+    if(state.health<=0){state.health=100;state.stamina=70;state.map='village';state.x=800;state.y=720;}
+    if(blockedAt(state.map,state.x,state.y)){state.map='village';state.x=850;state.y=565;}
+    clearMovement();actorMotions.clear();playerDirection='down';walkDistance=0;lastMinimap=-Infinity;
+    closeDialog();refreshHUD();updateCamera();refreshStartSave();
+    if(running&&socket){socket.onclose=null;socket.close();socket=null;peers.clear();onlineId=null;connect();}
+    if(running)toast('Đã khôi phục tiến trình.');
+  }
   function effect(kind,x,y,text='',color='#fff0a1') {
     if(reducedMotion)return;
     const life=kind==='text'?1.3:kind==='slash'?.25:kind==='dust'?.35:.6;
@@ -218,10 +259,10 @@
     $('game-dialog').classList.remove('tutorial-dialog');if(kind==='tutorial')$('game-dialog').classList.add('tutorial-dialog');
     if(!$('game-dialog').open)$('game-dialog').showModal();
   }
-  function closeDialog() { $('game-dialog').close(); modal=null; clearMovement();save(); }
+  function closeDialog() { ++saveReadEpoch;pendingImport=null;$('game-dialog').close(); modal=null; clearMovement();save(); }
   $('dialog-close').addEventListener('click',closeDialog);
-  $('game-dialog').addEventListener('cancel',()=>{modal=null;clearMovement();save();});
-  $('game-dialog').addEventListener('close',()=>{modal=null;});
+  $('game-dialog').addEventListener('cancel',()=>{++saveReadEpoch;pendingImport=null;modal=null;clearMovement();save();});
+  $('game-dialog').addEventListener('close',()=>{++saveReadEpoch;pendingImport=null;modal=null;});
   function showTutorial(index=0) {
     if(!Tutorial||!running||orientationBlocked)return;
     tutorialPending=false;tutorialIndex=clamp(index,0,Tutorial.count-1);
@@ -268,6 +309,9 @@
   }
   document.addEventListener('click',e=>{
     const b=e.target.closest('button');if(!b)return;
+    if(b.hasAttribute('data-export-save')){exportSave();return;}
+    if(b.hasAttribute('data-choose-save')){chooseSave();return;}
+    if(b.hasAttribute('data-import-save')){importSave();return;}
     if(modal==='tutorial'){
       if(b.hasAttribute('data-tutorial-next')){if(tutorialIndex===Tutorial.count-1)finishTutorial();else showTutorial(tutorialIndex+1);return;}
       if(b.hasAttribute('data-tutorial-prev')){showTutorial(tutorialIndex-1);return;}
@@ -307,7 +351,14 @@
     const first=D.quests.find(q=>q.kind==='story'&&C.available(state,q,D)&&!state.quests[q.id]);if(first)C.accept(state,first.id,D);
     refreshHUD();save();connect();toast('Chào mừng tới Làng Sao! E để trò chuyện; Q để mở sổ nhiệm vụ.');
   });
-  $('btn-home').addEventListener('click',async e=>{e.preventDefault();clearMovement();setMobilePanel('');save();running=false;syncOrientation();if(socket){socket.onclose=null;socket.close();socket=null;}clearTimeout(reconnectTimer);peers.clear();onlineId=null;closeDialog();if(nativeFull())try{await(document.exitFullscreen||document.webkitExitFullscreen).call(document);}catch(_){}$('game-wrapper').classList.remove('pseudo-fullscreen');syncFullscreen();$('play-screen').hidden=true;$('start-screen').hidden=false;$('btn-start').innerHTML='Tiếp tục hành trình <span>→</span>';$('save-label').textContent=`Ngày ${state.day} · Cấp ${C.level(state)} · Tiến trình đã lưu`;$('player-name').value=state.name;window.scrollTo?.(0,0);});
+  $('btn-home').addEventListener('click',async e=>{
+    e.preventDefault();++fullscreenEpoch;++saveReadEpoch;fullscreenBusy=false;pendingImport=null;
+    clearMovement();setMobilePanel('');save();running=false;syncOrientation();
+    if(socket){socket.onclose=null;socket.close();socket=null;}clearTimeout(reconnectTimer);peers.clear();onlineId=null;closeDialog();
+    if(nativeFull())await exitNativeFullscreen();
+    $('game-wrapper').classList.remove('pseudo-fullscreen');syncFullscreen();
+    $('play-screen').hidden=true;$('start-screen').hidden=false;refreshStartSave();window.scrollTo?.(0,0);
+  });
   function chatLine(name,text,notice=false) {
     const p=document.createElement('p');if(notice)p.className='notice';if(name){const b=document.createElement('b');b.textContent=name;p.append(b);}p.append(document.createTextNode(text));$('chat-log').append(p);while($('chat-log').children.length>40)$('chat-log').firstChild.remove();$('chat-log').scrollTop=$('chat-log').scrollHeight;
   }
@@ -335,15 +386,49 @@
   $('chat-form').addEventListener('submit',e=>{e.preventDefault();const text=$('chat-input').value.trim().slice(0,140);if(!text)return;if(socket?.readyState===1&&onlineId){socket.send(JSON.stringify({type:'chat',text}));$('chat-input').value='';}else toast('Chat cần mở game qua server: node server.js');});
   chatLine('','Tới gần cư dân và nhấn E để gặp gỡ. Chat trực tuyến khi mở game qua server.',true);
   const nativeFull = () => !!(document.fullscreenElement||document.webkitFullscreenElement);
-  function syncFullscreen() {const expanded=nativeFull()||$('game-wrapper').classList.contains('pseudo-fullscreen');$('btn-fullscreen').innerHTML=`${expanded?'⊡':'⛶'} <span>${expanded?'Thu nhỏ':'Toàn màn hình'}</span>`;$('btn-fullscreen').setAttribute('aria-label',expanded?'Thu nhỏ màn hình':'Phóng toàn màn hình');$('btn-fullscreen').setAttribute('aria-pressed',String(expanded));}
+  const standalone=()=>qaFullscreen==='standalone'||!!globalThis.navigator?.standalone||!!window.matchMedia?.('(display-mode: standalone)').matches;
+  const iosBrowser=()=>qaFullscreen==='ios'||/iPad|iPhone|iPod/.test(globalThis.navigator?.userAgent||'')||globalThis.navigator?.platform==='MacIntel'&&globalThis.navigator?.maxTouchPoints>1;
+  async function exitNativeFullscreen(){try{const fn=document.exitFullscreen||document.webkitExitFullscreen;if(fn)await fn.call(document);}catch(_){}}
+  function syncFullscreen() {
+    const app=standalone(),expanded=app||nativeFull()||$('game-wrapper').classList.contains('pseudo-fullscreen'),button=$('btn-fullscreen');
+    button.innerHTML=`${app?'✓':expanded?'⊡':'⛶'} <span>${app?'Ứng dụng':expanded?'Thu nhỏ':'Toàn màn hình'}</span>`;
+    button.setAttribute('aria-label',app?'Chế độ ứng dụng và tiến trình':expanded?'Thu nhỏ màn hình':'Phóng toàn màn hình');
+    button.setAttribute('aria-pressed',String(expanded));button.setAttribute('data-fullscreen-mode',app?'standalone':nativeFull()?'native':expanded?'pseudo':'browser');
+    button.setAttribute('aria-busy',String(fullscreenBusy));
+  }
+  function showFullscreenHelp(){
+    const app=standalone();
+    openDialog('fullscreen-help',app?'Game đang ở chế độ ứng dụng':'Chơi trọn màn hình trên iPhone',app?'MÀN HÌNH CHÍNH':'SAFARI',`<div class="fullscreen-help">${app?'<p>Bạn đang mở game từ Màn hình chính. Xoay điện thoại nằm ngang để chơi với toàn bộ vùng màn hình.</p>':'<p>Safari chưa cho phép game ẩn thanh địa chỉ bằng nút này. Mở game từ Màn hình chính để chơi không có thanh Safari.</p><ol><li>Trong Safari, nhấn <b>Chia sẻ</b> → <b>Thêm vào Màn hình chính</b>.</li><li>Bật <b>Mở dạng ứng dụng</b> nếu xuất hiện, rồi nhấn <b>Thêm</b>.</li><li>Mở biểu tượng <b>Thung Lũng Sao Rơi</b> và xoay điện thoại nằm ngang.</li></ol>'}<p>Để mang tiến trình sang chế độ ứng dụng, xuất file ở đây rồi nhập file khi mở game từ Màn hình chính.</p><div class="npc-actions save-transfer-actions"><button data-export-save>Xuất tiến trình</button><button data-choose-save>Nhập tiến trình</button><button data-close>Tiếp tục chơi</button></div><p id="save-transfer-status" role="status"></p></div>`);
+  }
+  function requestNativeFullscreen(w,fn){
+    return new Promise(resolve=>{
+      let timer,done=false;
+      const finish=ok=>{if(done)return;done=true;clearTimeout(timer);for(const event of ['fullscreenchange','webkitfullscreenchange'])document.removeEventListener(event,changed);resolve(ok);};
+      const changed=()=>{if(nativeFull())finish(true);};
+      for(const event of ['fullscreenchange','webkitfullscreenchange'])document.addEventListener(event,changed);
+      timer=setTimeout(()=>finish(nativeFull()),1200);
+      try{const result=fn.call(w);if(nativeFull())finish(true);else if(result?.then)Promise.resolve(result).then(()=>finish(nativeFull()),()=>finish(false));}catch(_){finish(false);}
+    });
+  }
   $('btn-fullscreen').addEventListener('click',async()=>{
-    const w=$('game-wrapper');
-    if(nativeFull()){try{await (document.exitFullscreen||document.webkitExitFullscreen).call(document);}catch(_){toast('Trình duyệt chưa cho phép thu nhỏ. Bạn có thể nhấn Esc.');}w.classList.remove('pseudo-fullscreen');}
-    else if(w.classList.contains('pseudo-fullscreen'))w.classList.remove('pseudo-fullscreen');
-    else{const fn=w.requestFullscreen||w.webkitRequestFullscreen;if(!fn)w.classList.add('pseudo-fullscreen');else try{await fn.call(w);}catch(_){w.classList.add('pseudo-fullscreen');}}
-    syncFullscreen();
+    if(fullscreenBusy)return;
+    clearMovement();const w=$('game-wrapper'),ticket=++fullscreenEpoch;fullscreenBusy=true;syncFullscreen();
+    try{
+      if(nativeFull()){await exitNativeFullscreen();w.classList.remove('pseudo-fullscreen');if(nativeFull())toast('Trình duyệt chưa cho phép thu nhỏ. Bạn có thể nhấn Esc.');}
+      else if(w.classList.contains('pseudo-fullscreen'))w.classList.remove('pseudo-fullscreen');
+      else if(standalone())showFullscreenHelp();
+      else{
+        const fn=qaFullscreen==='ios'?null:w.requestFullscreen||w.webkitRequestFullscreen;
+        const entered=fn?await requestNativeFullscreen(w,fn):false;
+        if(ticket!==fullscreenEpoch||!running){if(nativeFull())await exitNativeFullscreen();return;}
+        if(!entered){if(iosBrowser())showFullscreenHelp();else w.classList.add('pseudo-fullscreen');}
+      }
+    }finally{if(ticket===fullscreenEpoch)fullscreenBusy=false;syncFullscreen();resizeViewport();}
   });
-  for(const e of ['fullscreenchange','webkitfullscreenchange'])document.addEventListener(e,()=>{if(nativeFull())$('game-wrapper').classList.remove('pseudo-fullscreen');syncFullscreen();});
+  for(const e of ['fullscreenchange','webkitfullscreenchange'])document.addEventListener(e,()=>{
+    if(nativeFull()){$('game-wrapper').classList.remove('pseudo-fullscreen');if(!running)void exitNativeFullscreen();else if(modal==='fullscreen-help')closeDialog();}
+    syncFullscreen();resizeViewport();
+  });
   const typing = () => ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName);
   const panelBlocks=()=>!!mobilePanel&&mobileLayout();
   const gamePaused=()=>!!modal||typing()||orientationBlocked||panelBlocks();
@@ -791,6 +876,8 @@
     if(running&&!blocked&&tutorialPending&&!modal)showTutorial(tutorialIndex);
   }
   function resizeViewport(){
+    const visual=window.visualViewport,height=visual&&Math.abs((visual.scale||1)-1)<.01&&Number.isFinite(visual.height)&&visual.height>0?visual.height:window.innerHeight;
+    if(Number.isFinite(height)&&height>0){const value=`${height}px`;if(value!==viewportHeightValue){$('game-wrapper').style.setProperty('--game-viewport-height',value);viewportHeightValue=value;}}
     syncOrientation();
     const stage=$('canvas-stage');if(!stage.clientWidth||!stage.clientHeight)return;
     viewWidth=mobileLayout()&&window.innerWidth>window.innerHeight?720:stage.clientWidth<=700?540:960;
@@ -799,7 +886,8 @@
     if(viewHeight>1100){viewHeight=1100;viewWidth=Math.max(1,Math.round(viewHeight*stage.clientWidth/stage.clientHeight));}
     canvas.width=darkCanvas.width=viewWidth;canvas.height=darkCanvas.height=viewHeight;ctx.imageSmoothingEnabled=false;updateCamera();lastMinimap=-Infinity;
   }
-  window.addEventListener('resize',()=>{clearMovement();resizeViewport();});
+  window.addEventListener('resize',()=>{if(window.innerWidth!==inputViewportWidth){inputViewportWidth=window.innerWidth;clearMovement();}resizeViewport();});
+  window.visualViewport?.addEventListener('resize',resizeViewport);
   if(typeof ResizeObserver!=='undefined')new ResizeObserver(resizeViewport).observe($('canvas-stage'));
   refreshHUD();syncFullscreen();syncRunControl();requestAnimationFrame(loop);
   // Local QA scenarios use a separate save slot and never modify the player's save.

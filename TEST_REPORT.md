@@ -1,5 +1,20 @@
 # Báo cáo kiểm tra — Thung Lũng Sao Rơi
 
+## Safari thu nhỏ vùng chơi và fullscreen iPhone — 08/10/2026
+
+Đối chiếu ảnh iPhone của người dùng: thanh Safari và hàng tab chiếm nhiều chiều cao; fallback CSS trước đây bật trạng thái fullscreen nhưng không thể ẩn thanh trình duyệt.
+
+- Fullscreen xác nhận phần tử thực sự vào fullscreen; xử lý API resolve nhưng không đổi trạng thái, API prefixed trả void, timeout, reject, nhấn liên tục, về title khi request còn chờ và native thành công muộn. iOS không hỗ trợ mở hướng dẫn cụ thể, giữ `aria-pressed=false`; nhận diện chế độ standalone hiện nhãn Ứng dụng.
+- Manifest, icon PNG 192/512, icon Apple 180 và metadata cho Màn hình chính được thêm vào allowlist. CSP root Vercel và bản build đều cho phép manifest cùng origin. Không thêm service worker/cache offline hoặc dependency.
+- Chiều cao gameplay/dialog/drawer theo visualViewport ở scale 1, fallback innerHeight khi pinch hoặc số đo không hợp lệ. Đổi chiều cao không nhả joystick; đổi chiều rộng/xoay xóa input. Dialog mobile đặt từ mép trên vùng chơi, tránh căn giữa theo viewport bố cục lớn hơn vùng nhìn thấy.
+- Bố cục thấp tách bốn nút tiện ích ở giữa phía trên, Cư dân/Chat phía dưới; thu minimap và joystick, giữ vùng chạm ≥44px. Browser Chromium thật kiểm 852×220/260/276/300/393 và 568×260: không có cặp nút chồng nhau, không vượt viewport, không tràn ngang. Canvas tương ứng cao 154/194/210/234/327,6 và 194px. Safe-area vật lý chưa kiểm trên thiết bị.
+- Browser localhost: minimap thu/mở; drawer Chat 568×260 nằm y8..252, input 44px/font16px; nhập bản nháp và đóng được. Giữ joystick 1,2 giây rồi nhả trả `data-active=false`, knob về tâm. Desktop 1280×900 đi WASD, giữ/nhả Shift trả Đi bộ; nút fullscreen native phóng/thu `native/true → browser/false`. Quan sát Canvas đêm, mưa ngày, mưa đêm tại 852×276: lớp vẽ phủ đủ stage.
+- Browser kiểm UI iOS bằng override QA cục bộ: nút mở hướng dẫn đúng, trạng thái không giả fullscreen; dialog ở 852×220 nằm y8..212, nút xuất trong vùng cuộn hoạt động. Override standalone hiện nhãn/pressed true và không hiện bước cài lại. Portrait 393×852 hiện nhắc xoay; nút về title hoạt động.
+- Chuyển save bằng file: module chỉ xuất trường tiến trình đã được core làm sạch, không xuất input hay trường riêng lạ; nhập JSON sai/khác game/quá lớn không thay thế dữ liệu; có xác nhận, hủy, đọc file mới thay file cũ, hủy bằng Esc/title và bảo toàn save thật. Browser chọn fixture QA qua file chooser, thấy xác nhận 843 xu/ngày2/cấp2; xác nhận cập nhật HUD và reconnect với tên QA mới. Nút Xuất hiển thị trạng thái thành công, log warn/error đọc được rỗng; việc lấy file Blob qua công cụ browser bị lỗi, nên chưa xác minh file tải xuống trên iOS thật. Nội dung xuất/round-trip kiểm đầy đủ bằng module và gameplay VM.
+- Nhóm hồi quy fullscreen/import/viewport/PWA: **27/27 PASS** trước sửa bổ sung cuối. Full suite cuối: **357 bài, 355 PASS, 0 fail, 2 skip**, 62,53 giây trên Node24. Hai bài Redis live tùy chọn không bật. Syntax/build/secret scan và deployment được ghi bổ sung sau khi thực hiện.
+
+Giới hạn: các nhánh iOS/standalone kiểm bằng source/VM và UI QA trên Chromium, không phải iPhone/Safari thật. Chưa xác minh cài Màn hình chính, bàn phím ảo, safe-area notch hoặc file tải về bằng app Tệp trên thiết bị của người dùng. Không đọc/xóa/sửa khóa save thật trong lượt kiểm này.
+
 ## Gameplay ngang, joystick, hướng dẫn và minimap — 08/10/2026
 
 Runtime: Node.js 24.19.0 trên Windows. QA localhost dùng save riêng; không xóa/đọc/sửa save người chơi. Không thêm dependency hoặc thay sprite/server online.

@@ -21,6 +21,8 @@ Không cần tải package, font hay ảnh ngoài. Mở trực tiếp `index.htm
 - Mobile chơi theo chiều ngang, bản đồ chiếm toàn bộ vùng dưới thanh trạng thái. Màn hình dọc nhắc xoay máy và tạm dừng game; xoay máy, mở dialog/bảng thông tin hoặc rời trang đều xóa thao tác đang giữ. Bảng **Cư dân** và **Chat** mở thành drawer có nút đóng. Các nút có vùng chạm ít nhất 44px, nút hành động cách nhau 14px; ô tên/chat vẫn nhập và chọn chữ bình thường.
 - Người chơi mới được hướng dẫn bốn bước; có thể bỏ qua hoặc mở lại bằng **Hướng dẫn**. Cờ hoàn tất lưu riêng với tiến trình; save cũ không bị buộc xem lại. QA mặc định không mở hướng dẫn; `?qa=1&tutorial=1` thử hướng dẫn khi chưa có save QA.
 - Minimap góc trên phải hiển thị vùng hiện tại, bạn (chấm trắng), cư dân/nhiệm vụ, mục tiêu (hình thoi vàng), người chơi online cùng vùng và cổng (ô xanh). Khung trắng là vùng nhìn hiện tại. Nút **⌖** thu/mở minimap; cập nhật tối đa năm lần/giây từ dữ liệu đang có trong game.
+- iPhone/Safari: nếu nút fullscreen mở hướng dẫn, chọn **Chia sẻ → Thêm vào Màn hình chính**, bật **Mở dạng ứng dụng** nếu có, rồi mở biểu tượng game. Manifest và icon cho phép chạy ở chế độ ứng dụng; CSS không thể ẩn thanh Safari. Khi thanh trình duyệt đang hiện, game tự thu gọn nút/minimap theo chiều cao nhìn thấy, không ngắt joystick khi chỉ đổi chiều cao.
+- Để mang tiến trình từ Safari sang ứng dụng trên Màn hình chính, dùng **Xuất tiến trình** trong hướng dẫn fullscreen, lưu file vào Tệp; mở biểu tượng game rồi chọn **Nhập tiến trình đã lưu**. File được xử lý trên máy, giới hạn 128 KB và cần xác nhận trước khi thay thế save. Không có đồng bộ save cloud hay chế độ offline.
 - Tốc độ đi là 180 pixel/giây, tăng lên 225 khi có Giày Lướt Cỏ. Chạy nhanh gấp 1,65 lần: tương ứng 297 và 371,25 pixel/giây, không mất thêm thể lực. Đi chéo có cùng tốc độ với đi thẳng; khi bị vật cản chặn, nhân vật không tiếp tục bước tại chỗ.
 - Chạy và phím di chuyển tự tắt khi mở cửa sổ, tập trung vào chat, câu cá, qua cổng, trở về màn hình đầu hoặc rời cửa sổ trình duyệt. Sau đó nhấn lại Shift hoặc nút Chạy nếu muốn tiếp tục chạy.
 - Nhận nhiệm vụ trước khi thu thập, chế tạo, chiến đấu hoặc trò chuyện để ghi tiến độ. Các mốc xây dựng, khám phá, bia và rương đã làm vẫn được công nhận.
@@ -58,7 +60,7 @@ Xem `SECURITY.md`, `privacy.html` và `TEST_REPORT.md` cho giới hạn bảo m�
 
 Tiến trình tự lưu trên trình duyệt mỗi 5 giây và sau thao tác quan trọng, vào khóa `starfall-valley-save-v1`. Save cũ `giaoxu-tycoon-save-v2` không bị xóa; câu chuyện mới bắt đầu riêng. Mã giao diện trước cải tạo được giữ tại `archive/index-before-retheme.html`.
 
-Server đồng bộ vị trí người chơi, vùng, hướng nhìn, trạng thái đi/chạy và chat. Các nhiệm vụ, vật phẩm, chiến đấu và công trình hiện là tiến trình cá nhân lưu trên máy; chưa có tài khoản, cơ sở dữ liệu hoặc thế giới kinh tế chung do server quản lý. NPC đi lại trên từng client và bắt đầu lộ trình mới khi tải lại trang. Hướng nhìn, pha bước chân và nút chạy là trạng thái trong phiên, không ghi vào tiến trình. Đổi trình duyệt/máy chưa mang theo tiến trình.
+Server đồng bộ vị trí người chơi, vùng, hướng nhìn, trạng thái đi/chạy và chat. Các nhiệm vụ, vật phẩm, chiến đấu và công trình hiện là tiến trình cá nhân lưu trên máy; chưa có tài khoản, cơ sở dữ liệu hoặc thế giới kinh tế chung do server quản lý. NPC đi lại trên từng client và bắt đầu lộ trình mới khi tải lại trang. Hướng nhìn, pha bước chân và nút chạy là trạng thái trong phiên, không ghi vào tiến trình. Đổi trình duyệt/máy cần xuất và nhập file tiến trình thủ công.
 
 ## Kiểm tra
 
@@ -81,6 +83,8 @@ node --test tests/*.test.js
 `node tests/render-gait.cjs` xuất `test-artifacts/handheld-gait-preview.html`, bản xem chuyển động riêng của người chơi và 11 NPC ở bốn hướng. Có nút đi/chạy, dừng, tạm dừng và giảm chuyển động; dùng renderer thật, dữ liệu mẫu và cùng thời gian chuyển tiếp hình vẽ với game. Bản HTML tự chứa mã/hình, không truy cập save hay kết nối mạng. Chạy của NPC trong bảng là tư thế mẫu để đối chiếu; trong gameplay cư dân đi bộ. Bảng này hỗ trợ rà soát hình vẽ, kiểm thao tác/va chạm trong game vẫn cần trình duyệt thật.
 
 Các URL `?qa=1&scene=day|night|rain|farm|fish|battle|camp|npc|actors` chỉ dùng trên localhost để kiểm tra với dữ liệu riêng (`starfall-valley-qa-save`), không ghi vào save người chơi. Scene `npc` đặt người chơi phía nam làng để quan sát các cư dân đi lại mà không đứng sát họ.
+
+Thêm `fullscreen=ios` để kiểm giao diện hướng dẫn khi iPhone không hỗ trợ fullscreen, hoặc `fullscreen=standalone` để kiểm nhãn chế độ ứng dụng. Hai override này chỉ hoạt động với `qa=1` trên localhost; không giả lập Safari hoặc cài ứng dụng thật.
 
 Scene `actors` đặt người chơi ở lối phía nam làng để kiểm tra hình vẽ và đi/chạy. Thêm `look=down|up|left|right` để chọn hướng nhìn ban đầu; thêm `motion=reduced` để kiểm tra tư thế khi giảm chuyển động. Ví dụ: http://localhost:4173/?qa=1&scene=actors&look=up hoặc http://localhost:4173/?qa=1&scene=actors&look=left&motion=reduced.
 

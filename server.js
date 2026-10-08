@@ -19,6 +19,10 @@ const ASSETS = Object.freeze({
   '/styles.css': ['styles.css', 'text/css; charset=utf-8'],
   '/client-config.js': ['client-config.js', 'text/javascript; charset=utf-8'],
   '/privacy.html': ['privacy.html', 'text/html; charset=utf-8'],
+  '/manifest.webmanifest': ['manifest.webmanifest', 'application/manifest+json; charset=utf-8'],
+  '/icon-192.png': ['icon-192.png', 'image/png'],
+  '/icon-512.png': ['icon-512.png', 'image/png'],
+  '/apple-touch-icon.png': ['apple-touch-icon.png', 'image/png'],
   '/game-data.js': ['game-data.js', 'text/javascript; charset=utf-8'],
   '/game-core.js': ['game-core.js', 'text/javascript; charset=utf-8'],
   '/npc-ai.js': ['npc-ai.js', 'text/javascript; charset=utf-8'],
@@ -27,6 +31,7 @@ const ASSETS = Object.freeze({
   '/world-actors.js': ['world-actors.js', 'text/javascript; charset=utf-8'],
   '/minimap.js': ['minimap.js', 'text/javascript; charset=utf-8'],
   '/onboarding.js': ['onboarding.js', 'text/javascript; charset=utf-8'],
+  '/save-transfer.js': ['save-transfer.js', 'text/javascript; charset=utf-8'],
   '/game.js': ['game.js', 'text/javascript; charset=utf-8']
 });
 const MAX_FRAME_BYTES = 16 * 1024;
