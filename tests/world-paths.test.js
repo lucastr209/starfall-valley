@@ -1,8 +1,8 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const P=require('../world-paths.js');
-const D=require('../game-data.js');
+const P=require('../public/js/world-paths.js');
+const D=require('../public/js/game-data.js');
 const maps=['village','forest','coast','ruins'];
 const overlaps=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
 function roadCells(layout) {

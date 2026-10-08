@@ -1,7 +1,7 @@
 import { isIP } from 'node:net';
-import serverModule from '../server.js';
-import roomModule from '../redis-room.cjs';
-import policy from '../server-policy.cjs';
+import serverModule from '../server/index.js';
+import roomModule from '../server/redis-room.cjs';
+import policy from '../server/policy.cjs';
 
 const configured = policy.parseOrigins(process.env.ALLOWED_ORIGINS);
 for (const host of [process.env.VERCEL_URL, process.env.VERCEL_PROJECT_PRODUCTION_URL, process.env.VERCEL_BRANCH_URL]) {

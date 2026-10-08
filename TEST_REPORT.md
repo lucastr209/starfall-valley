@@ -1,5 +1,18 @@
 # Báo cáo kiểm tra — Thung Lũng Sao Rơi
 
+## Sắp xếp cấu trúc HTML5 — 08/10/2026
+
+Luồng xác minh: mở trang → tải CSS/JS/icon theo thư mục mới → vào game → kết nối WebSocket localhost → mở UI desktop/mobile. Dùng `?qa=1&scene=actors` và save QA riêng; không sửa/xóa save người chơi.
+
+- Tách tài nguyên trình duyệt vào `public/` (HTML/manifest, `css/`, `js/`, `assets/icons/`), máy chủ vào `server/`, cấu hình dùng chung vào `config/deployment.cjs`. Cập nhật HTML, manifest, npm start, build, API Vercel, công cụ tạo icon, imports của tests và tài liệu.
+- Server mặc định lấy web root từ `public/`; server và build dùng chung allowlist. Build giữ thư mục con, tạo `js/client-config.js`, bỏ qua file ngoài allowlist kể cả khi nằm trong `public/`. Kiểm GET/HEAD, MIME, CSP, query string và 404 cho traversal, backend, config, env, tests, archive đều PASS. Kiểm từng asset build khớp source (trừ config được tạo), và mọi đường dẫn HTML nội bộ có trong bản build: PASS.
+- Harness gameplay đọc thứ tự script từ HTML thật. Đối chiếu source với HEAD: 10 module client, CSS, server policy và Redis adapter giữ nguyên nội dung sau chuyển tệp. `game.js` chỉ thay câu hướng dẫn chat còn nhắc lệnh chạy server cũ; không đổi gameplay/renderer/save.
+- Node.js **24.19.0**: `node --check` PASS cho **33** file JS/CJS/MJS; syntax Python của công cụ icon PASS; build PASS. Bộ kiểm tra cuối: **357 bài, 355 PASS, 0 fail, 2 skip**, 100,72 giây. Hai bài Redis live tùy chọn không bật. Log: `test-artifacts/structure-tests.log`. Lượt ban đầu bằng Node 26.10.0 cũng đạt 355/357; lỗi EACCES localhost ở lượt sandbox đã được giải quyết bằng chạy các bài HTTP/WebSocket với quyền kết nối cục bộ.
+- Browser thật từ source (localhost:4173): desktop 1280×900 tải Canvas/HUD/minimap, kết nối online local và mở/đóng túi đồ; gửi WASD bốn hướng và Shift+D rồi nhả, HUD trở về Đi bộ. Mobile ngang (override 852×393): nút Chạy bật, giữ/thả joystick, mở/đóng bảng cư dân làm Chạy trở về false; joystick data-active=false sau nhả. Thu/mở minimap PASS. Phóng/thu bằng nút trên desktop và mobile: aria-pressed true → false. Portrait (override 393×852) hiện nhắc xoay; quay ngang hiện lại game. Trang quyền riêng tư tải `css/styles.css` đúng. Console warn/error đọc được rỗng.
+- Browser thật từ `dist/` (localhost:4174, server Node 24): desktop và mobile tải game và kết nối online local thành công. Mobile đo được **852×394**, Canvas **720×277**, không tràn ngang; sổ nhiệm vụ mở/đóng bình thường. Console warn/error rỗng. Ảnh: `test-artifacts/structure-desktop.jpg`, `structure-mobile.jpg`, `structure-build-desktop.jpg`, `structure-build-mobile.jpg` (không commit).
+
+Giới hạn: kiểm mobile bằng viewport Chromium và thao tác chuột/phím, chưa dùng iPhone/Safari hay đa chạm vật lý. Không kiểm Redis live, Vercel preview/production hoặc triển khai trong lượt này. Không rà riêng mọi pha sprite của 11 NPC, va chạm, nhãn đông người hay cảnh đêm/mưa trong browser vì không đổi renderer/ánh sáng/quy tắc; các bài tự động liên quan đã chạy trong full suite. Không tuyên bố kiểm toàn bộ gameplay bằng browser. Các phiên QA đã về màn hình đầu và đóng.
+
 ## Safari thu nhỏ vùng chơi và fullscreen iPhone — 08/10/2026
 
 Đối chiếu ảnh iPhone của người dùng: thanh Safari và hàng tab chiếm nhiều chiều cao; fallback CSS trước đây bật trạng thái fullscreen nhưng không thể ẩn thanh trình duyệt.

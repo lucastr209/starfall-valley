@@ -5,7 +5,8 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[1] / "public" / "assets" / "icons"
+ROOT.mkdir(parents=True, exist_ok=True)
 icon = Image.new("RGB", (64, 64), "#224f48")
 draw = ImageDraw.Draw(icon)
 

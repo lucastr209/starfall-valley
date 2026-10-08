@@ -2,8 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const C = require('../game-core.js');
-const D = require('../game-data.js');
+const C = require('../public/js/game-core.js');
+const D = require('../public/js/game-data.js');
 const fresh = () => C.createState('Người thử nghiệm', D);
 const snapshot = s => JSON.stringify(s);
 

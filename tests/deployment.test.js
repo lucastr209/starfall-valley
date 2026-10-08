@@ -6,8 +6,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { build } = require('../scripts/build.cjs');
-const { CLIENT_FILES, onlineEndpoint, securityHeaders } = require('../deployment-config.cjs');
-const { parseOrigins, originAllowed, createIpResolver, createRateLimiter, environmentOptions } = require('../server-policy.cjs');
+const { CLIENT_FILES, onlineEndpoint, securityHeaders } = require('../config/deployment.cjs');
+const { parseOrigins, originAllowed, createIpResolver, createRateLimiter, environmentOptions } = require('../server/policy.cjs');
 
 test('Deployment output is an allowlist and never copies server, secrets, archives or tests', t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'starfall-deploy-'));
@@ -16,16 +16,22 @@ test('Deployment output is an allowlist and never copies server, secrets, archiv
     assert.ok(path.basename(root).startsWith('starfall-deploy-'));
     fs.rmSync(root, { recursive: true, force: true });
   });
-  for (const name of CLIENT_FILES) fs.writeFileSync(path.join(root, name), `client ${name}`);
+  for (const name of CLIENT_FILES) {
+    const target = path.join(root, 'public', name);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, `client ${name}`);
+  }
+  fs.writeFileSync(path.join(root, 'public', 'unlisted.js'), 'PRIVATE_SENTINEL');
+  fs.writeFileSync(path.join(root, 'public', 'js', 'unlisted.js'), 'PRIVATE_SENTINEL');
   for (const name of ['server.js', '.env', 'README.md', 'test.js']) fs.writeFileSync(path.join(root, name), 'PRIVATE_SENTINEL');
   fs.mkdirSync(path.join(root, 'archive'));
   fs.writeFileSync(path.join(root, 'archive', 'old.html'), 'PRIVATE_SENTINEL');
   const out = build({ root, endpoint: 'wss://online.game.test/play', requireOnline: true });
   fs.writeFileSync(path.join(out, 'leftover-secret'), 'PRIVATE_SENTINEL');
   build({ root, endpoint: 'wss://online.game.test/play', requireOnline: true });
-  assert.deepEqual(fs.readdirSync(out).sort(), [...CLIENT_FILES, 'vercel.json'].sort());
-  for (const name of fs.readdirSync(out)) assert.ok(!fs.readFileSync(path.join(out, name), 'utf8').includes('PRIVATE_SENTINEL'), name);
-  assert.ok(fs.readFileSync(path.join(out, 'client-config.js'), 'utf8').includes('wss://online.game.test/play'));
+  assert.deepEqual(fs.readdirSync(out, { recursive: true }).filter(name => fs.statSync(path.join(out, name)).isFile()).map(name => name.split(path.sep).join('/')).sort(), [...CLIENT_FILES, 'vercel.json'].sort());
+  for (const name of [...CLIENT_FILES, 'vercel.json']) assert.ok(!fs.readFileSync(path.join(out, name), 'utf8').includes('PRIVATE_SENTINEL'), name);
+  assert.ok(fs.readFileSync(path.join(out, 'js/client-config.js'), 'utf8').includes('wss://online.game.test/play'));
   const headers = JSON.parse(fs.readFileSync(path.join(out, 'vercel.json'), 'utf8')).headers[0].headers;
   assert.ok(headers.some(h => h.key === 'Content-Security-Policy' && h.value.includes('wss://online.game.test')));
 });

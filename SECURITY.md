@@ -33,7 +33,7 @@
 
 ## Kiểm trước khi công khai
 
-- Kiểm trực tiếp /server.js, /.env, /.git/config, /archive/ và /tests/ không thể tải từ deployment.
+- Kiểm trực tiếp /server/index.js, /server/policy.cjs, /server/redis-room.cjs, /config/deployment.cjs, /.env, /.git/config, /archive/ và /tests/ không thể tải từ deployment.
 - Kiểm CSP không chặn game, chat, câu cá, dialog hoặc fullscreen.
 - Kiểm hai phiên browser, reconnect và dữ liệu QA; không dùng hoặc xóa save của người chơi.
 - Không công bố đã chống gian lận hoàn toàn hoặc đã kiểm tải 60 người nếu chưa thực hiện.

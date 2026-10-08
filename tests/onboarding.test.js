@@ -3,7 +3,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const Tutorial = require('../onboarding.js');
+const Tutorial = require('../public/js/onboarding.js');
 
 test('tutorial opens explicitly, advances four pages and only completes on the final action', () => {
   const tutorial = Tutorial.create();
@@ -75,7 +75,7 @@ test('browser module has no DOM, storage, network or save side effects', () => {
   for (const key of ['document','localStorage','sessionStorage','fetch','WebSocket']) {
     Object.defineProperty(sandbox, key, {get(){throw new Error(`Unexpected ${key} access`);}});
   }
-  vm.runInNewContext(fs.readFileSync(require.resolve('../onboarding.js'), 'utf8'), sandbox);
+  vm.runInNewContext(fs.readFileSync(require.resolve('../public/js/onboarding.js'), 'utf8'), sandbox);
   const tutorial = sandbox.StardropOnboarding.create({completed:true,mobile:true});
   tutorial.start(); tutorial.next(); tutorial.previous(); tutorial.render(); tutorial.finish();
   assert.equal(tutorial.state().completed, true);

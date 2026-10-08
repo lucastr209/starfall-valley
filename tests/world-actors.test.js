@@ -4,8 +4,8 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
 const path = require('node:path');
-const Actors = require('../world-actors.js');
-const data = require('../game-data.js');
+const Actors = require('../public/js/world-actors.js');
+const data = require('../public/js/game-data.js');
 const FRAME_COUNT = 8;
 const WALK_FRAME = Actors.artMetrics.walkFrameDistance, RUN_FRAME = Actors.artMetrics.runFrameDistance;
 const WALK_CYCLE = Actors.artMetrics.walkCycleDistance, RUN_CYCLE = Actors.artMetrics.runCycleDistance;
@@ -59,7 +59,7 @@ function movesWithin(a, b, limit, matchColor = false) {
 }
 
 test('original actor module works in a browser without a DOM or dependencies',()=>{
-  const scope={};vm.createContext(scope);vm.runInContext(fs.readFileSync(path.join(__dirname,'../world-actors.js'),'utf8'),scope);
+  const scope={};vm.createContext(scope);vm.runInContext(fs.readFileSync(path.join(__dirname,'../public/js/world-actors.js'),'utf8'),scope);
   assert.equal(typeof scope.StardropActors.draw,'function');assert.deepEqual(Array.from(scope.StardropActors.directions),['down','up','left','right']);
 });
 test('frozen art metrics declare the chibi dimensions and eight cyclic gait poses',()=>{

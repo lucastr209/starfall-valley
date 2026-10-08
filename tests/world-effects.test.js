@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
 const path = require('node:path');
-const FX = require('../world-effects.js');
+const FX = require('../public/js/world-effects.js');
 const MAPS = ['village', 'forest', 'coast', 'ruins'];
 
 function fixture(map) {
@@ -28,7 +28,7 @@ function canvasMock() {
 
 test('module runs in browsers without a DOM or external dependency',()=>{
   const scope={};vm.createContext(scope);
-  vm.runInContext(fs.readFileSync(path.join(__dirname,'../world-effects.js'),'utf8'),scope);
+  vm.runInContext(fs.readFileSync(path.join(__dirname,'../public/js/world-effects.js'),'utf8'),scope);
   assert.equal(typeof scope.StardropEffects.createScene,'function');
   assert.equal(scope.StardropEffects.createScene('forest').map,'forest');
 });

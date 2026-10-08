@@ -2,15 +2,18 @@
 
 ## Cấu trúc
 
-- `index.html` / `styles.css`: màn hình mở đầu và bố cục HUD/dialog.
-- `game-data.js`: nội dung tiếng Việt, nhiệm vụ, NPC, vật phẩm, nâng cấp, công thức.
-- `game-core.js`: trạng thái và quy tắc tiến trình, có thể kiểm tra bằng Node.
-- `npc-ai.js`: vị trí cư dân trong phiên chơi, hướng nhìn/pha bước chân, lộ trình và tìm đường tránh vật cản.
-- `world-paths.js`: mạng đường liên thông của từng vùng, hợp nhất giao lộ và vẽ viền ngoài.
-- `world-effects.js`: cảnh vật pixel chuyển động theo vùng/thời tiết, giới hạn số lượng và giảm chuyển động.
-- `world-actors.js`: sprite chibi nhìn từ trên xuống, bốn hướng, tám tư thế chính nối bằng pha trung gian đi/chạy theo quãng đường, trang phục riêng của 11 NPC và giảm chuyển động. `artMetrics` khai báo kích thước để game đặt tên/dấu nhiệm vụ đúng.
-- `game.js`: gameplay Canvas, điều khiển, ánh sáng, giao diện và client WebSocket.
-- `server.js`: server cộng đồng không có dependency ngoài.
+- `public/index.html` / `public/css/styles.css`: màn hình mở đầu và bố cục HUD/dialog.
+- `public/js/game-data.js`: nội dung tiếng Việt, nhiệm vụ, NPC, vật phẩm, nâng cấp, công thức.
+- `public/js/game-core.js`: trạng thái và quy tắc tiến trình, có thể kiểm tra bằng Node.
+- `public/js/npc-ai.js`: vị trí cư dân trong phiên chơi, hướng nhìn/pha bước chân, lộ trình và tìm đường tránh vật cản.
+- `public/js/world-paths.js`: mạng đường liên thông của từng vùng, hợp nhất giao lộ và vẽ viền ngoài.
+- `public/js/world-effects.js`: cảnh vật pixel chuyển động theo vùng/thời tiết, giới hạn số lượng và giảm chuyển động.
+- `public/js/world-actors.js`: sprite chibi nhìn từ trên xuống, bốn hướng, tám tư thế chính nối bằng pha trung gian đi/chạy theo quãng đường, trang phục riêng của 11 NPC và giảm chuyển động. `artMetrics` khai báo kích thước để game đặt tên/dấu nhiệm vụ đúng.
+- `public/js/game.js`: gameplay Canvas, điều khiển, ánh sáng, giao diện và client WebSocket.
+- `server/index.js`: server HTTP/WebSocket cộng đồng; `server/policy.cjs` kiểm origin/IP và giới hạn; `server/redis-room.cjs` đồng bộ Redis online.
+- `config/deployment.cjs`: allowlist tài nguyên client và security headers dùng chung cho server/build.
+- `public/assets/icons/` / `public/manifest.webmanifest`: icon và cấu hình ứng dụng trên Màn hình chính.
+- `scripts/`: build client và công cụ tạo icon; `api/play.mjs`: adapter triển khai Vercel.
 - `archive/`: bản giao diện trước lần đổi chủ đề; không phục vụ qua server.
 
 ## Nhân vật và điều khiển

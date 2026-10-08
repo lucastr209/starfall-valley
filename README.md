@@ -2,17 +2,38 @@
 
 RPG pixel 2D trong trình duyệt, phát triển từ nền Canvas và server cộng đồng của dự án trước. Sau cơn mưa sao, bạn trở thành người giúp Làng Ánh Sao hồi sinh: làm quen cư dân, gom vật liệu, chế tạo, trồng cây, câu cá và đánh thức các bia ký ức để thắp Đèn Dẫn Sao.
 
+## Cấu trúc dự án
+
+```text
+public/                 Tài nguyên trình duyệt, cũng là web root khi chạy local
+  index.html            Màn hình đầu, HUD và dialog
+  privacy.html          Trang quyền riêng tư
+  manifest.webmanifest  Cấu hình ứng dụng trên Màn hình chính
+  css/styles.css        Bố cục và giao diện desktop/mobile
+  js/                   Gameplay, dữ liệu, quy tắc, renderer và tiện ích UI
+  assets/icons/         Icon PNG cho manifest và iPhone
+server/                 HTTP/WebSocket, chính sách kết nối và phòng Redis
+config/deployment.cjs   Allowlist client và security headers dùng chung
+api/play.mjs            Adapter server cho Vercel
+scripts/                Build client và tạo icon
+tests/                  Kiểm tra tự động và công cụ preview sprite
+archive/                Giao diện cũ, không được phục vụ hoặc đưa vào build
+dist/                   Bản build được tạo tự động, không sửa trực tiếp
+```
+
+Các module trong `public/js/` giữ dạng script `defer` theo thứ tự trong HTML; module có hỗ trợ Node vẫn được kiểm trực tiếp trong tests. Không cần bundler. `npm start` chỉ phục vụ các đường dẫn trong allowlist từ `public/`; `npm run build` chép cùng danh sách sang `dist/`, giữ thư mục con và tạo `js/client-config.js` từ endpoint công khai. File server, cấu hình riêng, tests và archive không thuộc danh sách này.
+
 ## Chạy game
 
 Dùng Node.js 24 (cùng phiên bản major với Vercel):
 
 ```powershell
-node server.js
+npm start
 ```
 
 Mở **http://localhost:4173**. Máy cùng mạng có thể vào `http://<IP-máy-chủ>:4173`. Có thể đặt `PORT` và `HOST` qua biến môi trường; server mặc định cổng 4173, tối đa 60 khách. `/health` trả trạng thái và số người đang chơi.
 
-Không cần tải package, font hay ảnh ngoài. Mở trực tiếp `index.html` cũng chơi được một mình; người chơi trực tuyến/chat cần server. Màn hình đầu nhận tên nhân vật, chưa phải đăng nhập tài khoản.
+Không cần tải package, font hay ảnh ngoài. Mở trực tiếp `public/index.html` cũng chơi được một mình; người chơi trực tuyến/chat cần server. Màn hình đầu nhận tên nhân vật, chưa phải đăng nhập tài khoản.
 
 ## Cách chơi
 
@@ -42,7 +63,7 @@ Không cần tải package, font hay ảnh ngoài. Mở trực tiếp `index.htm
 - Bốn vùng: Làng Ánh Sao, Rừng Rì Rào, Bờ Vịnh Ngọc, Tàn Tích Mây; 11 cư dân.
 - 12 nâng cấp, 11 vật phẩm, bốn công thức: ván gỗ, trà, đèn sao, cơm dã ngoại.
 - Đồ họa pixel gốc vẽ bằng Canvas: mái ngói, cạnh tường, bóng cây, bờ nước nhiều lớp, sắp thứ tự theo vị trí để người/cảnh vật che nhau đúng.
-- `world-actors.js` vẽ sprite chibi nhìn từ trên xuống: đầu/tóc lớn, má và tóc có viền pixel bậc, thân ngắn, chân nhỏ. Bốn hướng có tám tư thế bước chính, nối bằng các pha trung gian theo quãng đường thực tế. Chân có pha chịu lực/nhấc/gập gối; tay gập khuỷu và đánh ngược chân, thân chuyển trọng tâm nhẹ. Người chơi và cả 11 NPC bắt đầu bước trong 0,08 giây, đưa tư thế về đứng yên trong 0,12 giây; đổi đi/chạy giữ pha chân và chuyển độ nghiêng trong 0,1 giây. Đây là chuyển tiếp hình vẽ, vị trí vẫn phản hồi/dừng ngay theo điều khiển và va chạm. Cả 11 NPC giữ tóc, trang phục và phụ kiện riêng theo vai trò. Có nhịp thở/chớp mắt lúc đứng yên và khăn đung đưa nhẹ khi đi. Chế độ giảm chuyển động giữ tư thế tĩnh nhưng vẫn cho phép đi/chạy và quay hướng. Tên/dấu nhiệm vụ dùng kích thước sprite thực để tránh đầu, mũ và các nhãn khác.
+- `public/js/world-actors.js` vẽ sprite chibi nhìn từ trên xuống: đầu/tóc lớn, má và tóc có viền pixel bậc, thân ngắn, chân nhỏ. Bốn hướng có tám tư thế bước chính, nối bằng các pha trung gian theo quãng đường thực tế. Chân có pha chịu lực/nhấc/gập gối; tay gập khuỷu và đánh ngược chân, thân chuyển trọng tâm nhẹ. Người chơi và cả 11 NPC bắt đầu bước trong 0,08 giây, đưa tư thế về đứng yên trong 0,12 giây; đổi đi/chạy giữ pha chân và chuyển độ nghiêng trong 0,1 giây. Đây là chuyển tiếp hình vẽ, vị trí vẫn phản hồi/dừng ngay theo điều khiển và va chạm. Cả 11 NPC giữ tóc, trang phục và phụ kiện riêng theo vai trò. Có nhịp thở/chớp mắt lúc đứng yên và khăn đung đưa nhẹ khi đi. Chế độ giảm chuyển động giữ tư thế tĩnh nhưng vẫn cho phép đi/chạy và quay hướng. Tên/dấu nhiệm vụ dùng kích thước sprite thực để tránh đầu, mũ và các nhãn khác.
 - Mạng đường riêng cho cả bốn vùng: quảng trường và nhánh tới công trình ở làng, đường rừng, lối cát ven vịnh, đường đá tàn tích. Giao lộ được hợp nhất trước khi vẽ, chỉ kẻ viền ngoài; đường tránh hồ, móng nhà và luống cây. Chợ Lá và Đài Sao được bố trí lại trên đất liền.
 - Cảnh vật chuyển động: cỏ/hoa và tán cây lay, bướm ban ngày, đom đóm ban đêm, lá rơi trong rừng, hải âu/sóng ven vịnh, khói ống khói, tàn lửa trại, linh khí và vòng cộng hưởng ở bia. Hiệu ứng theo vùng, thời tiết và công trình đã xây.
 - Bụi bước chân, vòng gợn khi thả câu, mầm cây khi gieo, vệt kiếm, chớp trúng đòn và chữ thưởng khi thu thập/thu hoạch/chiến đấu. Hiệu ứng thao tác có giới hạn số lượng và được dọn khi đổi vùng; cảnh vật ngoài vùng nhìn thấy được bỏ qua khi vẽ. Game tự nhận thiết lập giảm chuyển động của hệ điều hành.
@@ -56,7 +77,7 @@ Vercel phục vụ `dist` từ allowlist của `scripts/build.cjs`, còn `/play`
 
 Sau checkout dùng Node 24 và `npm ci`; kiểm `npm test`, `npm run build`, sau đó `vercel deploy` để tạo preview của project đã liên kết. Kiểm preview trước khi `vercel deploy --prod`. Redis live: đặt `RUN_REDIS_TESTS=1`, nạp `REDIS_URL` từ file env riêng tư và chạy `node --test tests/redis-room.test.js`. Không gửi file env vào Git.
 
-Xem `SECURITY.md`, `privacy.html` và `TEST_REPORT.md` cho giới hạn bảo mật, dữ liệu lưu tạm và phạm vi kiểm chứng.
+Xem `SECURITY.md`, `public/privacy.html` và `TEST_REPORT.md` cho giới hạn bảo mật, dữ liệu lưu tạm và phạm vi kiểm chứng.
 
 Tiến trình tự lưu trên trình duyệt mỗi 5 giây và sau thao tác quan trọng, vào khóa `starfall-valley-save-v1`. Save cũ `giaoxu-tycoon-save-v2` không bị xóa; câu chuyện mới bắt đầu riêng. Mã giao diện trước cải tạo được giữ tại `archive/index-before-retheme.html`.
 

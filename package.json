@@ -4,7 +4,7 @@
   "private": true,
   "description": "Thung Lũng Sao Rơi — RPG pixel 2D và máy chủ khách WebSocket",
   "scripts": {
-    "start": "node server.js",
+    "start": "node server/index.js",
     "build": "node scripts/build.cjs",
     "build:online": "node scripts/build.cjs --require-online",
     "test": "node --test tests/*.test.js"

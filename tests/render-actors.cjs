@@ -3,8 +3,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
-const actors = require('../world-actors.js');
-const data = require('../game-data.js');
+const actors = require('../public/js/world-actors.js');
+const data = require('../public/js/game-data.js');
 const movementFrames=actors.artMetrics.gaitFrames||6,cellWidth=960/movementFrames;
 const width = 960, height = 720, pixels = Buffer.alloc(width * height * 4), shapes = [], stack = [];
 const ctx = {

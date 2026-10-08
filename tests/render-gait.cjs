@@ -1,8 +1,8 @@
 'use strict';
 // Isolated renderer preview; never reads or changes a player's save.
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
-const data=require('../game-data.js');
-const source=fs.readFileSync(path.join(__dirname,'../world-actors.js'),'utf8').replace(/<\/script/gi,'<\\/script');
+const data=require('../public/js/game-data.js');
+const source=fs.readFileSync(path.join(__dirname,'../public/js/world-actors.js'),'utf8').replace(/<\/script/gi,'<\\/script');
 const profiles=[{id:'player',name:'Lữ khách',shirt:'#5f9895',hair:'#55414b'},...data.npcs];
 const catalogue=JSON.stringify(profiles).replace(/</g,'\\u003c');
 const html=`<!doctype html>

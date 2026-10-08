@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { EventEmitter } = require('node:events');
-const { createGameServer, WORLD } = require('../server');
+const { createGameServer, WORLD } = require('../server/index.js');
 
 async function startServer(t, options = {}) {
   const server = createGameServer({ snapshotInterval: 30, ...options });
@@ -166,8 +166,11 @@ async function snapshotAfterMove(sender, packet, predicate, receiver = sender) {
 
 test('HTTP serves only the client allowlist, with correct GET/HEAD types and query strings', async t => {
   const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'starfall-server-test-'));
-  const names = ['index.html', 'styles.css', 'game-data.js', 'game-core.js', 'npc-ai.js', 'world-paths.js', 'world-effects.js', 'world-actors.js', 'minimap.js', 'onboarding.js', 'game.js'];
-  for (const name of names) fs.writeFileSync(path.join(fixtureRoot, name), `fixture:${name}`);
+  const names = ['index.html', 'css/styles.css', 'js/game-data.js', 'js/game-core.js', 'js/npc-ai.js', 'js/world-paths.js', 'js/world-effects.js', 'js/world-actors.js', 'js/minimap.js', 'js/onboarding.js', 'js/game.js'];
+  for (const name of names) {
+    fs.mkdirSync(path.dirname(path.join(fixtureRoot, name)), { recursive: true });
+    fs.writeFileSync(path.join(fixtureRoot, name), `fixture:${name}`);
+  }
   t.after(() => {
     const resolved = path.resolve(fixtureRoot);
     assert.equal(path.dirname(resolved), path.resolve(os.tmpdir()));
@@ -175,7 +178,7 @@ test('HTTP serves only the client allowlist, with correct GET/HEAD types and que
     fs.rmSync(resolved, { recursive: true, force: true });
   });
   const server = await startServer(t, { rootDir: fixtureRoot });
-  for (const [file, type] of [['index.html', 'text/html'], ['styles.css', 'text/css'], ['game-data.js', 'text/javascript'], ['game-core.js', 'text/javascript'], ['npc-ai.js', 'text/javascript'], ['world-paths.js', 'text/javascript'], ['world-effects.js', 'text/javascript'], ['world-actors.js', 'text/javascript'], ['minimap.js', 'text/javascript'], ['onboarding.js', 'text/javascript'], ['game.js', 'text/javascript']]) {
+  for (const [file, type] of [['index.html', 'text/html'], ['css/styles.css', 'text/css'], ['js/game-data.js', 'text/javascript'], ['js/game-core.js', 'text/javascript'], ['js/npc-ai.js', 'text/javascript'], ['js/world-paths.js', 'text/javascript'], ['js/world-effects.js', 'text/javascript'], ['js/world-actors.js', 'text/javascript'], ['js/minimap.js', 'text/javascript'], ['js/onboarding.js', 'text/javascript'], ['js/game.js', 'text/javascript']]) {
     const response = await request(server, `/${file}?v=123`);
     assert.equal(response.status, 200);
     assert.equal(response.body, `fixture:${file}`);
@@ -191,7 +194,7 @@ test('HTTP serves only the client allowlist, with correct GET/HEAD types and que
 
 test('HTTP rejects traversal, non-game files, malformed encoding and unsupported methods', async t => {
   const server = await startServer(t);
-  for (const requestPath of ['/../index.html', '/%2e%2e/index.html', '/%2e%2e%2findex.html', '/..%5cindex.html', '/.%2findex.html', '/server.js', '/README.md', '/.git/config', '/missing', '/__proto__']) {
+  for (const requestPath of ['/../index.html', '/%2e%2e/index.html', '/%2e%2e%2findex.html', '/..%5cindex.html', '/.%2findex.html', '/server.js', '/server/index.js', '/server/policy.cjs', '/server/redis-room.cjs', '/config/deployment.cjs', '/public/index.html', '/archive/', '/tests/server.test.js', '/.env', '/README.md', '/.git/config', '/missing', '/__proto__']) {
     assert.equal((await request(server, requestPath)).status, 404, requestPath);
   }
   assert.equal((await request(server, '/bad%XX')).status, 400);
@@ -206,10 +209,10 @@ test('HTTP rejects traversal, non-game files, malformed encoding and unsupported
 
 test('The actual project client assets are all available through the game server', async t => {
   const server = await startServer(t);
-  for (const file of ['index.html', 'styles.css', 'game-data.js', 'game-core.js', 'npc-ai.js', 'world-paths.js', 'world-effects.js', 'world-actors.js', 'minimap.js', 'onboarding.js', 'game.js']) {
+  for (const file of ['index.html', 'css/styles.css', 'js/game-data.js', 'js/game-core.js', 'js/npc-ai.js', 'js/world-paths.js', 'js/world-effects.js', 'js/world-actors.js', 'js/minimap.js', 'js/onboarding.js', 'js/game.js']) {
     const response = await request(server, `/${file}`);
     assert.equal(response.status, 200, file);
-    assert.equal(response.body, fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), file);
+    assert.equal(response.body, fs.readFileSync(path.join(__dirname, '..', 'public', file), 'utf8'), file);
     assert.ok(response.body.length > 0, file);
   }
 });

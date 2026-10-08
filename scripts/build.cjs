@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { CLIENT_FILES, onlineEndpoint, securityHeaders } = require('../deployment-config.cjs');
+const { CLIENT_FILES, onlineEndpoint, securityHeaders } = require('../config/deployment.cjs');
 const ROOT = path.resolve(__dirname, '..');
 
 function build({ root = ROOT, outputRoot = root, endpoint = process.env.ONLINE_WS_URL || '', requireOnline = false } = {}) {
@@ -15,10 +15,11 @@ function build({ root = ROOT, outputRoot = root, endpoint = process.env.ONLINE_W
   fs.rmSync(out, { recursive: true, force: true });
   fs.mkdirSync(out, { recursive: true });
   for (const file of CLIENT_FILES) {
-    if (file === 'client-config.js') {
+    fs.mkdirSync(path.dirname(path.join(out, file)), { recursive: true });
+    if (file === 'js/client-config.js') {
       fs.writeFileSync(path.join(out, file), "'use strict';\nglobalThis.STARDROP_CONFIG = Object.freeze(" + JSON.stringify({ onlineUrl: endpoint }) + ');\n');
     } else {
-      fs.copyFileSync(path.join(root, file), path.join(out, file));
+      fs.copyFileSync(path.join(root, 'public', file), path.join(out, file));
     }
   }
   const config = {

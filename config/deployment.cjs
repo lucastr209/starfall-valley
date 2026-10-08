@@ -1,10 +1,10 @@
 'use strict';
 
 const CLIENT_FILES = Object.freeze([
-  'index.html', 'styles.css', 'client-config.js', 'privacy.html',
-  'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png',
-  'game-data.js', 'game-core.js', 'npc-ai.js', 'world-paths.js',
-  'world-effects.js', 'world-actors.js', 'minimap.js', 'onboarding.js', 'save-transfer.js', 'game.js'
+  'index.html', 'css/styles.css', 'js/client-config.js', 'privacy.html',
+  'manifest.webmanifest', 'assets/icons/icon-192.png', 'assets/icons/icon-512.png', 'assets/icons/apple-touch-icon.png',
+  'js/game-data.js', 'js/game-core.js', 'js/npc-ai.js', 'js/world-paths.js',
+  'js/world-effects.js', 'js/world-actors.js', 'js/minimap.js', 'js/onboarding.js', 'js/save-transfer.js', 'js/game.js'
 ]);
 
 function onlineEndpoint(value = '') {

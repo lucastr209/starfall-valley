@@ -4,8 +4,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { randomBytes, randomUUID } = require('node:crypto');
 const { createClient } = require('redis');
-const { createRedisRoom } = require('../redis-room.cjs');
-const { createGameServer } = require('../server.js');
+const { createRedisRoom } = require('../server/redis-room.cjs');
+const { createGameServer } = require('../server/index.js');
 
 const live = process.env.RUN_REDIS_TESTS === '1';
 function packet(socket, predicate, timeout = 8000) {

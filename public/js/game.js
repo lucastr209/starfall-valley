@@ -383,7 +383,7 @@
     };
     socket.onerror=()=>{};socket.onclose=()=>{peers.clear();onlineId=null;$('online-status').textContent='Chơi một mình';$('player-count').textContent='1 người';clearTimeout(reconnectTimer);if(running){const delay=Math.min(30000,4000*2**Math.min(reconnectAttempts++,3))+Math.floor(Math.random()*1000);reconnectTimer=setTimeout(connect,delay);}};
   }
-  $('chat-form').addEventListener('submit',e=>{e.preventDefault();const text=$('chat-input').value.trim().slice(0,140);if(!text)return;if(socket?.readyState===1&&onlineId){socket.send(JSON.stringify({type:'chat',text}));$('chat-input').value='';}else toast('Chat cần mở game qua server: node server.js');});
+  $('chat-form').addEventListener('submit',e=>{e.preventDefault();const text=$('chat-input').value.trim().slice(0,140);if(!text)return;if(socket?.readyState===1&&onlineId){socket.send(JSON.stringify({type:'chat',text}));$('chat-input').value='';}else toast('Chat cần kết nối với máy chủ game.');});
   chatLine('','Tới gần cư dân và nhấn E để gặp gỡ. Chat trực tuyến khi mở game qua server.',true);
   const nativeFull = () => !!(document.fullscreenElement||document.webkitFullscreenElement);
   const standalone=()=>qaFullscreen==='standalone'||!!globalThis.navigator?.standalone||!!window.matchMedia?.('(display-mode: standalone)').matches;

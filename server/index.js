@@ -6,34 +6,25 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { TextDecoder } = require('node:util');
-const { securityHeaders } = require('./deployment-config.cjs');
-const { parseOrigins, originAllowed, createIpResolver, createRateLimiter, environmentOptions } = require('./server-policy.cjs');
+const { CLIENT_FILES, securityHeaders } = require('../config/deployment.cjs');
+const { parseOrigins, originAllowed, createIpResolver, createRateLimiter, environmentOptions } = require('./policy.cjs');
 
 const WORLD = Object.freeze({
   village: [1600, 1100], forest: [1600, 1100],
   coast: [1600, 1100], ruins: [1600, 1100]
 });
-const ASSETS = Object.freeze({
-  '/': ['index.html', 'text/html; charset=utf-8'],
-  '/index.html': ['index.html', 'text/html; charset=utf-8'],
-  '/styles.css': ['styles.css', 'text/css; charset=utf-8'],
-  '/client-config.js': ['client-config.js', 'text/javascript; charset=utf-8'],
-  '/privacy.html': ['privacy.html', 'text/html; charset=utf-8'],
-  '/manifest.webmanifest': ['manifest.webmanifest', 'application/manifest+json; charset=utf-8'],
-  '/icon-192.png': ['icon-192.png', 'image/png'],
-  '/icon-512.png': ['icon-512.png', 'image/png'],
-  '/apple-touch-icon.png': ['apple-touch-icon.png', 'image/png'],
-  '/game-data.js': ['game-data.js', 'text/javascript; charset=utf-8'],
-  '/game-core.js': ['game-core.js', 'text/javascript; charset=utf-8'],
-  '/npc-ai.js': ['npc-ai.js', 'text/javascript; charset=utf-8'],
-  '/world-paths.js': ['world-paths.js', 'text/javascript; charset=utf-8'],
-  '/world-effects.js': ['world-effects.js', 'text/javascript; charset=utf-8'],
-  '/world-actors.js': ['world-actors.js', 'text/javascript; charset=utf-8'],
-  '/minimap.js': ['minimap.js', 'text/javascript; charset=utf-8'],
-  '/onboarding.js': ['onboarding.js', 'text/javascript; charset=utf-8'],
-  '/save-transfer.js': ['save-transfer.js', 'text/javascript; charset=utf-8'],
-  '/game.js': ['game.js', 'text/javascript; charset=utf-8']
+const CONTENT_TYPES = Object.freeze({
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
+  '.png': 'image/png'
 });
+// The local server and deployment build publish the same explicit allowlist.
+const ASSETS = Object.freeze(Object.fromEntries([
+  ['/', ['index.html', CONTENT_TYPES['.html']]],
+  ...CLIENT_FILES.map(file => ['/' + file, [file, CONTENT_TYPES[path.extname(file)]]])
+]));
 const MAX_FRAME_BYTES = 16 * 1024;
 const utf8 = new TextDecoder('utf-8', { fatal: true });
 
@@ -76,7 +67,7 @@ function clamp(value, min, max, fallback) {
 }
 
 function createGameServer(options = {}) {
-  const rootDir = path.resolve(options.rootDir || __dirname);
+  const rootDir = path.resolve(options.rootDir || path.join(__dirname, '..', 'public'));
   const maxClients = options.maxClients ?? 60;
   const snapshotInterval = options.snapshotInterval ?? 150;
   const heartbeatInterval = options.heartbeatInterval ?? 20000;

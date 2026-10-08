@@ -5,13 +5,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const actorArt = require('../world-actors.js');
+const actorArt = require('../public/js/world-actors.js');
 
 // Exercise the shipped browser source. The stubs model events, storage and canvas
 // calls; real browser rendering/fullscreen remains a separate visual check.
 function loadGame({ storage = new Map(), saved, search = '?qa=1', hostname = 'localhost', now = 1700000000000, width = 960, height = 600, viewportWidth, viewportHeight, visualViewportWidth, visualViewportHeight, userAgent = '', platform = '', maxTouchPoints = 0, standalone = false, legacyStandalone = false, reducedMotion = false, expectQA = true } = {}) {
   const calls = [], elements = new Map(), raf = [], sockets = [], timers = new Map(), observers = [], clicks = [], downloads = [], objectURLs = new Map();
-  const markup = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const markup = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
   let clock = now, performanceClock = 0, created = 0, timerId = 0;
   class Target {
     constructor() { this.listeners = new Map(); }
@@ -130,11 +130,11 @@ function loadGame({ storage = new Map(), saved, search = '?qa=1', hostname = 'lo
     Blob:FakeBlob,URL:BrowserURL,matchMedia, ResizeObserver: FakeResizeObserver, requestAnimationFrame: callback => raf.push(callback), setTimeout: (fn, delay) => { timers.set(++timerId, { fn, delay }); return timerId; }, clearTimeout: id => timers.delete(id), console };
   if (saved) storage.set(search.includes('qa=1') ? 'starfall-valley-qa-save' : 'starfall-valley-save-v1', JSON.stringify(saved));
   vm.createContext(sandbox);
-  for (const file of ['game-data.js', 'game-core.js', 'npc-ai.js', 'world-paths.js', 'world-effects.js', 'world-actors.js', 'minimap.js', 'onboarding.js', 'save-transfer.js', 'game.js']) {
-    vm.runInContext(fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), sandbox, { filename: file });
+  for (const [, file] of markup.matchAll(/<script\b[^>]*\bsrc="([^"]+)"[^>]*>/g)) {
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'public', file), 'utf8'), sandbox, { filename: file });
     // Production exports stay frozen; a test-owned wrapper lets this harness
     // observe the real renderer inputs without changing the shipped module.
-    if (file === 'world-actors.js') sandbox.StardropActors = { ...sandbox.StardropActors };
+    if (file === 'js/world-actors.js') sandbox.StardropActors = { ...sandbox.StardropActors };
   }
   const qa = sandbox.StardropQA;
   if (expectQA) assert.ok(qa, 'Local QA API is available'); else assert.equal(qa, undefined, 'Debug API is absent outside QA mode');
