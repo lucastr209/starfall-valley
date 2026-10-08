@@ -1,5 +1,23 @@
 # Báo cáo kiểm tra — Thung Lũng Sao Rơi
 
+## Nhấn giữ và bố cục mobile — 07–08/10/2026
+
+Runtime: Node.js 24.19.0. Luồng kiểm tra: giữ/thả nút → trạng thái di chuyển trong phiên → Canvas/camera; mở bảng mobile → nhập chat → trở lại điều khiển. Save QA riêng, không sửa/xóa save người chơi.
+
+- Chặn `contextmenu`, `selectstart`, `dragstart` trong các nút/Home/Canvas của game; CSS `user-select`, `-webkit-user-select`, `-webkit-touch-callout` bảo vệ cả chữ con và nút dialog tạo động. Ô nhập/chọn chữ và nội dung riêng tư vẫn giữ thao tác thông thường. Nút chức năng tiếp tục dùng native click, không hủy toàn bộ touchstart.
+- Pointer được theo dõi theo từng `pointerId`; nhả một ngón không xóa ngón khác trên cùng hướng. Kiểm nhiều hướng/cùng hướng/hướng đối diện, pointerup/cancel/lostcapture, mouse phụ, lỗi capture và nhả ở document. Modal/chat/câu cá/home/blur xóa input trong phiên; menu bị chặn cũng dừng input để tránh kẹt phím.
+- Mobile dùng khung nhìn logic 540px thay cho 960px, phóng cùng sprite khoảng 1,78 lần ở cùng chiều rộng màn hình. Canvas và lớp tối resize cùng tỷ lệ; camera bám tâm và giới hạn bản đồ, kể cả fullscreen rất cao. Tốc độ 180/297px/s, va chạm, giảm chuyển động và dữ liệu save giữ quy tắc cũ.
+- Quest/chat ẩn mặc định trên mobile, có nút mở riêng; desktop giữ sidebar. Chuyển chat sang quest cũng blur ô chat bị giấu, giữ bản nháp và cho phép đi tiếp. Browser xoay ngang phát hiện phím bị xếp sai khi pointer fine; đã bổ sung display/grid-position vào breakpoint chung và kiểm lại.
+- Cú pháp `game.js`, `tests/gameplay.test.js`: PASS. Gameplay **80/80 PASS**. Full suite cuối sau sửa CSS: **309 bài, 307 PASS, 0 fail, 2 skip**, 58,61 giây. Hai bài Redis live là tùy chọn; lượt bật live từ máy này đạt 307 nhưng hai bài đó lỗi TCP `ETIMEDOUT`/`ECONNREFUSED`. Không nhận là live Redis local đã đạt trong lượt này.
+- Build allowlist PASS; quét 41 file source so với secret trong env PASS; `git diff --check` trên các file sửa PASS. Không thêm dependency, thay renderer sprite/server hoặc đưa dữ liệu riêng vào client.
+- Browser thật localhost: 320×700, 390×844, 430×932 không tràn ngang; phím chức năng ≥44px. 390×844 có canvas-stage 494px; điều khiển và hai nút panel nằm trong viewport. Landscape 844×390 có bản đồ 564×278px và điều khiển bên phải, không tràn. Desktop 1280×900 giữ sidebar và nút phóng/thu hoạt động.
+- Giữ/thả bốn hướng 1,2 giây; Chạy + giữ hướng 1,6 giây; nhả Shift; chuột phải trên nút bị chặn và reset chạy. Giữ các nút sổ/xây/túi 1,3 giây vẫn mở đúng dialog. Không có text selection trên control. Ô chat chọn được toàn bộ chữ, font16px; mở/đóng/chuyển panel giữ bản nháp và trả focus. Đã quan sát đêm, mưa ban ngày và mưa ban đêm ở viewport mobile; lớp sáng/tối/rain không hở cạnh. Log warn/error đọc được không có lỗi.
+- Preview `dpl_3vQEMr7Avr2XDL7pepr2EtV1GWLu` READY, vẫn có Vercel Authentication; CLI authenticated health **200**, WebSocket **101**. Curl timeout8s chủ động kết thúc socket, không phải lỗi handshake. `--target preview` bị API từ chối nhưng project/identity đúng; lệnh preview mặc định thành công, README đã sửa lệnh.
+- Bản production trước cập nhật: health **200**; browser QA nhận welcome thật, snapshot **2 người**, chứng minh join Redis từ Vercel đang hoạt động dù TCP Redis từ máy phát triển timeout.
+- Ảnh QA trong `test-artifacts/mobile-controls-final.png`, `mobile-landscape-controls.png`, `mobile-rain-night.png` (không commit).
+
+Giới hạn: browser desktop đổi viewport và giữ chuột kiểm được bố cục/events; chưa có thiết bị iOS/Android thật để xác nhận menu nhấn giữ của hệ điều hành hay bàn phím ảo. Kiểm đa ngón là hồi quy pointer bằng source game thật trong VM. Không tuyên bố kiểm tải nhiều người hoặc toàn bộ nút dialog có thay đổi tiến trình bằng nhấn giữ thực tế.
+
 ## Bảo mật và triển khai Vercel + Redis — 07/10/2026
 
 Runtime kiểm thử triển khai: Node.js 24.19.0 trên Windows; Vercel dùng Node 24.x, Fluid Compute, region Singapore. Các lượt trước bên dưới là lịch sử, không thay thế kiểm chứng deployment.

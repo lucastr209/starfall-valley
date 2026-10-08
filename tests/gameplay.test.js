@@ -11,28 +11,50 @@ const actorArt = require('../world-actors.js');
 // calls; real browser rendering/fullscreen remains a separate visual check.
 function loadGame({ storage = new Map(), saved, search = '?qa=1', now = 1700000000000, width = 960, height = 600, reducedMotion = false, expectQA = true } = {}) {
   const calls = [], elements = new Map(), raf = [], sockets = [], timers = new Map(), observers = [];
+  const markup = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   let clock = now, performanceClock = 0, created = 0, timerId = 0;
   class Target {
     constructor() { this.listeners = new Map(); }
     addEventListener(type, fn) { const list = this.listeners.get(type) || []; list.push(fn); this.listeners.set(type, list); }
-    dispatch(type, event = {}) { const e = { type, target: this, preventDefault() { this.defaultPrevented = true; }, ...event }; return Promise.all((this.listeners.get(type) || []).map(fn => fn(e))); }
+    async dispatch(type, event = {}) {
+      const e = { type, target: this, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() { this.propagationStopped = true; }, ...event };
+      for (let target = this; target; target = e.bubbles === false || e.propagationStopped ? null : target.parent) {
+        e.currentTarget = target;
+        for (const listener of target.listeners.get(type) || []) await listener(e);
+      }
+      return e;
+    }
   }
   class Element extends Target {
     constructor(id, tagName = 'DIV') {
-      super(); this.id = id; this.tagName = tagName; this.dataset = {}; this.attributes = {}; this.style = {}; this.children = []; this.value = ''; this.textContent = ''; this.innerHTML = ''; this.hidden = false; this.open = false; this.width = 960; this.height = 600;
+      super(); this.id = id; this.tagName = tagName; this.dataset = {}; this.attributes = {}; this.style = {}; this.children = []; this.value = ''; this.textContent = ''; this.innerHTML = ''; this.hidden = false; this.open = false; this.width = 960; this.height = 600; this.capturedPointers = new Set();
       const classes = new Set(); this.classList = { add: (...names) => names.forEach(n => classes.add(n)), remove: (...names) => names.forEach(n => classes.delete(n)), contains: n => classes.has(n) };
     }
-    setAttribute(name, value) { this.attributes[name] = String(value); if (name.startsWith('data-')) this.dataset[name.slice(5)] = String(value); }
+    setAttribute(name, value) { this.attributes[name] = String(value); if (name.startsWith('data-')) this.dataset[name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = String(value); }
     getAttribute(name) { return this.attributes[name] ?? null; }
     hasAttribute(name) { return Object.hasOwn(this.attributes, name); }
     append(child) { child.parent = this; this.children.push(child); }
     get firstChild() { return this.children[0]; }
     get scrollHeight() { return this.children.length; }
     remove() { if (this.parent) this.parent.children.splice(this.parent.children.indexOf(this), 1); }
-    closest(selector) { if (selector === 'button') return this.tagName === 'BUTTON' ? this : null; if (selector === '[data-night]') return this.hasAttribute('data-night') ? this : null; return null; }
+    matches(selector) {
+      return selector.split(',').some(part => {
+        const value = part.trim();
+        if (value.startsWith('#')) return this.id === value.slice(1);
+        const attributeValue = value.match(/^\[([-\w]+)="([^"]*)"\]$/); if (attributeValue) return this.getAttribute(attributeValue[1]) === attributeValue[2];
+        if (/^\[[-\w]+\]$/.test(value)) return this.hasAttribute(value.slice(1, -1));
+        return this.tagName === value.toUpperCase();
+      });
+    }
+    closest(selector) { for (let element = this; element instanceof Element; element = element.parent) if (element.matches(selector)) return element; return null; }
+    contains(child) { for (let element = child; element; element = element.parent) if (element === this) return true; return false; }
     showModal() { this.open = true; }
     close() { this.open = false; void this.dispatch('close'); }
-    setPointerCapture() {}
+    setPointerCapture(pointerId) { this.capturedPointers.add(pointerId); }
+    hasPointerCapture(pointerId) { return this.capturedPointers.has(pointerId); }
+    releasePointerCapture(pointerId) { if (this.capturedPointers.delete(pointerId)) void this.dispatch('lostpointercapture', { pointerId }); }
+    focus() { document.activeElement = this; void this.dispatch('focus', { bubbles: false }); }
+    blur() { if (document.activeElement === this) document.activeElement = null; void this.dispatch('blur', { bubbles: false }); }
     getContext() { if (!this.context) this.context = makeContext(this); return this.context; }
   }
   function makeContext(element) {
@@ -47,12 +69,24 @@ function loadGame({ storage = new Map(), saved, search = '?qa=1', now = 17000000
   }
   const document = new Target(); document.activeElement = null; document.hidden = false;
   document.getElementById = id => {
-    if (!elements.has(id)) { const element = new Element(id, /Canvas$/.test(id) ? 'CANVAS' : /form$/.test(id) ? 'FORM' : ['player-name', 'chat-input'].includes(id) ? 'INPUT' : id.startsWith('btn-') ? 'BUTTON' : 'DIV'); if (id === 'canvas-stage') { element.clientWidth = width; element.clientHeight = height; } elements.set(id, element); }
+    if (!elements.has(id)) {
+      const element = new Element(id, /Canvas$/.test(id) ? 'CANVAS' : /form$/.test(id) ? 'FORM' : ['player-name', 'chat-input'].includes(id) ? 'INPUT' : id === 'btn-home' ? 'A' : id === 'game-dialog' ? 'DIALOG' : /^(btn-|touch-)/.test(id) || id === 'dialog-close' ? 'BUTTON' : 'DIV');
+      const tag = markup.match(new RegExp(`<([\\w-]+)\\b([^>]*\\bid="${id}"[^>]*)>`));
+      if (tag) {
+        element.tagName = tag[1].toUpperCase();
+        for (const attribute of tag[2].matchAll(/([-\w:]+)(?:="([^"]*)")?/g)) element.setAttribute(attribute[1], attribute[2] ?? '');
+        element.hidden = element.hasAttribute('hidden');
+      }
+      if (id === 'canvas-stage') { element.clientWidth = width; element.clientHeight = height; }
+      elements.set(id, element);
+      const parent = id === 'game-wrapper' ? document : ['game-dialog', 'start-screen', 'play-screen'].includes(id) ? document.getElementById('game-wrapper') : ['player-name', 'start-form', 'btn-start', 'save-label', 'titleCanvas'].includes(id) ? document.getElementById('start-screen') : id.startsWith('dialog-') ? document.getElementById('game-dialog') : ['chat-input', 'chat-form', 'chat-log', 'player-count'].includes(id) ? document.getElementById('mobile-chat-panel') : document.getElementById('play-screen');
+      element.parent = parent;
+    }
     return elements.get(id);
   };
   document.createElement = tag => new Element(`created-${created++}`, tag.toUpperCase());
   document.createTextNode = text => ({ textContent: String(text) });
-  const directions = ['up', 'down', 'left', 'right'].map(move => { const e = new Element(`move-${move}`, 'BUTTON'); e.dataset.move = move; return e; });
+  const directions = ['up', 'down', 'left', 'right'].map(move => { const e = new Element(`move-${move}`, 'BUTTON'); e.setAttribute('data-move', move); e.parent = document.getElementById('play-screen'); return e; });
   document.querySelectorAll = selector => selector === '[data-move]' ? directions : [];
   const window = new Target();
   const motionPreference = new Target(); motionPreference.matches = reducedMotion;
@@ -302,8 +336,83 @@ test('Keyboard and touch movement work while chat input and open dialogs prevent
   await e.key('d'); e.step(.05); await e.key('d', 'keyup'); assert.ok(e.qa.getState().x > originalX);
   e.document.activeElement = e.el('chat-input'); const typingX = e.qa.getState().x; await e.key('d'); e.step(.05); assert.equal(e.qa.getState().x, typingX); e.document.activeElement = null;
   await e.el('btn-journal').dispatch('click'); await e.key('d'); e.step(.05); assert.equal(e.qa.getState().x, typingX); await e.el('dialog-close').dispatch('click');
-  await e.directions.find(b => b.dataset.move === 'right').dispatch('pointerdown', { pointerId: 1 }); e.step(.05); assert.ok(e.qa.getState().x > typingX); await e.directions.find(b => b.dataset.move === 'right').dispatch('pointercancel'); const released = e.qa.getState().x; e.step(.05); assert.equal(e.qa.getState().x, released);
+  await e.directions.find(b => b.dataset.move === 'right').dispatch('pointerdown', { pointerId: 1 }); e.step(.05); assert.ok(e.qa.getState().x > typingX); await e.directions.find(b => b.dataset.move === 'right').dispatch('pointercancel', { pointerId: 1 }); const released = e.qa.getState().x; e.step(.05); assert.equal(e.qa.getState().x, released);
   await e.key('d'); await e.window.dispatch('blur'); e.step(.05); assert.equal(e.qa.getState().x, released);
+});
+
+test('Held game controls block native menus and selection without disabling editable fields or other page content', async () => {
+  const e = loadGame({ width: 390, height: 600 }); await e.start();
+  const nestedLabel = e.document.createElement('span'); e.el('touch-run').append(nestedLabel);
+  for (const target of [e.directions[0], e.el('touch-run'), nestedLabel, e.el('touch-interact'), e.el('touch-attack'), e.el('btn-journal'), e.el('dialog-close'), e.el('btn-home'), e.el('gameCanvas')]) {
+    for (const type of ['contextmenu', 'selectstart', 'dragstart']) {
+      const event = await e.document.dispatch(type, { target });
+      assert.equal(event.defaultPrevented, true, `${type} is blocked for ${target.id}`);
+    }
+  }
+  const editable = e.document.createElement('span'); editable.setAttribute('contenteditable', 'true'); e.el('touch-run').append(editable);
+  for (const target of [e.el('player-name'), e.el('chat-input'), editable, e.document.createElement('p'), e.document.createElement('button')]) {
+    for (const type of ['contextmenu', 'selectstart', 'dragstart']) {
+      const event = await e.document.dispatch(type, { target });
+      assert.equal(event.defaultPrevented, false, `${type} still works for editable fields and unrelated content`);
+    }
+  }
+  assert.equal(e.el('game-dialog').open, false, 'Holding an action does not activate its click handler');
+  assert.equal(locomotion(e).touchRun, false, 'Holding the run toggle does not turn it on');
+});
+
+test('Each held direction belongs to its pointer, so cancellation preserves other fingers and opposing releases cannot latch movement', async () => {
+  const e = loadGame({ width: 390, height: 600 }); await e.start(); e.set({ x: 800, y: 550 });
+  const direction = name => e.directions.find(button => button.dataset.move === name), right = direction('right'), left = direction('left'), up = direction('up');
+  const down = await right.dispatch('pointerdown', { pointerId: 101, pointerType: 'touch', button: 0 });
+  assert.equal(down.defaultPrevented, true, 'Touch arrows suppress the browser hold gesture on pointerdown');
+  assert.equal(right.hasPointerCapture(101), true);
+  await up.dispatch('pointerdown', { pointerId: 102, pointerType: 'touch', button: 0 }); e.step(.05);
+  let before = e.qa.getState(); assert.ok(before.x > 800 && before.y < 550, 'Two active directions move diagonally');
+  await up.dispatch('pointercancel', { pointerId: 102 }); e.step(.05);
+  let after = e.qa.getState(); almost(after.x - before.x, 9, 'Releasing one finger preserves the right arrow'); assert.equal(after.y, before.y);
+  before = after; await right.dispatch('pointerup', { pointerId: 999 }); e.step(.05);
+  after = e.qa.getState(); almost(after.x - before.x, 9, 'An unrelated pointer cannot release a held arrow');
+  await left.dispatch('pointerdown', { pointerId: 103, pointerType: 'touch', button: 0 }); before = e.qa.getState(); e.step(.05); assert.equal(e.qa.getState().x, before.x, 'Opposing held directions cancel');
+  await right.dispatch('pointerup', { pointerId: 101 }); e.step(.05); almost(e.qa.getState().x - before.x, -9, 'Only the remaining left pointer moves');
+  await left.dispatch('lostpointercapture', { pointerId: 103 }); before = e.qa.getState(); e.step(.05); assert.equal(e.qa.getState().x, before.x);
+  await right.dispatch('pointerdown', { pointerId: 104, pointerType: 'touch', button: 0 }); await right.dispatch('pointerdown', { pointerId: 105, pointerType: 'touch', button: 0 });
+  await right.dispatch('pointerup', { pointerId: 104 }); before = e.qa.getState(); e.step(.05); almost(e.qa.getState().x - before.x, 9, 'Two fingers on one arrow retain the second pointer');
+  await right.dispatch('pointercancel', { pointerId: 105 }); before = e.qa.getState(); e.step(.05); assert.equal(e.qa.getState().x, before.x, 'Last pointer cancellation leaves no held direction');
+});
+
+test('A native control context menu cancels held keyboard and touch movement, then fresh pointer input works normally', async () => {
+  const e = loadGame({ width: 390, height: 600 }); await e.start(); e.set({ x: 800, y: 550 });
+  const right = e.directions.find(button => button.dataset.move === 'right');
+  await e.key('d'); await e.key('Shift'); await e.el('touch-run').dispatch('click'); await right.dispatch('pointerdown', { pointerId: 111, pointerType: 'touch', button: 0 }); e.step(.05);
+  const menu = await right.dispatch('contextmenu'); assert.equal(menu.defaultPrevented, true); const before = e.qa.getState(), distance = locomotion(e).distance;
+  e.step(.05); assert.equal(e.qa.getState().x, before.x); assert.equal(locomotion(e).distance, distance); assert.equal(locomotion(e).touchRun, false); assert.equal(locomotion(e).running, false);
+  await right.dispatch('pointerdown', { pointerId: 112, pointerType: 'touch', button: 0 }); e.step(.05); almost(e.qa.getState().x - before.x, 9, 'A fresh pointer resumes normal walking after cancellation');
+  await right.dispatch('pointerup', { pointerId: 112 });
+});
+
+test('Secondary mouse buttons cannot move, and document releases recover from missing capture without cancelling a fresh hold', async () => {
+  const e = loadGame({ width: 390, height: 600 }); await e.start(); e.set({ x: 800, y: 550 });
+  const right = e.directions.find(button => button.dataset.move === 'right');
+  for (const button of [1, 2]) { await right.dispatch('pointerdown', { pointerId: 120, pointerType: 'mouse', button }); e.step(.05); assert.equal(e.qa.getState().x, 800, `Mouse button ${button} does not latch movement`); }
+  right.setPointerCapture = () => { throw new Error('Capture unsupported'); };
+  await right.dispatch('pointerdown', { pointerId: 121, pointerType: 'touch', button: 0 }); e.step(.05); assert.ok(e.qa.getState().x > 800, 'Capture failure still permits normal touch movement');
+  await e.document.dispatch('pointerup', { pointerId: 121, target: e.el('gameCanvas') }); let before = e.qa.getState(); e.step(.05); assert.equal(e.qa.getState().x, before.x, 'Release outside the button stops the uncaptured pointer');
+  await right.dispatch('pointerdown', { pointerId: 122, pointerType: 'touch', button: 0 }); await e.window.dispatch('blur'); await right.dispatch('pointerdown', { pointerId: 123, pointerType: 'touch', button: 0 });
+  await e.document.dispatch('pointercancel', { pointerId: 122 }); before = e.qa.getState(); e.step(.05); almost(e.qa.getState().x - before.x, 9, 'A stale release after lifecycle reset cannot cancel a fresh hold');
+  await e.document.dispatch('pointercancel', { pointerId: 123 }); before = e.qa.getState(); e.step(.05); assert.equal(e.qa.getState().x, before.x);
+});
+
+test('Mobile action buttons retain native click activation for touch, mouse and keyboard without double toggling run', async () => {
+  const e = loadGame({ width: 390, height: 600 }); await e.start(); const toggle = e.el('touch-run');
+  const touchDown = await toggle.dispatch('pointerdown', { pointerId: 131, pointerType: 'touch', button: 0 });
+  assert.equal(touchDown.defaultPrevented, false, 'Native action clicks are not disabled by the hold protection'); assert.equal(locomotion(e).touchRun, false);
+  await toggle.dispatch('pointerup', { pointerId: 131, pointerType: 'touch', button: 0 }); assert.equal(locomotion(e).touchRun, false);
+  await toggle.dispatch('click', { detail: 1, pointerType: 'touch' }); assert.equal(locomotion(e).touchRun, true);
+  await toggle.dispatch('click', { detail: 1, pointerType: 'mouse' }); assert.equal(locomotion(e).touchRun, false);
+  e.document.activeElement = toggle; const key = await e.document.dispatch('keydown', { key: ' ', repeat: false }); assert.equal(key.defaultPrevented, false, 'Keyboard Space retains native button activation');
+  await toggle.dispatch('click', { detail: 0 }); assert.equal(locomotion(e).touchRun, true); assert.equal(toggle.getAttribute('aria-pressed'), 'true');
+  e.document.activeElement = null; await toggle.dispatch('contextmenu'); assert.equal(locomotion(e).touchRun, false);
+  for (const target of [e.el('touch-interact'), e.el('touch-attack')]) { const event = await target.dispatch('pointerdown', { pointerId: 132, pointerType: 'touch', button: 0 }); assert.equal(event.defaultPrevented, false); }
 });
 
 test('Space/Enter preserve browser button activation and modal controls; Escape cancels fishing/fallback fullscreen', async () => {
@@ -332,13 +441,66 @@ test('A zero-health save resumes at camp; returning to title exits fullscreen', 
 
 test('Canvas and darkness mask resize together for desktop, mobile and fullscreen aspect ratios', async () => {
   const e = loadGame(); await e.start();
-  for (const [width, height] of [[960, 600], [1366, 600], [390, 350], [1920, 1080], [390, 700]]) {
+  for (const [width, height] of [[960, 600], [1366, 600], [390, 350], [1920, 1080], [390, 700], [320, 460], [700, 320], [701, 320], [390, 844], [320, 700], [900, 100], [800, 1200]]) {
     e.resize(width, height); e.qa.update(0); e.calls.length = 0; e.qa.drawGame();
     const canvas = e.el('gameCanvas'), clear = e.calls.find(c => c.context === 'gameCanvas' && c.name === 'clearRect');
-    assert.equal(clear.args[3], canvas.height); assert.ok(canvas.height >= 240 && canvas.height <= 1100); assert.equal(canvas.height, Math.min(1100, Math.max(240, Math.round(960 * height / width))));
-    const mask = e.calls.find(c => c.name === 'fillRect' && typeof c.fillStyle === 'string' && c.fillStyle.startsWith('rgba(25,35,61,')); assert.equal(mask.args[3], canvas.height); assert.equal(e.el('gameCanvas').getContext().imageSmoothingEnabled, false);
+    assert.ok(canvas.width > 0 && canvas.width <= 960); if (width <= 700) assert.ok(canvas.width < 700, 'Phone view shows less world so the same sprites appear larger'); else if (960 * height / width <= 1100) assert.equal(canvas.width, 960);
+    assert.equal(clear.args[2], canvas.width); assert.equal(clear.args[3], canvas.height); assert.ok(canvas.height > 0 && canvas.height <= 1100);
+    assert.ok(Math.abs(canvas.width * height - canvas.height * width) <= Math.max(width, height), 'The canvas retains the stage aspect ratio without stretching sprites');
+    const mask = e.calls.find(c => c.name === 'fillRect' && typeof c.fillStyle === 'string' && c.fillStyle.startsWith('rgba(25,35,61,')); assert.equal(mask.args[2], canvas.width); assert.equal(mask.args[3], canvas.height); assert.equal(e.el('gameCanvas').getContext().imageSmoothingEnabled, false);
+    const translation = e.calls.find(c => c.context === 'gameCanvas' && c.name === 'translate'); assert.ok(translation.args[0] <= 0 && -translation.args[0] <= 1600 - canvas.width); assert.ok(translation.args[1] <= 0 && -translation.args[1] <= 1100 - canvas.height);
+    const state = e.qa.getState();
+    if (state.x >= canvas.width / 2 && state.x <= 1600 - canvas.width / 2) assert.ok(Math.abs(state.x + translation.args[0] - canvas.width / 2) <= .5, 'Camera follows the center of the resized horizontal view');
+    if (state.y >= canvas.height / 2 && state.y <= 1100 - canvas.height / 2) assert.ok(Math.abs(state.y + translation.args[1] - canvas.height / 2) <= .5, 'Camera follows the center of the resized vertical view');
     assert.ok(e.calls.some(c => c.context === 'gameCanvas' && c.name === 'fillText' && c.args[0] === 'QA Lữ khách'), 'Player is rendered after resize');
   }
+});
+
+test('Mobile zoom enlarges the same sprite without changing movement speed, weather viewport or saved progress through fullscreen resize', async () => {
+  const e = loadGame({ width: 390, height: 600 }); await e.start(); e.set({ x: 800, y: 550, coins: 712, stamina: 57 });
+  const mobileWidth = e.el('gameCanvas').width, mobileSpriteCSSWidth = actorArt.artMetrics.bodyWidth * 390 / mobileWidth;
+  assert.ok(mobileSpriteCSSWidth >= actorArt.artMetrics.bodyWidth * 390 / 960 * 1.5, 'At a fixed phone width the character is visibly larger than the previous 960px view');
+  const weather = [], drawGround = e.effects.drawGround;
+  e.effects.drawGround = (context, scene, time, options) => { weather.push(options); return drawGround(context, scene, time, options); };
+  for (const [width, height, expanded] of [[390, 600, false], [390, 760, true], [960, 600, true], [390, 600, false]]) {
+    if (expanded !== (e.el('btn-fullscreen').getAttribute('aria-pressed') === 'true')) await e.el('btn-fullscreen').dispatch('click');
+    e.resize(width, height); e.set({ x: 800, y: 550, day: 2, minutes: 1200 }); const before = e.qa.getState();
+    await e.key('d'); e.step(.05); await e.key('d', 'keyup'); almost(e.qa.getState().x - before.x, 9, 'Zoom and fullscreen do not change the 180px/s world movement');
+    assert.equal(e.qa.getState().stamina, 57); assert.equal(locomotion(e).speed, 180); weather.length = 0; e.qa.drawGame();
+    assert.ok(weather.length > 0); assert.equal(weather[0].viewport.width, e.el('gameCanvas').width); assert.equal(weather[0].viewport.height, e.el('gameCanvas').height); assert.equal(weather[0].rain, true); assert.equal(weather[0].night, true);
+  }
+  await e.window.dispatch('pagehide'); const save = JSON.parse(e.storage.get(e.qa.storageKey)); assert.equal(save.coins, 712); assert.equal(save.stamina, 57); assert.equal(Object.hasOwn(save, 'viewWidth'), false); assert.equal(Object.hasOwn(save, 'viewHeight'), false);
+});
+
+test('Mobile information panels start closed, open one at a time and stop held movement without discarding chat drafts or desktop panels', async () => {
+  const e = loadGame({ width: 390, height: 600 }); await e.start(); e.set({ x: 800, y: 550 });
+  const quests = e.el('btn-mobile-quests'), chat = e.el('btn-mobile-chat'), panel = () => e.el('play-screen').getAttribute('data-mobile-panel-open');
+  assert.equal(panel(), ''); assert.equal(quests.getAttribute('aria-expanded'), 'false'); assert.equal(chat.getAttribute('aria-expanded'), 'false');
+  await e.key('d'); await e.key('Shift'); await e.el('touch-run').dispatch('click'); await e.directions.find(button => button.dataset.move === 'down').dispatch('pointerdown', { pointerId: 141, pointerType: 'touch', button: 0 }); e.step(.05);
+  await quests.dispatch('click'); assert.equal(panel(), 'quests'); assert.equal(quests.getAttribute('aria-expanded'), 'true'); assert.equal(chat.getAttribute('aria-expanded'), 'false');
+  const before = e.qa.getState(), distance = locomotion(e).distance; e.step(.05); assert.equal(e.qa.getState().x, before.x); assert.equal(e.qa.getState().y, before.y); assert.equal(locomotion(e).distance, distance); assert.equal(locomotion(e).touchRun, false);
+  await chat.dispatch('click'); assert.equal(panel(), 'chat'); assert.equal(quests.getAttribute('aria-expanded'), 'false'); assert.equal(chat.getAttribute('aria-expanded'), 'true'); assert.equal(e.document.activeElement, null, 'Opening the panel does not automatically bring up a phone keyboard');
+  const input = e.el('chat-input'); input.value = 'Bản nháp vẫn còn'; input.focus();
+  await quests.dispatch('click');
+  assert.equal(panel(), 'quests'); assert.equal(chat.getAttribute('aria-expanded'), 'false'); assert.equal(e.document.activeElement, null, 'Switching to quests releases focus from the now-concealed chat input'); assert.equal(input.value, 'Bản nháp vẫn còn', 'Switching panels preserves the unsent chat draft');
+  const right = e.directions.find(button => button.dataset.move === 'right'), switchedX = e.qa.getState().x;
+  await right.dispatch('pointerdown', { pointerId: 142, pointerType: 'touch', button: 0 }); e.step(.05); await right.dispatch('pointerup', { pointerId: 142 });
+  almost(e.qa.getState().x - switchedX, 9, 'Movement resumes after switching away from a focused chat input');
+  await chat.dispatch('click'); input.focus(); await chat.dispatch('click');
+  assert.equal(panel(), ''); assert.equal(chat.getAttribute('aria-expanded'), 'false'); assert.equal(e.document.activeElement, null, 'Closing chat releases focus from its concealed input'); assert.equal(input.value, 'Bản nháp vẫn còn');
+  e.resize(1280, 800); assert.equal(e.el('mobile-chat-panel').hidden, false); assert.equal(e.el('mobile-quests-panel').hidden, false, 'Mobile toggles never set hidden on the desktop information sections');
+  await quests.dispatch('click'); await quests.dispatch('click'); assert.equal(panel(), '');
+});
+
+test('Opening a mobile information panel cancels fishing, Escape closes it, and returning home clears panel session state', async () => {
+  const e = loadGame({ width: 390, height: 600 }); await e.start(); e.set({ coins: 719 });
+  e.at(object(e, 'fish')); e.qa.interact(); assert.equal(e.el('fishing').hidden, false); const before = e.qa.getState();
+  await e.el('btn-mobile-quests').dispatch('click'); assert.equal(e.el('fishing').hidden, true); assert.equal(e.qa.getState().inventory.fish, before.inventory.fish); assert.equal(e.qa.getState().stamina, before.stamina, 'Cancelling fishing does not award a catch or charge stamina');
+  await e.el('btn-fullscreen').dispatch('click'); await e.key('Escape'); assert.equal(e.el('play-screen').dataset.mobilePanelOpen, ''); assert.equal(e.el('btn-mobile-quests').getAttribute('aria-expanded'), 'false'); assert.equal(e.el('btn-fullscreen').getAttribute('aria-pressed'), 'true', 'Escape closes the open information panel first');
+  await e.key('Escape'); assert.equal(e.el('btn-fullscreen').getAttribute('aria-pressed'), 'false');
+  await e.el('btn-mobile-chat').dispatch('click'); await e.el('btn-home').dispatch('click'); assert.equal(e.el('play-screen').dataset.mobilePanelOpen, ''); assert.equal(e.el('btn-mobile-chat').getAttribute('aria-expanded'), 'false');
+  const save = JSON.parse(e.storage.get(e.qa.storageKey)); assert.equal(save.coins, 719); assert.equal(Object.hasOwn(save, 'mobilePanel'), false); assert.equal(Object.hasOwn(save, 'mobilePanelOpen'), false);
+  await e.start(); assert.equal(e.el('play-screen').dataset.mobilePanelOpen, ''); assert.equal(e.qa.getState().coins, 719);
 });
 
 test('Native and fallback fullscreen can enter and shrink repeatedly', async () => {

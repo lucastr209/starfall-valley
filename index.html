@@ -37,7 +37,7 @@
       <div class="title-sign">BÌNH MINH TẠI LÀNG SAO</div>
       <div class="title-version">PIXEL RPG · TỰ LƯU TIẾN TRÌNH</div>
     </section>
-    <section id="play-screen" hidden>
+    <section id="play-screen" data-mobile-panel-open="" hidden>
       <header class="topbar">
         <a class="game-brand" href="#" id="btn-home" title="Về màn hình đầu">✦ <span>Sao Rơi</span></a>
         <div class="status-group"><span id="coins" class="stat"></span><span id="level" class="stat"></span><span id="renown" class="stat"></span></div>
@@ -58,12 +58,13 @@
             <div class="game-actions"><button id="btn-journal">Sổ nhiệm vụ <kbd>Q</kbd></button><button id="btn-build">Xây làng <kbd>B</kbd></button><button id="btn-inventory">Túi & chế tạo <kbd>I</kbd></button></div>
           </div>
           <div class="touch-controls" aria-label="Điều khiển cảm ứng"><div class="dpad"><button data-move="up" aria-label="Đi lên">▲</button><button data-move="left" aria-label="Đi trái">◀</button><button data-move="down" aria-label="Đi xuống">▼</button><button data-move="right" aria-label="Đi phải">▶</button></div><div class="touch-actions"><button id="touch-run" aria-pressed="false">Chạy</button><button id="touch-attack">⚔ Kiếm</button><button id="touch-interact">E · Tương tác</button></div></div>
+          <nav class="mobile-panel-tabs" aria-label="Bảng thông tin"><button id="btn-mobile-quests" aria-controls="mobile-quests-panel" aria-expanded="false">Nhiệm vụ & cư dân</button><button id="btn-mobile-chat" aria-controls="mobile-chat-panel" aria-expanded="false">Trò chuyện online</button></nav>
           <footer class="key-guide">WASD / ↑↓←→: di chuyển · Giữ Shift: chạy <span>E: tương tác · Space: kiếm · Esc: đóng cửa sổ</span><small id="save-status">Đã lưu</small></footer>
         </div>
         <aside class="sidebar">
-          <section class="tracker panel"><div class="panel-heading"><span>HÀNH TRÌNH CỦA BẠN</span><button id="btn-tracker" aria-label="Mở sổ nhiệm vụ">↗</button></div><button id="btn-residents">Tìm cư dân & hợp đồng</button><p id="npc-guide"></p><div id="quest-tracker"></div><div id="quest-count"></div></section>
+          <section class="tracker panel" id="mobile-quests-panel"><div class="panel-heading"><span>HÀNH TRÌNH CỦA BẠN</span><button id="btn-tracker" aria-label="Mở sổ nhiệm vụ">↗</button></div><button id="btn-residents">Tìm cư dân & hợp đồng</button><p id="npc-guide"></p><div id="quest-tracker"></div><div id="quest-count"></div></section>
           <section class="tips panel"><span class="tiny-label">GHI CHÚ TỪ THUNG LŨNG</span><p id="world-tip">Hãy tìm Mira gần quảng trường.</p></section>
-          <section class="chat panel"><div class="panel-heading"><span>CHUYỆN TRONG LÀNG</span><span id="player-count">1 người</span></div><p class="chat-privacy">Chat công khai · Không gửi thông tin riêng tư.</p><div id="chat-log" role="log" aria-live="polite"></div><form id="chat-form"><input id="chat-input" maxlength="140" placeholder="Lời chào tới bạn bè…" aria-label="Tin nhắn"><button aria-label="Gửi tin nhắn">→</button></form></section>
+          <section class="chat panel" id="mobile-chat-panel"><div class="panel-heading"><span>CHUYỆN TRONG LÀNG</span><span id="player-count">1 người</span></div><p class="chat-privacy">Chat công khai · Không gửi thông tin riêng tư.</p><div id="chat-log" role="log" aria-live="polite"></div><form id="chat-form"><input id="chat-input" maxlength="140" placeholder="Lời chào tới bạn bè…" aria-label="Tin nhắn"><button aria-label="Gửi tin nhắn">→</button></form></section>
         </aside>
       </div>
     </section>

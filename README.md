@@ -18,6 +18,7 @@ Không cần tải package, font hay ảnh ngoài. Mở trực tiếp `index.htm
 
 - WASD / các phím mũi tên: đi; giữ **Shift** để chạy. Nhân vật quay theo bốn hướng và giữ hướng nhìn khi nhả phím. **E**: tương tác, ưu tiên cư dân trong tầm trò chuyện. **Space**: vung kiếm, có khoảng nghỉ 0,4 giây.
 - **Q** mở sổ nhiệm vụ, **B** mở xây làng, **I** mở túi/chế tạo; **Esc** đóng cửa sổ hoặc hủy câu cá. Mobile có phím điều hướng, kiếm, tương tác và nút **Chạy** để bật/tắt chạy.
+- Mobile ưu tiên bản đồ và phóng nhân vật rõ hơn; bảng **Nhiệm vụ & cư dân** và **Trò chuyện online** mở khi cần. Xoay ngang đặt điều khiển bên phải bản đồ. Các nút có vùng chạm ít nhất 44px và không chọn chữ/mở menu nhấn giữ; ô tên/chat vẫn nhập và chọn chữ bình thường.
 - Tốc độ đi là 180 pixel/giây, tăng lên 225 khi có Giày Lướt Cỏ. Chạy nhanh gấp 1,65 lần: tương ứng 297 và 371,25 pixel/giây, không mất thêm thể lực. Đi chéo có cùng tốc độ với đi thẳng; khi bị vật cản chặn, nhân vật không tiếp tục bước tại chỗ.
 - Chạy và phím di chuyển tự tắt khi mở cửa sổ, tập trung vào chat, câu cá, qua cổng, trở về màn hình đầu hoặc rời cửa sổ trình duyệt. Sau đó nhấn lại Shift hoặc nút Chạy nếu muốn tiếp tục chạy.
 - Nhận nhiệm vụ trước khi thu thập, chế tạo, chiến đấu hoặc trò chuyện để ghi tiến độ. Các mốc xây dựng, khám phá, bia và rương đã làm vẫn được công nhận.
@@ -49,7 +50,7 @@ Bản chơi thử triển khai tại https://starfall-valley.vercel.app. Reposit
 
 Vercel phục vụ `dist` từ allowlist của `scripts/build.cjs`, còn `/play` chạy qua `api/play.mjs` (Node 24, Fluid Compute, Singapore). Redis Free từ Marketplace đồng bộ hiện diện/chat giữa nhiều instance; không lưu save hoặc lịch sử chat. Khóa Redis và `ONLINE_IP_SALT` chỉ có ở environment server. Preview có namespace riêng và giữ Deployment Protection. Không bật nâng cấp gói tự động.
 
-Sau checkout dùng Node 24 và `npm ci`; kiểm `npm test`, `npm run build`, sau đó `vercel deploy --target preview`. Kiểm preview trước khi `vercel deploy --prod`. Redis live: đặt `RUN_REDIS_TESTS=1`, nạp `REDIS_URL` từ file env riêng tư và chạy `node --test tests/redis-room.test.js`. Không gửi file env vào Git.
+Sau checkout dùng Node 24 và `npm ci`; kiểm `npm test`, `npm run build`, sau đó `vercel deploy` để tạo preview của project đã liên kết. Kiểm preview trước khi `vercel deploy --prod`. Redis live: đặt `RUN_REDIS_TESTS=1`, nạp `REDIS_URL` từ file env riêng tư và chạy `node --test tests/redis-room.test.js`. Không gửi file env vào Git.
 
 Xem `SECURITY.md`, `privacy.html` và `TEST_REPORT.md` cho giới hạn bảo mật, dữ liệu lưu tạm và phạm vi kiểm chứng.
 
