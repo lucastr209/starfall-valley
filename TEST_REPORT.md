@@ -1,5 +1,144 @@
 # Báo cáo kiểm tra — Thung Lũng Sao Rơi
 
+## Mở rộng Gameplay cuốn chiếu (Phase 1, 2, 3) — 16/10/2026
+
+### 1. Tóm tắt tổng quan (Executive Summary)
+Hoàn tất việc triển khai và kiểm thử toàn diện gói mở rộng gameplay 3 giai đoạn cuốn chiếu cho **Thung Lũng Sao Rơi** theo yêu cầu người dùng:
+- **Phase 1: Nông nghiệp mở rộng & Thú cưng đồng hành**: Cơ chế làm ẩm đất (tưới nước bằng bình tưới / phím R), hiệu ứng ngày mưa tự động tưới và tăng năng suất cây trồng, bổ sung 2 cây trồng & hạt giống mới (Cà rốt sao `carrot`, Lúa mì vàng `wheat`), hệ thống thú cưng đồng hành (Cún Sao) bám theo người chơi mượt mà với thuật toán khoảng cách, phản hồi vuốt ve hồi thể lực (tối đa 100) và hỗ trợ đánh hơi nhặt đồ định kỳ. Giữ vững bất biến không làm phình nhãn nhân vật (`actorLabels()` giữ nguyên 10).
+- **Phase 2: Hệ thống thân thiết NPC & Cốt truyện phụ**: Cơ chế điểm thân thiết (Friendship Points - FP) thang đo 0–500 (5 tim) cho đầy đủ 11 NPC (Mira, Huy, Linh, Thảo, Bảo, Nam, Yến, Sơn, Sen, Kiệt, Ly). Trò chuyện hàng ngày (+10 FP, tối đa 1 lần/ngày). Hệ thống tặng quà 4 bậc (Loved +80 FP, Liked +45 FP, Neutral +20 FP, Disliked -15 FP, giới hạn 1 quà/ngày/NPC) với lời thoại phản hồi tiếng Việt riêng biệt. Mở khóa hội thoại và phần thưởng mốc tại Tim 2, 4, 5 chống nhận trùng lặp. Giao diện HUD tích hợp thanh tim trực quan và menu chọn quà tặng mượt mà.
+- **Phase 3: Cải tiến minigame Câu cá & Giải đố Tàn Tích Mây**: Nâng cấp minigame câu cá với thanh cân bằng lực kéo (bobber tension gauge) trực quan, cơ chế giữ cân bằng trong vùng vàng [0.38, 0.62] kết hợp độ căng tích lũy, bảo toàn 100% khả năng bắt cá theo nhịp truyền thống. Giải đố Tàn Tích Mây kích hoạt chuỗi 3 bia sao cổ (Bia Tây -> Bia Bắc -> Bia Đông) giải phóng phong ấn Rương Cổ Bí Mật, ban thưởng 120 xu, 3 tinh thể trời, 3 mảnh sao, 50 XP và kích hoạt sự kiện nhiệm vụ.
+- **Tương thích ngược 100%**: Hàm `restoreState()` và bộ kiểm tra `save-transfer.test.js` đảm bảo các savegame cũ hoàn toàn nạp trơn tru, tự động khởi tạo mặc định các trường mới mà không gây lỗi hoặc mất tiến trình.
+
+### 2. Lệnh thực thi và mã thoát (Commands Executed & Exit Codes)
+1. Kiểm tra cú pháp:
+   `node --check public/js/game-data.js public/js/game-core.js public/js/game.js tests/gameplay.test.js`
+   -> Exit code: **0** (Hoàn toàn sạch cú pháp, không có cảnh báo/lỗi).
+2. Kiểm tra bộ test chính:
+   - `node --test tests/core.test.js`: Exit code **0** (97/97 PASS, duration ~155ms).
+   - `node --test tests/gameplay.test.js`: Exit code **0** (118/118 PASS, duration ~17.26s).
+   - `node --test tests/save-transfer.test.js`: Exit code **0** (3/3 PASS, duration ~81ms).
+   - `node --test tests/world-paths.test.js`: Exit code **0** (23/23 PASS, duration ~184ms).
+   - `node --test tests/world-effects.test.js`: Exit code **0** (17/17 PASS, duration ~116ms).
+   - `node --test tests/world-actors.test.js`: Exit code **0** (25/25 PASS, duration ~3.38s).
+   - `node --test tests/npc-ai.test.js`: Exit code **0** (31/31 PASS, duration ~256ms).
+3. Kiểm tra kết xuất sprite & preview:
+   - `node tests/render-actors.cjs`: Exit code **0** ("Rendered 12 characters in four directions and 16 movement poses (960×720)").
+   - `node tests/render-gait.cjs`: Exit code **0** ("Exported standalone gait preview for 12 characters; embedded syntax PASS").
+4. Kiểm tra các bộ test đối kháng mở rộng & hạ tầng:
+   - `node --test tests/adversarial-m1.test.js tests/adversarial-m2.test.js tests/adversarial-m3.test.js tests/adversarial-milestone2.test.js`: Exit code **0** (30/30 PASS, duration ~419ms).
+   - `node --test tests/deployment.test.js tests/gait-preview.test.js tests/minimap.test.js tests/onboarding.test.js tests/pwa.test.js tests/server.test.js`: Exit code **0** (52/52 PASS, duration ~5.22s).
+5. Tổng số bài test tự động thực thi và PASS: **396/396 PASS (100%)**, 0 fail.
+
+### 3. Bảng phân rã chi tiết kết quả kiểm thử (Test Suites Breakdown)
+| Bộ kiểm thử (Test Suite) | Số bài | Trạng thái | Phạm vi và nội dung kiểm thử |
+|---|---:|:---:|---|
+| `tests/core.test.js` | 97 | PASS | 60 nhiệm vụ, 12 nâng cấp, 4 công thức, logic ngày/đêm/thời tiết, luân phiên hợp đồng, kiểm tra biên kho đồ và sự kiện |
+| `tests/gameplay.test.js` | 118 | PASS | Luồng gameplay VM: tương tác nông nghiệp (cà rốt/lúa mì, đất ẩm, mưa bonus), thú cưng bám theo/vuốt ve/nhặt đồ, hệ thống thân thiết NPC (hội thoại, quà tặng, tim, mốc thưởng), câu cá thanh cân bằng, chuỗi bia giải đố Tàn Tích Mây, phục hồi savegame cũ |
+| `tests/save-transfer.test.js` | 3 | PASS | Xuất/nhập savegame qua file, lọc trường an toàn, kháng ô nhiễm prototype và phục hồi tiến trình |
+| `tests/world-paths.test.js` | 23 | PASS | Bản đồ đường đi 4 vùng, liên thông mạng đường, tránh móng nhà/hồ nước/vùng cản |
+| `tests/world-effects.test.js` | 17 | PASS | Hiệu ứng hạt, hoa cỏ theo thời tiết ngày/đêm/mưa, khói ống khói, giảm chuyển động |
+| `tests/world-actors.test.js` | 25 | PASS | Renderer chibi 4 hướng, 8 tư thế bước chân + pha trung gian, trang phục riêng của 11 NPC, neo chân |
+| `tests/npc-ai.test.js` | 31 | PASS | Di chuyển tuần tra của 11 NPC, A* tránh vật cản, phản hồi khi người chơi tiếp cận, dừng nói chuyện |
+| `tests/adversarial-m1.test.js` | 6 | PASS | Test đối kháng Phase 1: Thú cưng đổi map đột ngột, kẹp biên, tràn thể lực khi vuốt ve (cap 100), bất biến 10 nhãn actor |
+| `tests/adversarial-m2.test.js` | 7 | PASS | Test đối kháng Phase 2: Tặng quà số lượng âm/vật phẩm lạ, kẹp chặt biên [0, 500] FP, reset ngày, thoại và mốc thưởng |
+| `tests/adversarial-milestone2.test.js` | 10 | PASS | Test đối kháng nâng cao Milestone 2: Nhảy vọt mốc tim, chống duplicate reward khi dao động FP, tràn túi đồ khi nhận mốc |
+| `tests/adversarial-m3.test.js` | 7 | PASS | Test đối kháng Phase 3: Vùng chuẩn câu cá, tích lũy độ căng, hủy thao tác, chuỗi bia sao mọi hoán vị và rương bí mật |
+| `tests/deployment.test.js` | 5 | PASS | Allowlist asset triển khai, chặn file nhạy cảm/tests/archive, kiểm tra origin và rate limit |
+| `tests/gait-preview.test.js` | 3 | PASS | Xem trước dáng đi tự chứa, kiểm soát pha và giảm chuyển động |
+| `tests/minimap.test.js` | 8 | PASS | Thu phóng minimap, ánh xạ tọa độ 4 vùng, culling camera |
+| `tests/onboarding.test.js` | 5 | PASS | Hướng dẫn tân thủ 4 bước, bỏ qua, giữ trạng thái |
+| `tests/pwa.test.js` | 6 | PASS | Manifest PWA, icon standalone, phục vụ HTTP và cấu hình iOS |
+| `tests/server.test.js` | 25 | PASS | Máy chủ WebSocket, đồng bộ multiplayer, sanitize chat, broadcast chuyển động, rate limit |
+| **Tổng cộng** | **396** | **PASS** | **396 bài kiểm thử tự động đạt 100% (0 fail)** |
+
+### 4. Chi tiết xác minh từng giai đoạn mở rộng
+
+#### Phase 1: Nông nghiệp mở rộng & Thú cưng đồng hành
+- **Cơ chế đất ẩm & thời tiết**:
+  - Mảng trạng thái `watered: [boolean, boolean, boolean, boolean]` theo dõi từng ô đất trong 4 luống làng.
+  - Tưới nước trực tiếp bằng phím R hoặc tương tác, làm ẩm đất ngay lập tức (`effect('ring')`).
+  - Ngày mưa (`C.weather(state) === 'rain'`) tự động cấp trạng thái đất ẩm cho toàn bộ ô đất đang gieo trồng mà không tốn thể lực người chơi.
+  - Thu hoạch cây trồng trên đất ẩm tự động kích hoạt bonus yield: nhận +5 nông sản thay vì 4, kèm thông báo "Thu hoạch +5 ... (Đất ẩm +1)".
+- **Cây trồng & Hạt giống mới**:
+  - Bổ sung Cà rốt sao (`carrot` / `seed_carrot`) và Lúa mì vàng (`wheat` / `seed_wheat`) vào danh mục vật phẩm.
+  - Phím 1, 2, 3 cho phép chuyển đổi tức thì giữa các loại hạt giống (Mâm xôi, Cà rốt, Lúa mì).
+  - Khấu trừ thể lực gieo trồng chuẩn xác (-3 thể lực), thời gian sinh trưởng 16 giây (nhà kính rút ngắn còn 8 giây).
+- **Thú cưng đồng hành (Cún Sao)**:
+  - Runtime object `pet` theo dõi vị trí `(pet.x, pet.y)` và trạng thái di chuyển bám sát người chơi.
+  - Khi người chơi chạy, thú cưng tự động tăng tốc và chuyển tư thế chạy tương ứng; khi người chơi dừng, thú cưng giảm tốc và chuyển sang trạng thái đứng/vẫy đuôi.
+  - Khi chuyển vùng qua cổng, thú cưng được đồng bộ tức thì sang vùng mới (`pet.map = state.map`) tại tọa độ an toàn, không bị kẹt ở vùng cũ.
+  - Tương tác vuốt ve (`petThePet`): Tỏa hiệu ứng tim hồng `♥`, hiệu ứng vẫy đuôi phấn khích, hồi phục +2 đến +15 thể lực (nghiêm ngặt giới hạn `stamina <= 100`).
+  - Hỗ trợ nhặt đồ (`petForageAssist`): Định kỳ thú cưng đánh hơi tìm kiếm thảo mộc hoặc quả dại, kiểm tra sức chứa túi đồ trước khi thêm vật phẩm.
+  - **Bảo toàn bất biến nhãn nhân vật**: Thú cưng được vẽ vào canvas qua danh sách `drawables` sắp xếp độ sâu theo trục Y, nhưng tuyệt đối không đưa vào mảng `actorLabels()` nhằm bảo toàn kiểm thử nhãn 10 đối tượng trong vùng làng (`assert.equal(tags.length, 10)`).
+
+#### Phase 2: Hệ thống thân thiết NPC & Cốt truyện phụ
+- **Thang đo thân thiết & Hội thoại hàng ngày**:
+  - Đối tượng `state.friendship` quản lý dữ liệu độc lập cho toàn bộ 11 NPC với cấu trúc `{ points, talkedToday, giftedToday, unlockedRewards }`.
+  - Điểm thân thiết được giới hạn chặt chẽ trong khoảng [0, 500] tương ứng với 0 đến 5 tim (100 điểm = 1 tim).
+  - Trò chuyện lần đầu trong ngày với NPC cộng ngay +10 FP, đánh dấu `talkedToday = true`. Sang ngày mới (`nextDay()`), trạng thái trò chuyện được làm mới về `false`.
+- **Hệ thống quà tặng & Phản hồi cá nhân hóa**:
+  - Mỗi NPC sở hữu ma trận sở thích quà tặng hoàn chỉnh gồm 4 bậc:
+    - *Loved* (Yêu thích cuồng nhiệt): +80 FP.
+    - *Liked* (Thích): +45 FP.
+    - *Neutral* (Bình thường): +20 FP.
+    - *Disliked* (Không thích): -15 FP.
+  - Giới hạn 1 món quà/ngày cho mỗi NPC (`giftedToday = true`, reset qua `nextDay()`).
+  - Toàn bộ 11 NPC đều có câu thoại phản hồi tiếng Việt mang đậm cá tính riêng cho cả 4 cấp độ quà tặng.
+- **Mốc tim (Hearts 2, 4, 5) & Phần thưởng**:
+  - Vượt mốc 2 tim (200 FP), 4 tim (400 FP), 5 tim (500 FP) mở khóa các đoạn hội thoại tâm tình đặc biệt phản ánh tình bạn khăng khít.
+  - Trao thưởng mốc một lần duy nhất (tiền xu, vật phẩm đặc trưng, điểm danh tiếng, mảnh sao). Mảng `unlockedRewards` ngăn chặn triệt để việc lặp lại phần thưởng khi điểm số biến động quanh ngưỡng mốc.
+- **Giao diện HUD & Tương tác**:
+  - Hiển thị thang đo tim trực quan trong danh sách cư dân và modal đối thoại.
+  - Menu tặng quà hiển thị trực quan các vật phẩm hợp lệ trong túi của người chơi kèm thông báo kết quả tức thì.
+
+#### Phase 3: Cải tiến minigame Câu cá & Giải đố Tàn Tích Mây
+- **Minigame Câu cá với Thanh Cân Bằng (Bobber Tension Bar)**:
+  - Giữ nguyên công thức sóng điều hòa dao động phao: `position = (Math.sin(elapsed * 3.8 - Math.PI / 2) + 1) / 2`.
+  - Cơ chế thanh cân bằng lực kéo: Khi phao nằm trong vùng mục tiêu [0.38, 0.62], giữ phím hoặc chạm màn hình làm tăng độ căng `tension`; khi lệch ra ngoài vùng, độ căng tự động suy giảm nhịp nhàng.
+  - Điều kiện bắt cá thành công mở rộng: `(position >= 0.38 && position <= 0.62) || tension >= 1.0`. Điều này giúp người chơi có thể bắt cá bằng cú nhấp chuẩn xác truyền thống HOẶC tích lũy thanh cân bằng đầy 100%, bảo đảm 100% tương thích ngược với thói quen điều khiển cũ.
+  - Khấu trừ 6 thể lực, kiểm tra sức chứa túi đồ và hủy trạng thái sạch sẽ khi nhấn phím Esc.
+- **Giải đố Tàn Tích Mây (Cloud Ruins Ancient Steles)**:
+  - 3 bia sao cổ được bố trí tại các vị trí chiến lược trong Tàn Tích Mây:
+    - Bia Sao Tây Đài (`stele-ruins-west`, x: 180, y: 430, seq: `'west'`)
+    - Bia Sao Bắc Điện (`stele-ruins-north`, x: 740, y: 240, seq: `'north'`)
+    - Bia Sao Đông Đài (`stele-ruins-east`, x: 920, y: 460, seq: `'east'`)
+  - Gợi ý giải đố được lồng ghép tự nhiên qua lời thoại của nhà thám hiểm Ly: *"từ Tây sang Bắc rồi về Đông"*.
+  - Cơ chế giải đố theo chuỗi: Người chơi phải tương tác lần lượt theo đúng thứ tự Tây (1/3) -> Bắc (2/3) -> Đông (3/3). Mỗi bước kích hoạt hiệu ứng sóng vòng sáng và âm vang.
+  - Kích hoạt sai thứ tự sẽ làm tắt lịm tiếng ngân, sinh hiệu ứng bụi cát và tự động reset chuỗi (`steleSequence = []`), yêu cầu bắt đầu lại từ Bia Tây.
+  - Khi hoàn thành đúng chuỗi, trạng thái câu đố được ghi nhận vào `state.puzzles.push('ruins-steles')` và mở phong ấn cho Rương Cổ Bí Mật (`chest-ruins-secret` tại x: 860, y: 240).
+  - Mở rương bí mật trao thưởng lớn: +120 xu, +3 tinh thể trời, +3 mảnh sao, +50 XP và kích hoạt sự kiện `chest:treasure`.
+
+#### Đảm bảo tính tương thích ngược (Backward Compatibility)
+- Bộ nạp savegame `restoreState(raw, data)` được thiết kế với cơ chế phòng thủ sâu:
+  - Nạp trơn tru mọi savegame phiên bản trước mà không làm phát sinh lỗi `undefined` hay crash logic.
+  - Tự động điền giá trị mặc định an toàn:
+    - `cropTypes`: mảng 4 phần tử `'berry'`
+    - `watered`: mảng 4 phần tử `false`
+    - `selectedSeed`: `'berry'`
+    - `pet`: `{ name: 'Cún Sao', type: 'dog' }`
+    - `friendship`: khởi tạo đầy đủ 11 NPC với `points: 0`, `talkedToday: false`, `giftedToday: false`, `unlockedRewards: []`
+    - `puzzles`: mảng rỗng `[]`
+  - Vệ sinh dữ liệu chống tấn công ô nhiễm Prototype (`__proto__`, `constructor`), làm sạch kiểu dữ liệu NaN, số âm, chuỗi không hợp lệ hoặc dữ liệu bị hỏng.
+  - Kiểm tra round-trip serialization trong `tests/save-transfer.test.js` và `tests/adversarial-milestone2.test.js` xác nhận 100% toàn vẹn dữ liệu.
+
+### 5. Phạm vi xác minh & Giới hạn thực tế (Verification Boundaries & Limitations)
+Tuân thủ nghiêm ngặt Quy tắc 4 của `AGENTS.md` (*"Ghi kết quả và giới hạn xác minh vào TEST_REPORT.md, không nói đã kiểm tra những trường hợp chưa thực hiện"*):
+- **Phạm vi đã xác minh thực tế**:
+  - Đã thực thi toàn bộ 396 bài kiểm tra tự động Node.js v26.10.0 trên môi trường Windows, toàn bộ đều đạt 100% PASS.
+  - Đã kiểm tra cú pháp toàn diện (`node --check`) cho tất cả các file mã nguồn và bài test liên quan.
+  - Đã xuất và xác minh các tập tin hình ảnh/preview nhân vật (`tests/render-actors.cjs` và `tests/render-gait.cjs`).
+  - Môi trường VM headless trong `tests/gameplay.test.js` đã mô phỏng hoàn chỉnh vòng lặp Canvas/DOM, tương tác chuột/bàn phím, các trạng thái thời tiết, chuỗi bia sao, bắt cá và lưu trữ tiến trình.
+- **Giới hạn thực tế và môi trường chưa kiểm**:
+  - Lượt kiểm tra này được thực hiện trong môi trường dòng lệnh tự động (headless Node.js test runner), chưa chạy tương tác thủ công trên trình duyệt vật lý với các màn hình cảm ứng di động thật (chưa kiểm thao tác đa ngón tay vật lý trên màn hình iPhone/Android).
+  - Bộ kiểm tra tích hợp mạng trực tiếp Redis (`tests/redis-room.test.js`): Cần môi trường máy chủ Redis bên ngoài đang hoạt động với cờ `RUN_REDIS_TESTS=1` và module `redis` npm (không có sẵn trong repo chuẩn để tránh phụ thuộc ngoài), do đó bài test này không được kích hoạt trong lượt kiểm tra ngoại tuyến nội bộ.
+  - Để kiểm tra thủ công giao diện và cơ chế trên trình duyệt thật theo hướng dẫn README:
+    - Nông trại & đất ẩm: `http://localhost:4173/?qa=1&scene=farm`
+    - Minigame câu cá: `http://localhost:4173/?qa=1&scene=fish`
+    - Tuần tra cư dân & đối thoại: `http://localhost:4173/?qa=1&scene=npc`
+    - Hoạt cảnh nhân vật 4 hướng: `http://localhost:4173/?qa=1&scene=actors&look=down|up|left|right`
+    - Đường đi & thời tiết mưa/đêm: `http://localhost:4173/?qa=1&scene=roads&map=ruins&weather=rain-night`
+    - Lưu ý: Các chế độ QA trên sử dụng savegame độc lập (`starfall-valley-qa-save`), không sửa đổi hay xóa dữ liệu tiến trình thực của người chơi.
+
 ## Sắp xếp cấu trúc HTML5 — 08/10/2026
 
 Luồng xác minh: mở trang → tải CSS/JS/icon theo thư mục mới → vào game → kết nối WebSocket localhost → mở UI desktop/mobile. Dùng `?qa=1&scene=actors` và save QA riêng; không sửa/xóa save người chơi.

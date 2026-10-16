@@ -1502,3 +1502,569 @@ test('Other online travellers never inherit the local lantern or damage blink', 
   const e = loadGame(); await e.start(); const state = e.qa.getState(); state.map = 'forest'; state.x = 420; state.y = 700; state.inventory.lantern = 1; e.qa.setState(state); const socket = e.sockets[0]; socket.readyState = 1; socket.onopen(); socket.onmessage({ data: JSON.stringify({ type: 'welcome', id: 'self' }) }); socket.onmessage({ data: JSON.stringify({ type: 'snapshot', players: [{ id: 'peer-visible', name: 'Bạn đi rừng', map: 'forest', x: 900, y: 550, color: '#bb8899', direction: 'left', moving: false }] }) });
   const renders = [], draw = e.actors.draw; e.actors.draw = (ctx, options) => { renders.push({ ...options }); return draw(ctx, options); }; e.step(.02); assert.equal(e.qa.getState().health, 92); e.qa.drawGame(); const player = renders.find(r => r.id === 'player'), peer = renders.find(r => r.id === 'peer-visible'); assert.ok(player && peer); assert.equal(player.hidden, true, 'The local hit frame blinks'); assert.equal(player.lantern, true); assert.equal(peer.hidden, false, 'Damage blink applies only to the struck local actor'); assert.equal(peer.lantern, false, 'A local held lantern cannot appear in another traveller hands'); assert.equal(peer.direction, 'left');
 });
+
+test('Carrot and Wheat planting, watering and harvesting record correct stats, inventory, and bonus yields', async () => {
+  const e = loadGame(); await e.start(); const plot = object(e, 'plot'); e.at(plot);
+
+  // 1. Gieo Cà rốt sao qua phím số 2
+  await e.key('2');
+  assert.equal(e.qa.getState().selectedSeed, 'carrot');
+  e.qa.interact();
+  let s = e.qa.getState();
+  assert.ok(s.crops[0] > 0, 'Plot 0 is planted');
+  assert.equal(s.cropTypes[0], 'carrot', 'Crop type is carrot');
+  assert.equal(s.watered[0], false, 'Soil is unwatered initially on a clear day');
+  assert.equal(s.stats['plant:carrot'], 1, 'Plant carrot stat recorded');
+  assert.equal(s.stamina, 97, 'Planting consumes 3 stamina');
+
+  // 2. Tưới nước thủ công bằng phím R
+  await e.key('r');
+  s = e.qa.getState();
+  assert.equal(s.watered[0], true, 'Soil is now watered');
+  assert.equal(s.stamina, 95, 'Manual watering costs 2 stamina');
+  assert.ok(feedback(e, 'ripple').some(f => f.x === plot.x && f.y === plot.y), 'Watering triggers ripple feedback');
+
+  // 3. Chờ cây chín (16 giây) và thu hoạch
+  e.advance(16000);
+  e.qa.interact();
+  s = e.qa.getState();
+  assert.equal(s.crops[0], null, 'Plot 0 is cleared after harvest');
+  assert.equal(s.inventory.carrot, 5, 'Watered soil grants 5 carrots (4 base + 1 bonus)');
+  assert.equal(s.stats['harvest:carrot'], 1, 'Harvest carrot stat recorded');
+  assert.equal(s.stats['gather:carrot'], 5, 'Gather carrot stat recorded');
+
+  // 4. Gieo Lúa mì vàng qua phím số 3 trên đất khô
+  await e.key('3');
+  assert.equal(e.qa.getState().selectedSeed, 'wheat');
+  e.qa.interact();
+  s = e.qa.getState();
+  assert.ok(s.crops[0] > 0);
+  assert.equal(s.cropTypes[0], 'wheat');
+  assert.equal(s.stats['plant:wheat'], 1);
+  assert.equal(s.watered[0], false);
+
+  // 5. Thu hoạch lúa mì không tưới (nhận chuẩn 4 sản phẩm)
+  e.advance(16000);
+  e.qa.interact();
+  s = e.qa.getState();
+  assert.equal(s.crops[0], null);
+  assert.equal(s.inventory.wheat, 4, 'Unwatered soil grants 4 wheat');
+  assert.equal(s.stats['harvest:wheat'], 1);
+  assert.equal(s.stats['gather:wheat'], 4);
+});
+
+test('Rainy weather automatically waters crops without stamina cost and grants bonus yield', async () => {
+  const e = loadGame(); await e.start(); const plot = object(e, 'plot'); e.at(plot);
+
+  // Thiết lập ngày 2 (ngày mưa: day % 3 === 2)
+  e.set({ day: 2, minutes: 600 });
+  assert.equal(e.qa.core.weather(e.qa.getState()), 'rain', 'Day 2 is rain');
+
+  // Gieo mầm vào ngày mưa -> tự động có nước ngay lập tức mà không tốn thêm thể lực
+  e.set({ selectedSeed: 'carrot' });
+  const stamBefore = e.qa.getState().stamina;
+  e.qa.interact();
+  let s = e.qa.getState();
+  assert.ok(s.crops[0] > 0);
+  assert.equal(s.stamina, stamBefore - 3, 'Only planting stamina deducted, no watering fee');
+  assert.equal(s.watered[0], true, 'Rain day auto-waters plot on plant');
+
+  // Chờ chín và thu hoạch -> nhận bonus 5 củ cà rốt
+  e.advance(16000);
+  e.qa.interact();
+  s = e.qa.getState();
+  assert.equal(s.crops[0], null);
+  assert.equal(s.inventory.carrot, 5, 'Rain watered crop grants 5 bonus harvest yield');
+
+  // Kiểm tra nextDay sang ngày mưa tự động tưới các luống đất
+  e.set({ day: 1, crops: [Date.now(), null, null, null], watered: [false, false, false, false] });
+  s = e.qa.getState();
+  e.qa.core.nextDay(s, e.qa.data); // day 1 -> day 2 (rain)
+  e.qa.setState(s);
+  assert.equal(e.qa.getState().watered[0], true, 'nextDay transition into rain day auto-waters all plots');
+});
+
+test('Pet companion follows player displacement, settles when stationary, reacts to petting and assists foraging', async () => {
+  const e = loadGame(); await e.start();
+
+  // 1. Khởi tạo Pet
+  let pet = e.qa.getPet ? e.qa.getPet() : null;
+  assert.ok(pet, 'Pet companion instance exists in QA state');
+  assert.equal(pet.name, 'Cún Sao', 'Default pet name is Cún Sao');
+
+  // 2. Di chuyển người chơi ra xa -> Pet di chuyển theo
+  const startX = pet.x;
+  e.set({ x: 950, y: 450 }); // Di chuyển player sang phải 150px
+  e.step(0.4); // Cập nhật loop 0.4 giây
+  pet = e.qa.getPet();
+  assert.ok(pet.x > startX, 'Pet moves towards player X coordinate');
+  assert.ok(pet.moving || pet.gait > 0, 'Pet has active moving state or gait while following');
+
+  // 3. Người chơi dừng lại gần pet -> Pet dừng nghỉ cạnh người chơi
+  e.set({ x: pet.x + 30, y: pet.y });
+  e.step(0.2);
+  pet = e.qa.getPet();
+  assert.equal(pet.moving, false, 'Pet settles and stops moving when in close proximity (dist <= 40)');
+
+  // 4. Tương tác vuốt ve khi đứng gần (hồi 2 thể lực, hiệu ứng tim)
+  e.set({ x: pet.x + 20, y: pet.y, stamina: 50 });
+  e.calls.length = 0;
+  e.qa.interact();
+  const s = e.qa.getState();
+  assert.equal(s.stamina, 52, 'Petting companion restores 2 stamina');
+  assert.ok(feedback(e, 'text').some(f => f.text === '♥'), 'Petting generates heart text feedback');
+
+  // 5. Kiểm tra foraging assist hook
+  const berryBefore = s.inventory.berry || 0;
+  e.qa.petForage('berry');
+  const foragedState = e.qa.getState();
+  assert.equal(foragedState.inventory.berry, berryBefore + 1, 'Foraging assist adds item to inventory');
+  assert.ok(feedback(e, 'text').some(f => f.text.includes('Quả mâm xôi')), 'Foraging displays text feedback');
+
+  // 6. Kiểm tra an toàn: Pet KHÔNG nằm trong actorLabels
+  const tags = e.qa.getActorLabels();
+  assert.equal(tags.some(t => t.id === 'pet' || t.name === 'Cún Sao'), false, 'Pet is excluded from actorLabels to protect layout assertions');
+});
+
+test('Legacy savegame without agricultural expansion or pet fields restores seamlessly with 100% backward compatibility', async () => {
+  const legacySave = {
+    version: 1,
+    name: 'Cựu Binh',
+    coins: 450,
+    xp: 280,
+    renown: 20,
+    health: 90,
+    stamina: 75,
+    day: 4,
+    minutes: 700,
+    map: 'village',
+    x: 800,
+    y: 550,
+    inventory: { wood: 10, ore: 5, herb: 4, berry: 6, star: 1, fish: 0, crystal: 0, plank: 0, tea: 0, lantern: 0, meal: 0 },
+    upgrades: ['well'],
+    quests: { story01: { status: 'claimed', progress: [1] } },
+    visited: ['village', 'forest'],
+    resources: { 'forest-wood-1': 1000 },
+    crops: [1600000000000, null, 1600000005000, null],
+    shrines: ['forest'],
+    chests: ['forest-1'],
+    stats: { 'talk:mira': 2, 'gather:wood': 10 },
+    tracked: null
+  };
+
+  const e = loadGame({ saved: legacySave });
+  await e.start(legacySave.name);
+  const gameState = e.qa.getState();
+
+  assert.equal(gameState.name, 'Cựu Binh');
+  assert.equal(gameState.coins, 450);
+  assert.equal(gameState.xp, 280);
+  assert.deepEqual(gameState.crops, [1600000000000, null, 1600000005000, null]);
+
+  // Kiểm tra 4 trường mới nhận giá trị mặc định chuẩn mực
+  assert.deepEqual(gameState.cropTypes, ['berry', 'berry', 'berry', 'berry']);
+  assert.deepEqual(gameState.watered, [false, false, false, false]);
+  assert.equal(gameState.selectedSeed, 'berry');
+  assert.deepEqual(gameState.pet, { name: 'Cún Sao', type: 'dog' });
+
+  // Kiểm tra các item mới tự động có trong inventory với giá trị 0
+  assert.equal(gameState.inventory.carrot, 0);
+  assert.equal(gameState.inventory.wheat, 0);
+  assert.equal(gameState.inventory.seed_carrot, 0);
+  assert.equal(gameState.inventory.seed_wheat, 0);
+  assert.equal(gameState.inventory.wood, 10);
+  assert.equal(gameState.inventory.berry, 6);
+});
+
+test('Daily conversation grants +10 FP once per day and resets on nextDay', async () => {
+  const e = loadGame(); await e.start();
+  assert.equal(e.qa.getState().friendship.mira.points, 0);
+  assert.equal(e.qa.getState().friendship.mira.talkedToday, false);
+
+  // Cuộc trò chuyện đầu tiên trong ngày: nhận +10 FP
+  e.at(npc(e, 'mira')); e.qa.interact();
+  assert.equal(e.qa.getState().friendship.mira.points, 10);
+  assert.equal(e.qa.getState().friendship.mira.talkedToday, true);
+
+  // Trò chuyện lại trong cùng một ngày: không nhận thêm điểm
+  await e.el('dialog-close').dispatch('click');
+  e.qa.interact();
+  assert.equal(e.qa.getState().friendship.mira.points, 10);
+  assert.equal(e.qa.getState().friendship.mira.talkedToday, true);
+
+  // Sang ngày mới: cờ talkedToday được reset
+  await e.el('dialog-close').dispatch('click');
+  let state = e.qa.getState();
+  e.qa.core.nextDay(state, e.qa.data);
+  e.qa.setState(state);
+  assert.equal(e.qa.getState().friendship.mira.talkedToday, false);
+
+  // Trò chuyện ngày mới: nhận tiếp +10 FP (lên 20 FP)
+  e.qa.interact();
+  assert.equal(e.qa.getState().friendship.mira.points, 20);
+  assert.equal(e.qa.getState().friendship.mira.talkedToday, true);
+});
+
+test('Gifting loved, liked, and disliked items calculates correct FP delta, deducts item, and respects 1 gift per day limit', async () => {
+  const e = loadGame(); await e.start();
+  let state = e.qa.getState();
+  state.inventory.star = 5;
+  state.inventory.tea = 5;
+  state.inventory.ore = 5;
+  state.inventory.herb = 5;
+  e.qa.setState(state);
+
+  // 1. Tặng quà yêu thích cho Mira (star: Loved -> +80 FP)
+  e.at(npc(e, 'mira')); e.qa.interact();
+  const initialPoints = e.qa.getState().friendship.mira.points; // 10 vì vừa nói chuyện
+  await e.button({ giftNpc: 'mira' });
+  assert.match(e.el('dialog-body').innerHTML, /data-give-gift="star"/);
+  await e.button({ giveGift: 'star', npc: 'mira' });
+
+  const afterLoved = e.qa.getState();
+  assert.equal(afterLoved.inventory.star, 4, 'Trừ 1 mảnh sao sau khi tặng');
+  assert.equal(afterLoved.friendship.mira.points, initialPoints + 80, 'Loved gift grants +80 FP');
+  assert.equal(afterLoved.friendship.mira.giftedToday, true, 'Đánh dấu đã tặng quà hôm nay');
+  assert.match(e.el('dialog-body').innerHTML, /Món quà tuyệt vời quá/);
+
+  // 2. Thử tặng thêm quà trong cùng ngày: bị từ chối
+  await e.button({ talkBack: 'mira' });
+  await e.button({ giftNpc: 'mira' });
+  assert.match(e.el('dialog-body').innerHTML, /Hôm nay bạn đã tặng quà/);
+  assert.equal(e.qa.getState().inventory.star, 4);
+
+  // 3. Sang ngày mới: tặng quà thích cho Mira (tea: Liked -> +45 FP)
+  state = e.qa.getState();
+  e.qa.core.nextDay(state, e.qa.data);
+  e.qa.setState(state);
+  assert.equal(e.qa.getState().friendship.mira.giftedToday, false);
+
+  const pointsBeforeLiked = e.qa.getState().friendship.mira.points;
+  const giftResult = e.qa.core.giveGift(state, 'mira', 'tea', e.qa.data);
+  assert.equal(giftResult.ok, true);
+  assert.equal(giftResult.tier, 'liked');
+  assert.equal(giftResult.pointsDelta, 45);
+  assert.equal(state.friendship.mira.points, pointsBeforeLiked + 45);
+  assert.equal(state.inventory.tea, 4);
+
+  // 4. Kiểm tra quà không thích: Huy ghét thảo mộc (herb: Disliked -> -15 FP, clamp tối thiểu 0)
+  state = e.qa.getState();
+  state.friendship.huy.points = 10;
+  e.qa.setState(state);
+  const dislikeResult = e.qa.core.giveGift(state, 'huy', 'herb', e.qa.data);
+  assert.equal(dislikeResult.ok, true);
+  assert.equal(dislikeResult.tier, 'disliked');
+  assert.equal(dislikeResult.pointsDelta, -15);
+  assert.equal(state.friendship.huy.points, 0, 'Điểm thân thiết bị trừ nhưng không âm (clamp 0)');
+  assert.equal(state.inventory.herb, 4);
+});
+
+test('Friendship progression unlocks heart milestones at 2, 4, 5 hearts, grants milestone rewards and unlocks special dialogues', async () => {
+  const e = loadGame(); await e.start();
+  let state = e.qa.getState();
+  state.coins = 100;
+  state.renown = 0;
+  state.inventory.berry = 0;
+  state.inventory.star = 0;
+  state.inventory.meal = 0;
+  state.friendship.mira.points = 190;
+  state.friendship.mira.talkedToday = false;
+  e.qa.setState(state);
+
+  // Mira mốc 2 tim: Thưởng 50 xu + 2 berry
+  e.at(npc(e, 'mira')); e.qa.interact(); // +10 FP -> 200 FP (2 tim)
+  state = e.qa.getState();
+  assert.equal(state.friendship.mira.points, 200);
+  assert.deepEqual(state.friendship.mira.unlockedRewards, [2]);
+  assert.equal(state.coins, 150, 'Nhận 50 xu từ mốc 2 tim của Mira');
+  assert.equal(state.inventory.berry, 2, 'Nhận 2 mâm xôi từ mốc 2 tim của Mira');
+
+  // Lời thoại ưu tiên câu thoại mốc 2 tim
+  const miraDef = e.qa.data.npcs.find(n => n.id === 'mira');
+  assert.match(e.el('dialog-body').innerHTML, new RegExp(miraDef.heartDialogues[2].slice(0, 30)));
+
+  // Tăng lên mốc 4 tim (400 FP): Thưởng 100 xu + 1 star
+  state.friendship.mira.points = 400;
+  e.qa.core.checkMilestones(state, 'mira', e.qa.data);
+  e.qa.setState(state);
+  assert.deepEqual(e.qa.getState().friendship.mira.unlockedRewards, [2, 4]);
+  assert.equal(e.qa.getState().coins, 250, 'Nhận thêm 100 xu từ mốc 4 tim');
+  assert.equal(e.qa.getState().inventory.star, 1, 'Nhận 1 mảnh sao từ mốc 4 tim');
+
+  // Lời thoại ưu tiên câu thoại mốc 4 tim
+  await e.el('dialog-close').dispatch('click');
+  e.qa.interact();
+  assert.match(e.el('dialog-body').innerHTML, new RegExp(miraDef.heartDialogues[4].slice(0, 30)));
+
+  // Tăng lên mốc 5 tim (500 FP): Thưởng +3 Uy tín + 1 meal
+  state = e.qa.getState();
+  state.friendship.mira.points = 500;
+  e.qa.core.checkMilestones(state, 'mira', e.qa.data);
+  e.qa.setState(state);
+  assert.deepEqual(e.qa.getState().friendship.mira.unlockedRewards, [2, 4, 5]);
+  assert.equal(e.qa.getState().renown, 3, 'Nhận 3 uy tín từ mốc 5 tim');
+  assert.equal(e.qa.getState().inventory.meal, 1, 'Nhận 1 cơm dã ngoại từ mốc 5 tim');
+
+  // Lời thoại ưu tiên câu thoại mốc 5 tim cao nhất
+  await e.el('dialog-close').dispatch('click');
+  e.qa.interact();
+  assert.match(e.el('dialog-body').innerHTML, new RegExp(miraDef.heartDialogues[5].slice(0, 30)));
+});
+
+test('NPC heart meter and daily gift status render properly in resident list and dialogue', async () => {
+  const e = loadGame(); await e.start();
+  let state = e.qa.getState();
+  state.friendship.mira.points = 250; // 2 tim
+  state.friendship.mira.giftedToday = false;
+  e.qa.setState(state);
+
+  // Mở bảng danh sách cư dân
+  await e.el('btn-residents').dispatch('click');
+  assert.match(e.el('dialog-body').innerHTML, /resident-hearts/);
+  assert.match(e.el('dialog-body').innerHTML, /♥♥♡♡♡/);
+  assert.match(e.el('dialog-body').innerHTML, /🎁 Chưa tặng quà/);
+
+  // Đánh dấu đã tặng quà và kiểm tra lại danh sách
+  state = e.qa.getState();
+  state.friendship.mira.giftedToday = true;
+  e.qa.setState(state);
+  await e.el('btn-residents').dispatch('click');
+  assert.match(e.el('dialog-body').innerHTML, /✓ Đã tặng quà/);
+
+  // Mở hộp thoại trò chuyện trực tiếp với Mira
+  await e.el('dialog-close').dispatch('click');
+  e.at(npc(e, 'mira')); e.qa.interact();
+  assert.match(e.el('dialog-eyebrow').textContent, /♥♥♡♡♡/);
+  assert.match(e.el('dialog-body').innerHTML, /npc-hearts/);
+  assert.match(e.el('dialog-body').innerHTML, /data-gift-npc="mira"/);
+});
+
+test('Legacy savegame without friendship data restores seamlessly with all 11 NPCs at 0 FP', async () => {
+  const legacySave = {
+    version: 1,
+    name: 'Nhà Du Hành Cổ',
+    coins: 300,
+    xp: 150,
+    renown: 5,
+    health: 100,
+    stamina: 100,
+    day: 3,
+    minutes: 600,
+    map: 'village',
+    x: 800,
+    y: 550,
+    inventory: { wood: 5, ore: 2, herb: 3, berry: 4, star: 0, fish: 0, crystal: 0, plank: 0, tea: 0, lantern: 0, meal: 0 },
+    upgrades: [],
+    quests: {},
+    visited: ['village'],
+    resources: {},
+    crops: [null, null, null, null],
+    shrines: [],
+    chests: [],
+    stats: {}
+  };
+
+  const e = loadGame({ saved: legacySave });
+  await e.start(legacySave.name);
+  const gameState = e.qa.getState();
+
+  assert.ok(gameState.friendship, 'Friendship object is restored');
+  assert.equal(Object.keys(gameState.friendship).length, 11, 'All 11 NPCs are present in friendship');
+  for (const npcId of ['mira', 'huy', 'linh', 'thao', 'bao', 'nam', 'yen', 'son', 'sen', 'kiet', 'ly']) {
+    const f = gameState.friendship[npcId];
+    assert.ok(f, `Friendship exists for ${npcId}`);
+    assert.equal(f.points, 0);
+    assert.equal(f.talkedToday, false);
+    assert.equal(f.giftedToday, false);
+    assert.deepEqual(f.unlockedRewards, []);
+  }
+
+  // Tương tác trò chuyện bình thường không phát sinh lỗi
+  e.at(npc(e, 'mira')); e.qa.interact();
+  assert.equal(e.qa.getState().friendship.mira.points, 10);
+  assert.equal(e.el('dialog-title').textContent, 'Mira');
+});
+
+test('Fishing minigame interactive catch, balancing tension bar, missing, auto-catch, and bag capacity handling', async () => {
+  const e = loadGame(); await e.start();
+  const spot = object(e, 'fish');
+  e.at(spot);
+
+  // 1. Bắt đầu câu cá: giao diện hiển thị, thanh tension khởi tạo 0%
+  e.qa.interact();
+  assert.equal(e.el('fishing').hidden, false, 'Fishing modal is displayed');
+  const tensionBar = e.el('fish-tension-bar');
+  assert.ok(tensionBar, 'Tension bar element exists');
+  assert.equal(tensionBar.style.width, '0%', 'Initial tension bar width is 0%');
+
+  // 2. Chuyển bước thời gian khi phao vào vùng vàng [0.38, 0.62] để tích lũy tension
+  e.step(Math.PI / 2 / 3.8);
+  assert.ok(parseFloat(tensionBar.style.width) > 0, 'Tension bar increases while in target zone');
+
+  // Kéo cần chủ động với interact() khi phao nằm trong vùng thành công
+  e.qa.interact();
+  let s = e.qa.getState();
+  assert.equal(s.inventory.fish, 1, 'Fish caught on valid timing pull');
+  assert.equal(s.stamina, 94, 'Stamina reduced by 6');
+  assert.equal(s.xp, 12, '12 XP awarded');
+  assert.equal(s.stats['fish:fish'], 1);
+  assert.equal(e.el('fishing').hidden, true, 'Fishing modal closes on catch');
+
+  // 3. Kéo trượt ngoài vùng mục tiêu: t=0 phao ở vị trí 0
+  e.at(spot);
+  e.qa.interact();
+  e.qa.interact();
+  s = e.qa.getState();
+  assert.equal(s.inventory.fish, 1, 'No fish caught on miss');
+  assert.equal(s.stamina, 88, 'Stamina reduced by 6 on miss');
+  assert.equal(e.el('fishing').hidden, true);
+
+  // 4. Cơ chế auto-catch khi giữ phao trong vùng để thanh tension đạt 100%
+  e.at(spot);
+  e.qa.interact();
+  assert.equal(e.el('fishing').hidden, false);
+  for (let i = 0; i < 75; i++) {
+    e.step(0.05);
+    if (e.el('fishing').hidden) break;
+  }
+  assert.equal(e.el('fishing').hidden, true, 'Fishing modal auto-closed when tension reached 100%');
+  s = e.qa.getState();
+  assert.equal(s.inventory.fish, 2, 'Fish caught automatically when tension bar fills');
+  assert.ok(s.stamina <= 83 && s.stamina >= 80, 'Stamina deducted for auto-catch (allowing natural regen)');
+  assert.equal(s.stats['fish:fish'], 2);
+
+  // 5. Xử lý khi túi đầy
+  s.inventory.fish = 100;
+  e.qa.setState(s);
+  e.at(spot);
+  e.qa.interact();
+  e.step(Math.PI / 2 / 3.8);
+  e.qa.interact();
+  assert.equal(e.qa.getState().inventory.fish, 100, 'Fish bag capped at 100');
+  assert.equal(e.el('fishing').hidden, true);
+
+  // 6. Thoát bằng phím Escape không tốn thể lực và không nhận cá
+  e.at(spot);
+  e.qa.interact();
+  assert.equal(e.el('fishing').hidden, false);
+  const staminaBefore = e.qa.getState().stamina;
+  await e.key('Escape');
+  assert.equal(e.el('fishing').hidden, true);
+  assert.equal(e.qa.getState().stamina, staminaBefore, 'Escape does not deduct stamina');
+});
+
+test('Cloud Ruins stele sequence West -> North -> East, wrong order reset, secret chest unlocking and reward distribution', async () => {
+  const e = loadGame(); await e.start();
+  e.set({ map: 'ruins', x: 800, y: 550, upgrades: unlocked(e) });
+
+  // 1. Kiểm tra sự tồn tại của 3 bia sao và rương bí mật
+  const ruinsObjs = objects(e, 'ruins');
+  const west = ruinsObjs.find(o => o.id === 'stele-ruins-west');
+  const north = ruinsObjs.find(o => o.id === 'stele-ruins-north');
+  const east = ruinsObjs.find(o => o.id === 'stele-ruins-east');
+  const secretChest = ruinsObjs.find(o => o.id === 'chest-ruins-secret');
+
+  assert.ok(west, 'West stele exists in ruins');
+  assert.ok(north, 'North stele exists in ruins');
+  assert.ok(east, 'East stele exists in ruins');
+  assert.ok(secretChest, 'Secret chest exists in ruins');
+  assert.equal(west.x, 180); assert.equal(west.y, 430);
+  assert.equal(north.x, 740); assert.equal(north.y, 240);
+  assert.equal(east.x, 920); assert.equal(east.y, 460);
+  assert.equal(secretChest.x, 860); assert.equal(secretChest.y, 240);
+
+  // 2. Tương tác rương bí mật khi chưa giải đố: bị phong ấn
+  e.at(secretChest);
+  e.qa.interact();
+  assert.equal(e.qa.getState().chests.includes('chest-ruins-secret'), false, 'Chest is sealed before puzzle');
+
+  // 3. Thứ tự sai 1: Kích hoạt Bia Bắc đầu tiên
+  e.at(north);
+  e.qa.interact();
+  assert.equal(e.qa.getState().puzzles.includes('ruins-steles'), false, 'Cannot start sequence at North');
+
+  // 4. Thứ tự sai 2: Kích hoạt Bia Tây rồi nhảy cóc sang Bia Đông
+  e.at(west);
+  e.qa.interact(); // West activates (1/3)
+  e.at(east);
+  e.qa.interact(); // Skipped North -> resets!
+  assert.equal(e.qa.getState().puzzles.includes('ruins-steles'), false, 'Skipping North resets sequence');
+
+  // 5. Trình tự kích hoạt chuẩn: Tây -> Bắc -> Đông
+  e.at(west);
+  e.qa.interact(); // (1/3) Tây
+  e.at(north);
+  e.qa.interact(); // (2/3) Bắc
+  e.at(east);
+  e.qa.interact(); // (3/3) Đông -> Hoàn thành!
+
+  let s = e.qa.getState();
+  assert.ok(s.puzzles.includes('ruins-steles'), 'Ruins steles puzzle completed and recorded in state.puzzles');
+
+  // Tương tác lại bia sao sau khi giải xong
+  e.at(west);
+  e.qa.interact();
+  assert.ok(s.puzzles.includes('ruins-steles'));
+
+  // 6. Mở Rương Cổ Bí Mật nhận phần thưởng: +120 xu, +3 tinh thể trời, +3 mảnh sao, +50 XP
+  const coinsBefore = s.coins;
+  const xpBefore = s.xp;
+  const crystalBefore = s.inventory.crystal;
+  const starBefore = s.inventory.star;
+
+  e.at(secretChest);
+  e.qa.interact();
+
+  s = e.qa.getState();
+  assert.ok(s.chests.includes('chest-ruins-secret'), 'Secret chest recorded in state.chests');
+  assert.equal(s.coins, coinsBefore + 120, '+120 coins awarded');
+  assert.equal(s.xp, xpBefore + 50, '+50 XP awarded');
+  assert.equal(s.inventory.crystal, crystalBefore + 3, '+3 crystals awarded');
+  assert.equal(s.inventory.star, starBefore + 3, '+3 stars awarded');
+  assert.equal(s.stats['chest:treasure'], 1, 'Chest quest objective tracked in stats');
+
+  // 7. Tương tác lại rương đã mở: không nhận thưởng lần 2
+  e.qa.interact();
+  assert.equal(e.qa.getState().coins, s.coins, 'No duplicate rewards on re-interaction');
+});
+
+test('Legacy savegame backward compatibility with puzzles field and NPC Ly lore hint', async () => {
+  const legacySave = {
+    version: 1,
+    name: 'Nhà Du Hành Mây',
+    coins: 500,
+    xp: 200,
+    renown: 10,
+    health: 100,
+    stamina: 100,
+    day: 5,
+    minutes: 700,
+    map: 'ruins',
+    x: 800,
+    y: 550,
+    inventory: { wood: 10, ore: 5, herb: 5, berry: 5, star: 2, fish: 1, crystal: 2, plank: 2, tea: 1, lantern: 1, meal: 1 },
+    upgrades: ['well', 'workshop', 'bridge', 'archive'],
+    quests: {},
+    visited: ['village', 'coast', 'ruins'],
+    resources: {},
+    crops: [null, null, null, null],
+    shrines: ['ruins'],
+    chests: ['chest-ruins'],
+    stats: {}
+  };
+
+  const e = loadGame({ saved: legacySave });
+  await e.start(legacySave.name);
+  const gameState = e.qa.getState();
+
+  // Kiểm tra puzzles được khởi tạo mặc định là mảng rỗng
+  assert.ok(Array.isArray(gameState.puzzles), 'puzzles is initialized as an array');
+  assert.equal(gameState.puzzles.length, 0, 'puzzles defaults to empty array on legacy save');
+
+  // Kiểm tra NPC Ly có lời thoại gợi ý quỹ đạo ánh sáng của bia sao cổ
+  const lyNpc = e.qa.data.npcs.find(n => n.id === 'ly');
+  assert.ok(lyNpc, 'NPC Ly exists');
+  const hasHint = lyNpc.dialogue.some(line => line.includes('từ Tây sang Bắc rồi về Đông') && line.includes('chuông ngân'));
+  assert.ok(hasHint, 'NPC Ly provides hint about ancient steles orbit sequence');
+});
+

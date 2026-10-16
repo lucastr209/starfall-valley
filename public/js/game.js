@@ -29,7 +29,7 @@
   let tutorialPending=!!Tutorial&&!tutorialCompleted&&(!saved||saved.version!==1)&&(!qaMode||new URLSearchParams(location.search).get('tutorial')==='1');
   const mobileLayout=()=>!!window.innerWidth&&(window.innerWidth<=780||window.innerWidth<=1100&&window.innerHeight<=600&&window.innerWidth>window.innerHeight);
   let near = null, swing = 0, attackCooldown = 0, hurtCooldown = 0, animation = 0, facing = 1;
-  let fishing = null, toastUntil = 0, lastSaved = 0, hudTimer = 0, regenTimer = 0;
+  let fishing = null, toastUntil = 0, lastSaved = 0, hudTimer = 0, regenTimer = 0, steleSequence = [];
   let socket = null, onlineId = null, reconnectTimer = null, moveTimer = 0, reconnectAttempts = 0;
   const peers = new Map(), particles = [], effects = [], terrainCache = new Map(), world = {};
   const motionPreference=window.matchMedia?.('(prefers-reduced-motion: reduce)');
@@ -41,6 +41,19 @@
   motionPreference?.addEventListener?.('change',e=>{reducedMotion=e.matches;if(reducedMotion){particles.length=0;effects.length=0;}});
   const npcs = NPC.createNPCs(D.npcs);
   let guidedNpcId = null;
+  const pet = {
+    x: state.x - 28,
+    y: state.y + 12,
+    map: state.map,
+    dir: 'down',
+    moving: false,
+    running: false,
+    gait: 0,
+    tailWag: 0,
+    name: state.pet?.name || 'Cún Sao',
+    forageTimer: 45 + Math.random() * 30,
+    loveCooldown: 0
+  };
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n)), distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const wantsRun = () => keys.has('shift')||touchRun;
   const moveSpeed = () => (state.upgrades.includes('boots')?225:180)*(wantsRun()?1.65:1);
@@ -118,6 +131,14 @@
       else {
         objects.push({id:`shrine-${region.id}`,kind:'shrine',x:800,y:280,name:'Bia ký ức'});
         objects.push({id:`chest-${region.id}`,kind:'chest',x:1400,y:940,name:'Rương thất lạc'});
+        if(region.id==='ruins'){
+          objects.push(
+            {id:'stele-ruins-west',kind:'stele',x:180,y:430,name:'Bia Sao Tây Đài',seq:'west'},
+            {id:'stele-ruins-north',kind:'stele',x:740,y:240,name:'Bia Sao Bắc Điện',seq:'north'},
+            {id:'stele-ruins-east',kind:'stele',x:920,y:460,name:'Bia Sao Đông Đài',seq:'east'},
+            {id:'chest-ruins-secret',kind:'chest',x:860,y:240,name:'Rương Cổ Bí Mật'}
+          );
+        }
         for(let i=0;i<5;i++){const x=420+i*205,y=x>1110?940:700+(i%2)*110;mobs.push({id:`${region.id}-slime-${i}`,x,y,homeX:x,homeY:y,hp:3,deadUntil:0,phase:i});}
       }
       const gates = region.id==='village' ? [
@@ -179,6 +200,7 @@
     state=pendingImport;pendingImport=null;tutorialPending=false;guidedNpcId=null;near=null;
     if(state.health<=0){state.health=100;state.stamina=70;state.map='village';state.x=800;state.y=720;}
     if(blockedAt(state.map,state.x,state.y)){state.map='village';state.x=850;state.y=565;}
+    if(pet){pet.map=state.map;pet.x=state.x-24;pet.y=state.y+12;pet.moving=false;pet.name=state.pet?.name||'Cún Sao';}
     clearMovement();actorMotions.clear();playerDirection='down';walkDistance=0;lastMinimap=-Infinity;
     closeDialog();refreshHUD();updateCamera();refreshStartSave();
     if(running&&socket){socket.onclose=null;socket.close();socket=null;peers.clear();onlineId=null;connect();}
@@ -224,7 +246,11 @@
   function showResidents() {
     const cards=D.regions.map(region=>`<h3>${esc(region.name)}</h3><div class="cards">${npcs.filter(n=>n.map===region.id).map(n=>{
       const marker=npcMarker(n), status=marker==='✓'?'Có thể giao đồ / nhận thưởng':marker==='?'?'Có nhiệm vụ hoặc hợp đồng mới':marker==='!'?'Đang có việc bạn đã nhận':'Chưa có nhiệm vụ mới';
-      return `<article class="card"><span class="badge">${esc(n.role)}</span><h3>${esc(n.name)} ${marker}</h3><p>${esc(n.patrolName)}</p><p class="good">${status}</p><button data-find-npc="${n.id}">Tìm ${esc(n.name)}</button></article>`;
+      const f=state.friendship?.[n.id]||{points:0,talkedToday:false,giftedToday:false};
+      const hearts=Math.floor(f.points/100);
+      const heartMeter='♥'.repeat(hearts)+'♡'.repeat(5-hearts);
+      const giftStatus=f.giftedToday?'✓ Đã tặng quà':'🎁 Chưa tặng quà';
+      return `<article class="card"><span class="badge">${esc(n.role)}</span><h3>${esc(n.name)} ${marker}</h3><div class="resident-hearts" title="${f.points}/500 điểm thân thiết"><span class="hearts">${heartMeter}</span> <span class="heart-text">${hearts}/5 · ${giftStatus}</span></div><p>${esc(n.patrolName)}</p><p class="good">${status}</p><button data-find-npc="${n.id}">Tìm ${esc(n.name)}</button></article>`;
     }).join('')}</div>`).join('');
     openDialog('residents','Cư dân thung lũng','NHỮNG NGƯỜI BẠN GẶP TRÊN ĐƯỜNG',`<p class="dialog-intro">Cư dân đi lại quanh nơi sinh hoạt và dừng khi bạn tới gần. Theo chỉ dẫn để tìm họ; nhấn E hoặc Tương tác để nhận việc. ? Có việc mới · ! Đang thực hiện · ✓ Sẵn sàng nhận thưởng.</p>${cards}`);
   }
@@ -298,14 +324,53 @@
   }
   function talk(npc,registerVisit=true) {
     if(registerVisit){C.event(state,'talk',npc.id,1,D);save();refreshHUD();}
+    const f=state.friendship?.[npc.id]||{points:0,talkedToday:false,giftedToday:false};
+    const hearts=Math.floor(f.points/100);
+    const heartMeter='♥'.repeat(hearts)+'♡'.repeat(5-hearts);
+    const eyebrow=`${npc.role} · ${heartMeter} (${hearts}/5)`;
+    let speech='';
+    if(hearts>=5&&npc.heartDialogues?.[5]) speech=npc.heartDialogues[5];
+    else if(hearts>=4&&npc.heartDialogues?.[4]) speech=npc.heartDialogues[4];
+    else if(hearts>=2&&npc.heartDialogues?.[2]) speech=npc.heartDialogues[2];
+    else speech=npc.dialogue[(state.day-1)%npc.dialogue.length];
     const related=D.quests.filter(q=>q.giver===npc.id&&state.quests[q.id]?.status!=='claimed'&&(state.quests[q.id]||C.available(state,q,D)));
     const actions=related.map(q=>`<article class="card"><h3>${esc(q.title)}</h3><p>${esc(q.description)}</p>${state.quests[q.id]?`<button data-claim="${q.id}" ${C.complete(state,q)?'':'disabled'}>${C.complete(state,q)?'Giao đồ / nhận thưởng':'Chưa đủ mục tiêu'}</button>`:`<button data-accept="${q.id}">Nhận nhiệm vụ</button>`}</article>`).join('');
-    openDialog(`npc:${npc.id}`,npc.name,npc.role,`<div class="dialogue-text">${esc(npc.dialogue[(state.day-1)%npc.dialogue.length])}</div>${actions?`<div class="cards">${actions}</div>`:'<p class="dialog-intro">Một cuộc trò chuyện cũng làm thung lũng ấm áp hơn.</p>'}<div class="npc-actions"><button data-open-journal>Mở sổ nhiệm vụ</button><button data-close>Hẹn gặp lại</button></div>`);
+    const heartBar=`<div class="npc-hearts-bar"><span class="npc-hearts">${heartMeter}</span> <span class="npc-hearts-text">${f.points}/500 điểm thân thiết (${hearts}/5 Tim) · ${f.giftedToday?'✓ Đã tặng quà hôm nay':'🎁 Chưa tặng quà hôm nay'}</span></div>`;
+    const giftBtn=`<button data-gift-npc="${npc.id}">🎁 Tặng quà</button>`;
+    openDialog(`npc:${npc.id}`,npc.name,eyebrow,`${heartBar}<div class="dialogue-text">${esc(speech)}</div>${actions?`<div class="cards">${actions}</div>`:'<p class="dialog-intro">Một cuộc trò chuyện cũng làm thung lũng ấm áp hơn.</p>'}<div class="npc-actions">${giftBtn}<button data-open-journal>Mở sổ nhiệm vụ</button><button data-close>Hẹn gặp lại</button></div>`);
+  }
+  function showGiftMenu(npc) {
+    const f=state.friendship?.[npc.id]||{points:0,talkedToday:false,giftedToday:false};
+    const hearts=Math.floor(f.points/100);
+    const heartMeter='♥'.repeat(hearts)+'♡'.repeat(5-hearts);
+    const eyebrow=`${npc.role} · ${heartMeter} (${hearts}/5)`;
+    if(f.giftedToday){
+      openDialog(`gift:${npc.id}`,`Tặng quà cho ${npc.name}`,eyebrow,`<p class="dialog-intro">Hôm nay bạn đã tặng quà cho ${esc(npc.name)} rồi. Hãy quay lại vào ngày mai nhé!</p><div class="npc-actions"><button data-talk-back="${npc.id}">Quay lại trò chuyện</button><button data-close>Đóng</button></div>`);
+      return;
+    }
+    const giftableItems=Object.entries(D.items).filter(([id])=>(state.inventory[id]||0)>0);
+    if(!giftableItems.length){
+      openDialog(`gift:${npc.id}`,`Tặng quà cho ${npc.name}`,eyebrow,`<p class="dialog-intro">Túi đồ của bạn đang trống. Hãy thu thập hoặc chế tạo vật phẩm trước khi tặng quà!</p><div class="npc-actions"><button data-talk-back="${npc.id}">Quay lại trò chuyện</button><button data-close>Đóng</button></div>`);
+      return;
+    }
+    const itemsHtml=giftableItems.map(([id,item])=>`<button class="gift-item" data-give-gift="${id}" data-npc="${npc.id}"><span class="gift-icon">${item.icon}</span><span class="gift-name">${esc(item.name)}</span><span class="gift-count">x${state.inventory[id]}</span></button>`).join('');
+    openDialog(`gift:${npc.id}`,`Tặng quà cho ${npc.name}`,eyebrow,`<div class="gift-menu"><p class="dialog-intro">Chọn một món quà từ túi đồ để tặng cho ${esc(npc.name)}:</p><div class="gift-grid">${itemsHtml}</div></div><div class="npc-actions"><button data-talk-back="${npc.id}">Quay lại trò chuyện</button><button data-close>Đóng</button></div>`);
+  }
+  function openGiftReactionDialog(npc,result) {
+    const f=state.friendship?.[npc.id]||{points:result.points,talkedToday:false,giftedToday:true};
+    const hearts=Math.floor(f.points/100);
+    const heartMeter='♥'.repeat(hearts)+'♡'.repeat(5-hearts);
+    const eyebrow=`${npc.role} · ${heartMeter} (${hearts}/5)`;
+    const sign=result.pointsDelta>=0?'+':'';
+    const milestoneNote=result.rewards&&result.rewards.length>0?`<div class="reward">✦ Mở khóa mốc thân thiết ${result.rewards.map(r=>r.milestone).join(', ')} tim!</div>`:'';
+    const heartBar=`<div class="npc-hearts-bar"><span class="npc-hearts">${heartMeter}</span> <span class="npc-hearts-text">${f.points}/500 điểm thân thiết (${hearts}/5 Tim)</span></div>`;
+    openDialog(`npc:${npc.id}`,npc.name,eyebrow,`${heartBar}<div class="dialogue-text">${esc(result.reaction)}</div><p class="good">${sign}${result.pointsDelta} Điểm thân thiết (${result.points}/500 điểm · ${hearts}/5 Tim)</p>${milestoneNote}<div class="npc-actions"><button data-talk-back="${npc.id}">Tiếp tục trò chuyện</button><button data-close>Hẹn gặp lại</button></div>`);
   }
   function updateModal() {
     if(modal==='journal')showJournal();else if(modal==='build')showBuild();else if(modal==='inventory')showInventory();
     else if(modal==='residents')showResidents();
     else if(modal?.startsWith('npc:')) { const npc=npcById(modal.slice(4)); if(npc)talk(npc,false); }
+    else if(modal?.startsWith('gift:')) { const npc=npcById(modal.slice(5)); if(npc)showGiftMenu(npc); }
   }
   document.addEventListener('click',e=>{
     const b=e.target.closest('button');if(!b)return;
@@ -321,6 +386,24 @@
     if(b.hasAttribute('data-close'))closeDialog();
     if(b.hasAttribute('data-open-journal'))showJournal();
     if(b.dataset.findNpc) {const npc=npcById(b.dataset.findNpc);if(npc){guidedNpcId=npc.id;closeDialog();refreshHUD();toast(`Đang tìm ${npc.name}. Chỉ dẫn ở bảng hành trình sẽ theo vị trí hiện tại của họ.`);}}
+    if(b.dataset.giftNpc) {const npc=npcById(b.dataset.giftNpc);if(npc)showGiftMenu(npc);return;}
+    if(b.dataset.giveGift) {
+      const npcId=b.dataset.npc||(modal?.startsWith('gift:')?modal.slice(5):modal?.startsWith('npc:')?modal.slice(4):nearestNPC());
+      const npc=npcById(npcId), itemId=b.dataset.giveGift;
+      if(npc&&itemId){
+        const result=C.giveGift(state,npc.id,itemId,D);
+        if(result.ok){
+          const heartBurst=(result.pointsDelta>=0?'+':'')+result.pointsDelta+' ♥';
+          burst(npc.x,npc.y,'#ff6b8b',heartBurst);
+          effect('text',npc.x,npc.y-55,heartBurst,'#ff6b8b');
+          toast(`${npc.name}: "${result.reaction}" (${heartBurst})`);
+          if(result.rewards&&result.rewards.length>0)toast(`Mở khóa mốc thân thiết! Nhận thưởng từ ${npc.name}.`);
+          save();refreshHUD();openGiftReactionDialog(npc,result);
+        } else toast(result.message);
+      }
+      return;
+    }
+    if(b.dataset.talkBack) {const npc=npcById(b.dataset.talkBack);if(npc)talk(npc,false);return;}
     if(b.dataset.accept) { if(C.accept(state,b.dataset.accept,D)){ toast('Đã nhận nhiệm vụ. Mục tiêu sẽ được tính từ bây giờ.');save();refreshHUD();updateModal(); } }
     if(b.dataset.track) { state.tracked=b.dataset.track;guidedNpcId=null;save();refreshHUD();updateModal(); }
     if(b.dataset.claim) { reward(C.claim(state,b.dataset.claim,D,modal?.startsWith('npc:')?modal.slice(4):nearestNPC()));updateModal(); }
@@ -438,10 +521,14 @@
     if(!running||gamePaused())return;
     if(fishing){if(['e','enter'].includes(k)){e.preventDefault();interact();}return;}
     if(['BUTTON','A'].includes(document.activeElement?.tagName)&&[' ','enter'].includes(k))return;
-    if(['arrowup','arrowdown','arrowleft','arrowright',' ','e','q','b','i'].includes(k))e.preventDefault();
+    if(['arrowup','arrowdown','arrowleft','arrowright',' ','e','q','b','i','r','1','2','3'].includes(k))e.preventDefault();
     if(e.repeat)return;
     keys.add(k);
     if(k==='shift')syncRunControl();
+    if(k==='1'){state.selectedSeed='berry';toast('Đã chọn hạt: Quả mâm xôi');refreshHUD();save();}
+    if(k==='2'){state.selectedSeed='carrot';toast('Đã chọn hạt: Cà rốt sao');refreshHUD();save();}
+    if(k==='3'){state.selectedSeed='wheat';toast('Đã chọn hạt: Lúa mì vàng');refreshHUD();save();}
+    if(k==='r')waterPlot();
     if(k==='e'||k==='enter')interact();if(k===' ')attack();if(k==='q')showJournal();if(k==='b')showBuild();if(k==='i')showInventory();
   });
   document.addEventListener('keyup',e=>{keys.delete(e.key.toLowerCase());if(e.key.toLowerCase()==='shift'){playerRunning=!!state.moving&&wantsRun();syncRunControl();}});
@@ -508,8 +595,44 @@
     const residents=npcs.filter(n=>n.map===state.map&&distance(n,state)<78).sort((a,b)=>distance(a,state)-distance(b,state));
     // A resident walking past a resource remains easy to talk to with E.
     if(residents.length)return {...residents[0],kind:'npc'};
-    const candidates=world[state.map].objects;
-    return candidates.filter(o=>distance(o,state)<(o.kind==='gate'?100:78)).sort((a,b)=>distance(a,state)-distance(b,state))[0]||null;
+    const candidates=[...world[state.map].objects,...(pet&&pet.map===state.map?[{x:pet.x,y:pet.y,name:pet.name||'Cún Sao',kind:'pet'}]:[])];
+    return candidates.filter(o=>distance(o,state)<(o.kind==='gate'?100:o.kind==='pet'?55:78)).sort((a,b)=>distance(a,state)-distance(b,state))[0]||null;
+  }
+  function waterPlot(plotIndex) {
+    if(!running||gamePaused())return;
+    const target=(typeof plotIndex==='number'&&plots[plotIndex])?plots[plotIndex]:(near&&near.kind==='plot'?near:null);
+    if(!target){toast('Tới gần luống đất để tưới nước.');return;}
+    const isWatered=Boolean(state.watered?.[target.i])||C.weather(state)==='rain';
+    if(isWatered){toast('Luống đất đã có đủ nước.');return;}
+    if(state.stamina<2){toast('Cần ít nhất 2 thể lực để tưới nước.');return;}
+    state.stamina-=2;
+    if(!state.watered)state.watered=[false,false,false,false];
+    state.watered[target.i]=true;
+    effect('ripple',target.x,target.y,'','#79b9c0');
+    toast('Đã tưới nước cho luống đất. Đất ẩm giúp tăng thêm sản lượng khi thu hoạch!');
+    refreshHUD();save();
+  }
+  function petThePet() {
+    state.stamina=clamp(state.stamina+2,0,100);
+    effect('text',pet.x,pet.y-20,'♥','#ff6b8b');
+    burst(pet.x,pet.y-12,'#ff9ebb',`${pet.name||'Cún Sao'} vẫy đuôi mừng rỡ! +2 thể lực ♥`);
+    pet.tailWag+=12;
+    refreshHUD();
+    save();
+  }
+  function petForageAssist(chosenItem) {
+    const pool=['berry','berry','herb','herb','wood','star'];
+    const itemId=chosenItem||pool[Math.floor(Math.random()*pool.length)];
+    const gained=C.addItem(state,itemId,1,D);
+    if(!gained){
+      toast(`${pet.name||'Cún Sao'} tìm thấy ${D.items[itemId].name} nhưng túi bạn đã đầy.`);
+      return;
+    }
+    C.event(state,'gather',itemId,1,D);
+    effect('text',pet.x,pet.y-25,`+1 ${D.items[itemId].name}`,'#ffd700');
+    burst(pet.x,pet.y-10,'#ffd700',`${pet.name||'Cún Sao'} vừa đánh hơi và tìm thấy 1 ${D.items[itemId].name} cho bạn! ✦`);
+    refreshHUD();
+    save();
   }
   function interact() {
     if(!running||gamePaused())return;
@@ -518,9 +641,12 @@
     if(C.isNight(state)&&state.map==='village')C.event(state,'night','village',1,D);
     const o=near;
     if(o.kind==='npc'){talk(o);return;}
+    if(o.kind==='pet'){petThePet();return;}
     if(o.kind==='gate'){
       if(!C.visit(state,o.to,D)){toast(o.to==='coast'?'Xây Cầu Gió Biển để mở đường đến vịnh.':'Xây Kho Chuyện Mây để tìm đường tới tàn tích.');return;}
-      state.x=800;state.y=o.to==='village'?170:910;near=null;clearMovement();playerDirection='down';walkDistance=0;actorMotions.delete('player');particles.length=0;effects.length=0;effect('ring',state.x,state.y,'','#c9ead2');refreshHUD();save();toast(`Đã tới ${D.regions.find(r=>r.id===o.to).name}`);return;
+      state.x=800;state.y=o.to==='village'?170:910;near=null;clearMovement();playerDirection='down';walkDistance=0;actorMotions.delete('player');particles.length=0;effects.length=0;effect('ring',state.x,state.y,'','#c9ead2');
+      if(pet){pet.map=state.map;pet.x=state.x-24;pet.y=state.y+12;pet.moving=false;}
+      refreshHUD();save();toast(`Đã tới ${D.regions.find(r=>r.id===o.to).name}`);return;
     }
     if(o.kind==='resource'){
       if(!resourceReady(o)){toast('Tài nguyên đang hồi phục. Hãy quay lại sau 30 giây.');return;}
@@ -534,13 +660,87 @@
     }
     if(o.kind==='fish'){
       if(state.stamina<6){toast('Cần ít nhất 6 thể lực để thả câu.');return;}
-      clearMovement();fishing={elapsed:0,rippleTimer:0,position:0,spot:o};effect('ripple',o.x+30,o.y,'','#bfe6dc');$('fishing').hidden=false;return;
+      clearMovement();fishing={elapsed:0,rippleTimer:0,position:0,tension:0,spot:o};effect('ripple',o.x+30,o.y,'','#bfe6dc');$('fish-marker').style.left='0%';const bar=$('fish-tension-bar');if(bar)bar.style.width='0%';$('fishing').hidden=false;return;
+    }
+    if(o.kind==='stele'){
+      if(state.puzzles&&state.puzzles.includes('ruins-steles')){
+        toast('Trận đồ bia sao cổ đang tỏa sáng rực rỡ.');
+        return;
+      }
+      if(o.seq==='west'){
+        if(!steleSequence.includes('west')){
+          steleSequence=['west'];
+          effect('ring',o.x,o.y,'','#fff0a1');
+          effect('text',o.x,o.y-45,'+ Bia sao ngân vang (1/3)','#fff0a1');
+          toast('Bia Sao Tây Đài đã ngân vang (1/3)...');
+        }else{
+          toast('Bia Sao Tây Đài đang ngân vang (1/3).');
+        }
+      }else if(o.seq==='north'){
+        if(steleSequence.length===1&&steleSequence[0]==='west'){
+          steleSequence.push('north');
+          effect('ring',o.x,o.y,'','#fff0a1');
+          effect('text',o.x,o.y-45,'+ Bia sao ngân vang (2/3)','#fff0a1');
+          toast('Bia Sao Bắc Điện đã ngân vang (2/3)...');
+        }else if(steleSequence.includes('north')){
+          toast('Bia Sao Bắc Điện đang ngân vang (2/3).');
+        }else{
+          steleSequence=[];
+          effect('dust',o.x,o.y,'','#daceb0');
+          toast('Tiếng ngân tắt lịm... Thứ tự chưa đúng, hãy thử lại từ Bia Tây!');
+        }
+      }else if(o.seq==='east'){
+        if(steleSequence.length===2&&steleSequence[0]==='west'&&steleSequence[1]==='north'){
+          steleSequence.push('east');
+          if(!state.puzzles)state.puzzles=[];
+          if(!state.puzzles.includes('ruins-steles'))state.puzzles.push('ruins-steles');
+          burst(o.x,o.y-30,'#fff0a1','Trận đồ bia sao cộng hưởng trọn vẹn (3/3)! Rương Cổ Bí Mật đã mở phong ấn!');
+          effect('ring',o.x,o.y,'','#fff0a1');
+          effect('text',o.x,o.y-45,'+ Bia sao ngân vang (3/3)','#fff0a1');
+          toast('Trận đồ bia sao đã kích hoạt! Rương Cổ Bí Mật đã mở phong ấn!');
+          save();
+        }else{
+          steleSequence=[];
+          effect('dust',o.x,o.y,'','#daceb0');
+          toast('Tiếng ngân tắt lịm... Thứ tự chưa đúng, hãy thử lại từ Bia Tây!');
+        }
+      }
+      refreshHUD();
+      return;
     }
     if(o.kind==='plot'){
       const planted=state.crops[o.i],wait=state.upgrades.includes('greenhouse')?8000:16000;
-      if(planted===null){if(state.stamina<3){toast('Bạn cần nghỉ trước khi gieo trồng.');return;}state.crops[o.i]=Date.now();state.stamina-=3;C.event(state,'plant','berry',1,D);effect('sprout',o.x,o.y,'','#b9dd83');toast('Đã gieo mâm xôi. Cây chín sau 16 giây; nhà kính rút còn 8 giây.');}
-      else if(Date.now()-planted>=wait){const gained=C.addItem(state,'berry',4,D);if(!gained){toast('Túi mâm xôi đã đầy.');return;}state.crops[o.i]=null;C.event(state,'harvest','berry',1,D);C.event(state,'gather','berry',gained,D);state.xp+=8;burst(o.x,o.y,'#efa29c',`Thu hoạch +${gained} mâm xôi!`);effect('text',o.x,o.y-30,`+${gained} mâm xôi`,'#ffe4c5');}
-      else toast(`Cây đang lớn. Còn ${Math.ceil((wait-Date.now()+planted)/1000)} giây.`);
+      if(planted===null){
+        if(state.stamina<3){toast('Bạn cần nghỉ trước khi gieo trồng.');return;}
+        const seed=state.selectedSeed||'berry';
+        state.crops[o.i]=Date.now();
+        if(!state.cropTypes)state.cropTypes=['berry','berry','berry','berry'];
+        state.cropTypes[o.i]=seed;
+        if(!state.watered)state.watered=[false,false,false,false];
+        state.watered[o.i]=C.weather(state)==='rain';
+        state.stamina-=3;
+        C.event(state,'plant',seed,1,D);
+        effect('sprout',o.x,o.y,'','#b9dd83');
+        const seedName=seed==='berry'?'mâm xôi':D.items[seed].name.toLowerCase();
+        toast(`Đã gieo ${seedName}. Cây chín sau 16 giây; nhà kính rút còn 8 giây.`);
+      }
+      else if(Date.now()-planted>=wait){
+        const cropId=state.cropTypes?.[o.i]||'berry';
+        const isWatered=Boolean(state.watered?.[o.i])||C.weather(state)==='rain';
+        const harvestCount=isWatered?5:4;
+        const cropName=cropId==='berry'?'mâm xôi':D.items[cropId].name.toLowerCase();
+        const gained=C.addItem(state,cropId,harvestCount,D);
+        if(!gained){toast(`Túi ${cropName} đã đầy.`);return;}
+        state.crops[o.i]=null;
+        if(state.watered)state.watered[o.i]=false;
+        C.event(state,'harvest',cropId,1,D);
+        C.event(state,'gather',cropId,gained,D);
+        state.xp+=8;
+        const burstColor=cropId==='berry'?'#efa29c':cropId==='carrot'?'#f7a868':'#f3d677';
+        burst(o.x,o.y,burstColor,`Thu hoạch +${gained} ${cropName}!${isWatered?' (Đất ẩm +1)':''}`);
+        effect('text',o.x,o.y-30,`+${gained} ${cropName}`,'#ffe4c5');
+      }
+      else toast(`Cây đang lớn. Còn ${Math.ceil((wait-Date.now()+planted)/1000)} giây.${Boolean(state.watered?.[o.i])||C.weather(state)==='rain'?' (Đất ẩm)':' (Nhấn R tưới nước)'}`);
     }
     if(o.kind==='shrine'){
       if(!state.shrines.includes(state.map)){if(state.inventory.star+2>C.capacity(state)){toast('Cần chỗ cho 2 mảnh sao trong túi trước khi đánh thức bia.');return;}state.shrines.push(state.map);state.xp+=35;C.event(state,'shrine',state.map,1,D);C.addItem(state,'star',2,D);burst(o.x,o.y-50,'#bceef0','Bia ký ức thức giấc. +2 mảnh sao, +35 XP!');}
@@ -548,6 +748,21 @@
     }
     if(o.kind==='chest'){
       if(state.chests.includes(o.id)){toast('Chiếc rương này đã được khám phá.');return;}
+      if(o.id==='chest-ruins-secret'){
+        const solved=Boolean(state.puzzles&&state.puzzles.includes('ruins-steles'));
+        if(!solved){toast('Rương Cổ Bí Mật đang bị phong ấn bởi trận đồ bia sao.');return;}
+        if(state.inventory.crystal+3>C.capacity(state)||state.inventory.star+3>C.capacity(state)){toast('Cần chỗ cho 3 tinh thể trời và 3 mảnh sao trong túi trước khi mở rương.');return;}
+        state.chests.push(o.id);
+        state.coins+=120;
+        state.xp+=50;
+        C.addItem(state,'crystal',3,D);
+        C.addItem(state,'star',3,D);
+        C.event(state,'chest','treasure',1,D);
+        burst(o.x,o.y-20,'#fbd77f','Rương Cổ Bí Mật: +120 xu, +3 tinh thể trời, +3 mảnh sao, +50 XP!');
+        effect('text',o.x,o.y-45,'+120 xu · +3 tinh thể · +3 sao','#ffd700');
+        refreshHUD();save();
+        return;
+      }
       if(state.inventory.star+2>C.capacity(state)||state.inventory.ore+3>C.capacity(state)){toast('Cần chỗ cho 2 mảnh sao và 3 quặng trong túi trước khi mở rương.');return;}
       state.chests.push(o.id);state.coins+=90;state.xp+=20;C.addItem(state,'star',2,D);C.addItem(state,'ore',3,D);C.event(state,'chest','treasure',1,D);burst(o.x,o.y-20,'#fbd77f','Kho báu: +90 xu, +2 mảnh sao, +3 quặng!');
     }
@@ -562,7 +777,7 @@
   document.addEventListener('click',e=>{if(e.target.closest('[data-night]')){state.minutes=1140;closeDialog();refreshHUD();save();toast('Đêm xuống. Ánh đèn đã soi rõ đường làng.');}});
   function finishFishing() {
     if(!fishing)return;
-    const success=fishing.position>=.38&&fishing.position<=.62;
+    const success=(fishing.position>=.38&&fishing.position<=.62)||(fishing.tension>=1.0);
     state.stamina=Math.max(0,state.stamina-6);
     if(success){const gain=C.addItem(state,'fish',1,D);if(gain){C.event(state,'fish','fish',1,D);C.event(state,'gather','fish',1,D);state.xp+=12;burst(fishing.spot.x,fishing.spot.y,'#d6f1ea','Câu được một cá vịnh! +12 XP');effect('text',fishing.spot.x,fishing.spot.y-35,'+1 cá vịnh','#d6f1ea');}else toast('Túi cá đã đầy.');}
     else toast('Cá thoát rồi! Bấm E khi phao nằm trong vùng vàng.');
@@ -609,7 +824,24 @@
     const paused=gamePaused();
     if(!paused){animation+=dt;attackCooldown=Math.max(0,attackCooldown-dt);swing=Math.max(0,swing-dt);hurtCooldown=Math.max(0,hurtCooldown-dt);}
     if(!paused){
-      if(fishing){fishing.elapsed+=dt;fishing.rippleTimer+=dt;if(fishing.rippleTimer>=.85){effect('ripple',fishing.spot.x+30,fishing.spot.y,'','#bfe6dc');fishing.rippleTimer=0;}fishing.position=(Math.sin(fishing.elapsed*3.8-Math.PI/2)+1)/2;$('fish-marker').style.left=`${fishing.position*98}%`;}
+      if(fishing){
+        fishing.elapsed+=dt;
+        fishing.rippleTimer+=dt;
+        if(fishing.rippleTimer>=.85){effect('ripple',fishing.spot.x+30,fishing.spot.y,'','#bfe6dc');fishing.rippleTimer=0;}
+        fishing.position=(Math.sin(fishing.elapsed*3.8-Math.PI/2)+1)/2;
+        const inZone=fishing.position>=.38&&fishing.position<=.62;
+        const holdingPull=keys.has('e')||keys.has('enter')||touchKeys.has('interact');
+        if(inZone){
+          const rate=holdingPull?2.3:2.0;
+          fishing.tension=Math.min(1.0,(fishing.tension||0)+dt*rate);
+        }else{
+          fishing.tension=Math.max(0,(fishing.tension||0)-dt*0.02);
+        }
+        $('fish-marker').style.left=`${fishing.position*98}%`;
+        const bar=$('fish-tension-bar');
+        if(bar)bar.style.width=`${Math.round((fishing.tension||0)*100)}%`;
+        if(fishing.tension>=1.0){finishFishing();return;}
+      }
       else{
         const oldX=state.x,oldY=state.y;
         let dx=(keys.has('d')||keys.has('arrowright')||touchKeys.has('right')?1:0)-(keys.has('a')||keys.has('arrowleft')||touchKeys.has('left')?1:0),dy=(keys.has('s')||keys.has('arrowdown')||touchKeys.has('down')?1:0)-(keys.has('w')||keys.has('arrowup')||touchKeys.has('up')?1:0);
@@ -622,6 +854,47 @@
       }
       if(!fishing)NPC.updateNPCs(npcs,dt,{map:state.map,player:state,isBlocked:blockedAt});
       else {state.moving=false;playerRunning=false;npcs.forEach(n=>{n.moving=false;});}
+      if(pet&&!fishing){
+        if(pet.map!==state.map){
+          pet.map=state.map;pet.x=state.x-24;pet.y=state.y+12;pet.moving=false;
+        }
+        const pDist=distance(pet,state);
+        if(pDist>260){
+          pet.x=state.x-24;pet.y=state.y+12;pet.moving=false;
+        }else if(pDist>45){
+          pet.moving=true;
+          pet.running=playerRunning;
+          const speed=(playerRunning?305:190)*(pDist>130?1.35:1.05);
+          const travel=Math.min(pDist-38,speed*Math.min(dt,0.25));
+          const steps=Math.ceil(travel/4);
+          if(steps>0){
+            const dx=state.x-pet.x,dy=state.y-pet.y;
+            const stepX=(dx/pDist)*(travel/steps),stepY=(dy/pDist)*(travel/steps);
+            let movedDist=0;
+            for(let i=0;i<steps;i++){
+              let mx=false,my=false;
+              if(!blockedAt(state.map,pet.x+stepX,pet.y)){pet.x+=stepX;mx=true;}
+              if(!blockedAt(state.map,pet.x,pet.y+stepY)){pet.y+=stepY;my=true;}
+              if(mx||my)movedDist+=Math.hypot(mx?stepX:0,my?stepY:0);
+              else break;
+            }
+            pet.gait+=movedDist;
+            if(Math.abs(dx)>Math.abs(dy))pet.dir=dx>0?'right':'left';
+            else if(Math.abs(dy)>0.1)pet.dir=dy>0?'down':'up';
+          }
+        }else if(pDist<=40){
+          pet.moving=false;
+        }
+        pet.tailWag+=dt*(pet.moving?14:5);
+        if(pet.loveCooldown>0)pet.loveCooldown=Math.max(0,pet.loveCooldown-dt);
+        if(state.moving){
+          pet.forageTimer-=dt;
+          if(pet.forageTimer<=0){
+            petForageAssist();
+            pet.forageTimer=65+Math.random()*35;
+          }
+        }
+      }
       state.minutes+=dt*4;
       if(state.minutes>=1440){C.nextDay(state,D);state.minutes=0;toast('Sang ngày mới. Sổ hợp đồng vừa được cập nhật.');save();}
       regenTimer+=dt;
@@ -634,14 +907,14 @@
         const dist=distance(m,state);
         if(dist<220&&dist>25)moveMob(m,mobMap,state.x,state.y,38,dt);
         else if(dist>=220)moveMob(m,mobMap,m.homeX+Math.sin(animation*.6+m.phase)*30,m.homeY+Math.cos(animation*.6+m.phase)*20,24,dt);
-        if(dist<30&&hurtCooldown<=0){state.health-=8;hurtCooldown=1.2;burst(state.x,state.y-30,'#ed9c8c');if(state.health<=0){state.coins=Math.max(0,state.coins-30);state.health=100;state.stamina=70;state.map='village';state.x=800;state.y=720;clearMovement();playerDirection='down';walkDistance=0;toast('Mira đưa bạn về trại. Mất 30 xu, hãy nghỉ rồi tiếp tục.');save();}}
+        if(dist<30&&hurtCooldown<=0){state.health-=8;hurtCooldown=1.2;burst(state.x,state.y-30,'#ed9c8c');if(state.health<=0){state.coins=Math.max(0,state.coins-30);state.health=100;state.stamina=70;state.map='village';state.x=800;state.y=720;clearMovement();playerDirection='down';walkDistance=0;if(pet){pet.map=state.map;pet.x=state.x-24;pet.y=state.y+12;pet.moving=false;}toast('Mira đưa bạn về trại. Mất 30 xu, hãy nghỉ rồi tiếp tục.');save();}}
       });
     }else {state.moving=false;playerRunning=false;npcs.forEach(n=>{n.moving=false;});}
     updateActorMotions(dt,paused||!!fishing);
     syncRunControl();
     updateCamera();
     near=paused||fishing?null:pickNearest();
-    const descriptions={npc:'Trò chuyện',resource:'Thu thập',gate:'Đi tới',plot:state.crops[near?.i]===null?'Gieo mâm xôi':'Kiểm tra / thu hoạch',fish:'Thả câu',camp:'Nghỉ / chờ tối',bench:'Hồi sức',well:'Hồi sức',shrine:'Đánh thức',chest:'Khám phá'};
+    const descriptions={npc:'Trò chuyện',pet:'Vuốt ve',stele:'Kích hoạt',resource:'Thu thập',gate:'Đi tới',plot:state.crops[near?.i]===null?`Gieo ${state.selectedSeed==='berry'?'mâm xôi':D.items[state.selectedSeed||'berry']?.name||'hạt'} (1-3 đổi hạt)`:Date.now()-state.crops[near?.i]>=(state.upgrades.includes('greenhouse')?8000:16000)?`Thu hoạch ${D.items[state.cropTypes?.[near?.i]||'berry']?.name}`:`Kiểm tra${Boolean(state.watered?.[near?.i])||C.weather(state)==='rain'?' (Đất ẩm)':' (R để tưới)'}`,fish:'Thả câu',camp:'Nghỉ / chờ tối',bench:'Hồi sức',well:'Hồi sức',shrine:'Đánh thức',chest:'Khám phá'};
     $('interaction-hint').textContent=near?`E · ${descriptions[near.kind]} ${near.name||''}`:'';
     for(let i=particles.length-1;i>=0;i--){const p=particles[i];if(p.map!==state.map){particles.splice(i,1);continue;}if(!paused){p.age+=dt;p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=100*dt;}if(p.life<=0)particles.splice(i,1);}
     for(let i=effects.length-1;i>=0;i--){const e=effects[i];if(e.map!==state.map){effects.splice(i,1);continue;}if(!paused)e.age+=dt;if(e.age>=e.life)effects.splice(i,1);}
@@ -711,15 +984,180 @@
       if(o.to==='coast'){for(let i=0;i<5;i++)rect(c,x-55+i*24,y+35,19,12,state.upgrades.includes('bridge')?'#bb9362':'#6b8579');}
     }
     if(o.kind==='plot'){
-      rect(c,x-25,y-26,52,47,'#5f5549');rect(c,x-22,y-23,46,40,'#8d6b50');for(let i=0;i<4;i++)rect(c,x-20,y-18+i*10,42,3,'#a6845c');
-      if(state.crops[o.i]!==null){const grown=Date.now()-state.crops[o.i]>=(state.upgrades.includes('greenhouse')?8000:16000);for(let i=0;i<3;i++){rect(c,x-17+i*14,y-19,6,grown?25:12,'#638856');rect(c,x-20+i*14,y-11,13,6,'#97b966');if(grown)rect(c,x-18+i*14,y-18,7,7,'#df8690');}}
+      const isMoist=Boolean(state.watered?.[o.i])||C.weather(state)==='rain';
+      rect(c,x-25,y-26,52,47,isMoist?'#3e3328':'#5f5549');
+      rect(c,x-22,y-23,46,40,isMoist?'#5c4331':'#8d6b50');
+      for(let i=0;i<4;i++)rect(c,x-20,y-18+i*10,42,3,isMoist?'#75563e':'#a6845c');
+      if(isMoist){
+        rect(c,x-15,y-17,3,2,'#9ecfd6');
+        rect(c,x+10,y+3,3,2,'#9ecfd6');
+      }
+      if(state.crops[o.i]!==null){
+        const wait=state.upgrades.includes('greenhouse')?8000:16000;
+        const elapsed=Date.now()-state.crops[o.i];
+        const grown=elapsed>=wait;
+        const cropId=state.cropTypes?.[o.i]||'berry';
+        if(elapsed<wait*0.45){
+          for(let i=0;i<3;i++){
+            rect(c,x-16+i*14,y-12,4,7,'#7ca352');
+            rect(c,x-18+i*14,y-14,8,3,'#a5cc6c');
+          }
+        }else if(!grown){
+          for(let i=0;i<3;i++){
+            if(cropId==='berry'){
+              rect(c,x-17+i*14,y-19,6,14,'#638856');
+              rect(c,x-20+i*14,y-11,13,6,'#97b966');
+            }else if(cropId==='carrot'){
+              rect(c,x-16+i*14,y-18,5,13,'#488b49');
+              rect(c,x-18+i*14,y-14,9,4,'#7ec850');
+            }else{
+              rect(c,x-16+i*14,y-20,4,15,'#8da848');
+              rect(c,x-18+i*14,y-15,8,4,'#b5c45a');
+            }
+          }
+        }else{
+          for(let i=0;i<3;i++){
+            if(cropId==='berry'){
+              rect(c,x-17+i*14,y-19,6,25,'#638856');
+              rect(c,x-20+i*14,y-11,13,6,'#97b966');
+              rect(c,x-18+i*14,y-18,7,7,'#df8690');
+              rect(c,x-16+i*14,y-16,3,3,'#ba4d5d');
+            }else if(cropId==='carrot'){
+              rect(c,x-16+i*14,y-22,5,12,'#488b49');
+              rect(c,x-19+i*14,y-18,11,4,'#7ec850');
+              rect(c,x-17+i*14,y-13,6,9,'#f0802b');
+              rect(c,x-15+i*14,y-8,2,5,'#e66c23');
+            }else{
+              rect(c,x-16+i*14,y-24,4,20,'#d1aa3b');
+              rect(c,x-18+i*14,y-20,8,12,'#f4d467');
+              rect(c,x-19+i*14,y-22,10,3,'#e5b839');
+            }
+          }
+        }
+      }
     }
     if(o.kind==='bench'){rect(c,x-29,y-30,58,8,'#b58d5a');rect(c,x-29,y-20,58,7,'#e0ba7d');rect(c,x-24,y-13,6,16,'#786852');rect(c,x+18,y-13,6,16,'#786852');}
     if(o.kind==='well'){pixelEllipse(c,x,y,56,25,'#647a6b');rect(c,x-25,y-28,50,27,state.upgrades.includes('well')?'#b2b19a':'#848d7b');rect(c,x-21,y-33,42,12,'#667978');rect(c,x-17,y-30,34,7,'#79b9c0');rect(c,x-26,y-51,5,31,'#927755');rect(c,x+21,y-51,5,31,'#927755');rect(c,x-29,y-57,58,8,'#aa7758');}
     if(o.kind==='camp'){rect(c,x-31,y-30,62,28,'#b47e5b');rect(c,x-25,y-42,50,15,'#dec793');rect(c,x-17,y-49,34,9,'#f1dba0');rect(c,x-10,y-30,20,28,'#675345');rect(c,x-10,y+10,25,6,'#8d6546');rect(c,x-8,y+2,15,13,'#d47e43');rect(c,x-5,y-5,9,17,'#f4c96d');rect(c,x-2,y-8+(reducedMotion?0:Math.sin(animation*6)*3),4,17,'#fff1b4');}
     if(o.kind==='fish'){rect(c,x-25,y-5,50,12,'#a58f63');for(let i=0;i<5;i++)rect(c,x-25+i*10,y-5,2,12,'#756d52');label(c,'≈',x+30,y-10,21,'#e2f1cc');}
+    if(o.kind==='stele'){
+      const active=(state.puzzles&&state.puzzles.includes('ruins-steles'))||steleSequence.includes(o.seq);
+      pixelEllipse(c,x,y+2,32,10,'#314b4838');
+      rect(c,x-14,y-6,28,7,'#6f7775');
+      rect(c,x-11,y-12,22,6,'#8a938f');
+      rect(c,x-8,y-48,16,36,'#9ca59f');
+      rect(c,x+4,y-48,4,36,'#7a847f');
+      rect(c,x-8,y-48,3,36,'#b8c2bc');
+      rect(c,x-12,y-54,24,6,'#8a938f');
+      rect(c,x-10,y-58,20,4,'#b2beb6');
+      rect(c,x-4,y-62,8,4,'#d5ded2');
+      if(active){
+        rect(c,x-2,y-36,4,12,'#fff4a8');
+        rect(c,x-6,y-32,12,4,'#fff4a8');
+        rect(c,x-1,y-35,2,10,'#ffffff');
+        rect(c,x-5,y-31,10,2,'#ffffff');
+        label(c,'✦',x,y-66,13,'#fff0a1');
+      }else{
+        rect(c,x-1,y-35,2,10,'#636d68');
+        rect(c,x-5,y-31,10,2,'#636d68');
+      }
+    }
     if(o.kind==='shrine'){const active=state.shrines.includes(state.map);pixelEllipse(c,x,y+3,75,15,'#46596e40');rect(c,x-30,y-10,60,12,'#888f93');rect(c,x-19,y-70,38,61,'#a9b4ad');rect(c,x+10,y-70,9,60,'#7e8d95');rect(c,x-12,y-77,24,8,'#cbd0b8');rect(c,x-9,y-56,18,4,active?'#dcf4c2':'#768d95');rect(c,x-4,y-60,8,28,active?'#f1eeb2':'#91a5a4');if(active)label(c,'✦',x,y-91,18,'#fff1b4');}
-    if(o.kind==='chest'){const opened=state.chests.includes(o.id);rect(c,x-23,y-23,46,26,'#85694b');rect(c,x-24,y-27,48,10,opened?'#6b5a49':'#b08a52');rect(c,x-22,y-17,42,14,'#bc9460');rect(c,x-16,y-23,5,25,'#e2bb6d');rect(c,x+12,y-23,5,25,'#e2bb6d');rect(c,x-3,y-13,6,7,'#f6d88d');}
+    if(o.kind==='chest'){
+      const opened=state.chests.includes(o.id);
+      const sealed=o.id==='chest-ruins-secret'&&!(state.puzzles&&state.puzzles.includes('ruins-steles'));
+      rect(c,x-23,y-23,46,26,'#85694b');
+      rect(c,x-24,y-27,48,10,opened?'#6b5a49':sealed?'#635b75':'#b08a52');
+      rect(c,x-22,y-17,42,14,sealed?'#7e7492':'#bc9460');
+      rect(c,x-16,y-23,5,25,sealed?'#b09ee0':'#e2bb6d');
+      rect(c,x+12,y-23,5,25,sealed?'#b09ee0':'#e2bb6d');
+      rect(c,x-3,y-13,6,7,sealed?'#d4c4ff':'#f6d88d');
+      if(sealed)label(c,'🔒',x,y-32,10,'#d5c8fa');
+    }
+  }
+  function drawPet(c,p) {
+    const x=Math.round(p.x),y=Math.round(p.y);
+    const bob=(!reducedMotion&&p.moving)?(Math.sin(p.gait*0.3)>0?1:0):0;
+    const legSwing=(!reducedMotion&&p.moving)?Math.sin(p.gait*0.35)*3:0;
+    const tailCycle=reducedMotion?0:Math.sin(p.tailWag||(animation*8))*(p.moving?4:2.5);
+    pixelEllipse(c,x,y+2,22,7,'#344c5538');
+    if(p.dir==='down'){
+      rect(c,x-7,y-3+(p.moving?legSwing:0),4,4,'#f2bc68');
+      rect(c,x-7,y-1+(p.moving?legSwing:0),4,2,'#fef3db');
+      rect(c,x+3,y-3-(p.moving?legSwing:0),4,4,'#f2bc68');
+      rect(c,x+3,y-1-(p.moving?legSwing:0),4,2,'#fef3db');
+      rect(c,x-7,y-9-bob,14,8,'#f2bc68');
+      rect(c,x-4,y-7-bob,8,6,'#fef3db');
+      rect(c,x+tailCycle-2,y-13-bob,4,5,'#f2bc68');
+      rect(c,x+tailCycle-1,y-15-bob,2,3,'#fef3db');
+      rect(c,x-8,y-18-bob,16,11,'#f2bc68');
+      rect(c,x-2,y-17-bob,4,3,'#fef3db');
+      rect(c,x-11,y-19-bob,4,8,'#bf7932');
+      rect(c,x-10,y-12-bob,3,2,'#9e5b22');
+      rect(c,x+7,y-19-bob,4,8,'#bf7932');
+      rect(c,x+7,y-12-bob,3,2,'#9e5b22');
+      rect(c,x-4,y-12-bob,8,5,'#fef3db');
+      rect(c,x-1.5,y-13-bob,3,2,'#22140c');
+      rect(c,x-5,y-15-bob,2,3,'#2a1a0e');
+      rect(c,x-5,y-15-bob,1,1,'#ffffff');
+      rect(c,x+3,y-15-bob,2,3,'#2a1a0e');
+      rect(c,x+3,y-15-bob,1,1,'#ffffff');
+      rect(c,x-6,y-8-bob,12,2,'#d34b42');
+      rect(c,x-2,y-7-bob,4,4,'#ffe043');
+      rect(c,x-1,y-6-bob,2,2,'#fff7a8');
+    }else if(p.dir==='up'){
+      rect(c,x-7,y-4+legSwing,4,4,'#e0a350');
+      rect(c,x+3,y-4-legSwing,4,4,'#e0a350');
+      rect(c,x-7,y-10-bob,14,9,'#f2bc68');
+      rect(c,x-5,y-8-bob,10,5,'#e0a350');
+      rect(c,x-2+tailCycle,y-16-bob,4,7,'#f2bc68');
+      rect(c,x-1+tailCycle,y-18-bob,2,3,'#fef3db');
+      rect(c,x-8,y-19-bob,16,10,'#f2bc68');
+      rect(c,x-11,y-20-bob,4,9,'#bf7932');
+      rect(c,x+7,y-20-bob,4,9,'#bf7932');
+      rect(c,x-6,y-10-bob,12,2,'#d34b42');
+    }else if(p.dir==='left'){
+      rect(c,x-6-legSwing,y-4,3,5,'#c98a3e');
+      rect(c,x+5+legSwing,y-4,3,5,'#c98a3e');
+      rect(c,x-7+legSwing,y-3,3,5,'#f2bc68');
+      rect(c,x-8+legSwing,y-1,4,2,'#fef3db');
+      rect(c,x+4-legSwing,y-3,3,5,'#f2bc68');
+      rect(c,x+3-legSwing,y-1,4,2,'#fef3db');
+      rect(c,x-7,y-9-bob,15,7,'#f2bc68');
+      rect(c,x-5,y-6-bob,8,4,'#fef3db');
+      rect(c,x+8,y-13-bob+tailCycle,4,6,'#f2bc68');
+      rect(c,x+9,y-15-bob+tailCycle,3,3,'#fef3db');
+      rect(c,x-13,y-17-bob,11,10,'#f2bc68');
+      rect(c,x-16,y-13-bob,5,5,'#fef3db');
+      rect(c,x-17,y-13-bob,2,2,'#22140c');
+      rect(c,x-11,y-15-bob,2,3,'#2a1a0e');
+      rect(c,x-11,y-15-bob,1,1,'#ffffff');
+      rect(c,x-6,y-18-bob,4,8,'#bf7932');
+      rect(c,x-7,y-10-bob,2,5,'#d34b42');
+      rect(c,x-9,y-7-bob,3,3,'#ffe043');
+    }else{
+      rect(c,x+3+legSwing,y-4,3,5,'#c98a3e');
+      rect(c,x-8-legSwing,y-4,3,5,'#c98a3e');
+      rect(c,x+4-legSwing,y-3,3,5,'#f2bc68');
+      rect(c,x+4-legSwing,y-1,4,2,'#fef3db');
+      rect(c,x-7+legSwing,y-3,3,5,'#f2bc68');
+      rect(c,x-7+legSwing,y-1,4,2,'#fef3db');
+      rect(c,x-8,y-9-bob,15,7,'#f2bc68');
+      rect(c,x-3,y-6-bob,8,4,'#fef3db');
+      rect(c,x-12,y-13-bob+tailCycle,4,6,'#f2bc68');
+      rect(c,x-12,y-15-bob+tailCycle,3,3,'#fef3db');
+      rect(c,x+2,y-17-bob,11,10,'#f2bc68');
+      rect(c,x+11,y-13-bob,5,5,'#fef3db');
+      rect(c,x+15,y-13-bob,2,2,'#22140c');
+      rect(c,x+9,y-15-bob,2,3,'#2a1a0e');
+      rect(c,x+10,y-15-bob,1,1,'#ffffff');
+      rect(c,x+2,y-18-bob,4,8,'#bf7932');
+      rect(c,x+5,y-10-bob,2,5,'#d34b42');
+      rect(c,x+6,y-7-bob,3,3,'#ffe043');
+    }
+    if(distance(p,state)<65){
+      label(c,p.name||'Cún Sao',x,y-22,10,'#fff4ce');
+    }
   }
   function terrain(map) {
     if(terrainCache.has(map))return terrainCache.get(map);
@@ -754,7 +1192,10 @@
       buildings.forEach(b=>{if(!b.upgrade||state.upgrades.includes(b.upgrade))sources.push({x:b.x,y:b.y-36,r:95,power:.65});});
       sources.push({x:camp.x,y:camp.y+4,r:110,power:.8});
       if(state.upgrades.includes('beacon'))sources.push({x:800,y:310,r:340,power:1});
-    }else world[state.map].objects.filter(o=>o.kind==='shrine'&&state.shrines.includes(state.map)).forEach(o=>sources.push({x:o.x,y:o.y-40,r:160,power:.8}));
+    }else{
+      world[state.map].objects.filter(o=>o.kind==='shrine'&&state.shrines.includes(state.map)).forEach(o=>sources.push({x:o.x,y:o.y-40,r:160,power:.8}));
+      world[state.map].objects.filter(o=>o.kind==='stele'&&((state.puzzles&&state.puzzles.includes('ruins-steles'))||steleSequence.includes(o.seq))).forEach(o=>sources.push({x:o.x,y:o.y-30,r:70,power:.65}));
+    }
     world[state.map].objects.filter(o=>o.item==='star'&&resourceReady(o)).forEach(o=>sources.push({x:o.x,y:o.y-12,r:38,power:.3}));
     return sources;
   }
@@ -818,6 +1259,7 @@
     }}));
     npcs.filter(n=>n.map===state.map).forEach(n=>drawables.push({y:n.y,draw:()=>actor(ctx,n.x,n.y,n.shirt,n.hair,n.moving,false,n.direction,n.walkDistance,n.running,n.id)}));
     peers.forEach(p=>{if(p.map===state.map)drawables.push({y:p.y,draw:()=>{const gaitDistance=p.walkDistance+(p.moving?Math.min(.2,Math.max(0,animation-p.receivedAt))*(p.running?297:180):0);actor(ctx,p.x,p.y,p.color,'#544152',p.moving,true,p.direction,gaitDistance,p.running,p.id);}});});
+    if(pet&&pet.map===state.map)drawables.push({y:pet.y,draw:()=>drawPet(ctx,pet)});
     drawables.push({y:state.y,draw:()=>{actor(ctx,state.x,state.y,'#579b9c','#564247',state.moving,true,playerDirection,walkDistance,playerRunning,'player');if(swing>0){const angle=reducedMotion?0:(.25-swing)/.25*1.8-.9,heading={up:0,right:Math.PI/2,down:Math.PI,left:-Math.PI/2}[playerDirection];ctx.save();ctx.translate(state.x,state.y-22);ctx.rotate(heading+angle);rect(ctx,0,-42,5,38,'#dfe9dc');rect(ctx,-5,-8,15,4,'#e7c885');rect(ctx,0,-4,5,13,'#937052');ctx.restore();}}});
     drawables.sort((a,b)=>a.y-b.y).forEach(o=>o.draw());
     drawActorLabels();
@@ -913,12 +1355,14 @@
       $('player-name').value=state.name;refreshHUD();
     }
     globalThis.StardropQA={getState:()=>structuredClone(state),getWorld:()=>world,getNPCs:()=>npcs,npcMarker,getGuide:guideNPC,blockedAt,interact,attack,update,drawGame,lightSources,collides,resourceReady,
+      water:waterPlot,waterPlot,getPet:()=>pet,petCompanion:()=>petThePet(),petForage:item=>petForageAssist(item),
+      giveGift:(npcId,itemId)=>C.giveGift(state,npcId,itemId,D),
       getPaths:(map=state.map)=>layouts[map],pathContains:(map,x,y,margin=0)=>P.contains(layouts[map],x,y,margin),getAmbientScene:(map=state.map)=>world[map].ambient,
       getEffects:()=>({effects:structuredClone(effects),particles:structuredClone(particles)}),getAnimationTime:()=>animation,isReducedMotion:()=>reducedMotion,
       getLocomotion:()=>({direction:playerDirection,distance:walkDistance,running:playerRunning,speed:moveSpeed(),touchRun,joystick:{x:joystickX,y:joystickY},joystickPointer,...(actorMotions.get('player')||{phase:0,motionWeight:0,runWeight:0})}),
       getActorMotion:id=>structuredClone(actorMotions.get(id==='player'?'player':`npc:${id}`)||{phase:0,motionWeight:0,runWeight:0,distance:0}),
       getActorLabels:actorLabels,
       getAmbientSample:(map=state.map)=>E.sampleAmbient(world[map].ambient,animation,{night:C.isNight(state),rain:C.weather(state)==='rain',upgrades:state.upgrades,shrineActive:state.shrines.includes(map),reducedMotion}),
-      setState:s=>{state=C.restoreState(s,D);refreshHUD();},core:C,data:D,storageKey,drawTitle};
+      setState:s=>{state=C.restoreState(s,D);if(pet){pet.name=state.pet?.name||'Cún Sao';pet.map=state.map;}refreshHUD();},core:C,data:D,storageKey,drawTitle};
   }
 })();

@@ -15,6 +15,10 @@
             ore: { name: 'Quặng đồng', icon: '🪨' },
             herb: { name: 'Lá bạc hà', icon: '🌿' },
             berry: { name: 'Quả mâm xôi', icon: '🍓' },
+            carrot: { name: 'Cà rốt sao', icon: '🥕', description: 'Củ cà rốt giòn ngọt ánh vàng thu hoạch từ đất tơi xốp.' },
+            seed_carrot: { name: 'Hạt giống cà rốt', icon: '🌱', description: 'Hạt giống cà rốt sao, gieo vào luống đất để canh tác.' },
+            wheat: { name: 'Lúa mì vàng', icon: '🌾', description: 'Những bông lúa mì óng ả trĩu hạt đón nắng ấm thung lũng.' },
+            seed_wheat: { name: 'Hạt giống lúa mì', icon: '🌱', description: 'Hạt giống lúa mì vàng, thích hợp với mọi loại đất.' },
             star: { name: 'Mảnh sao', icon: '⭐' },
             fish: { name: 'Cá vịnh', icon: '🐟' },
             crystal: { name: 'Tinh thể trời', icon: '💎' },
@@ -24,61 +28,336 @@
             meal: { name: 'Cơm dã ngoại', icon: '🍱' }
         },
         npcs: [
-            { id: 'mira', name: 'Mira', role: 'Người giữ bản đồ', map: 'village', x: 800, y: 550, shirt: '#df7961', hair: '#533b42', dialogue: [
-                'Chào mừng đến Làng Ánh Sao! Cơn mưa sao làm xáo trộn mọi thứ, nhưng cũng để lại những con đường mới.',
-                'Ghé sổ hành trình để nhận nhiệm vụ. Mỗi việc nhỏ sẽ giúp ngôi làng sáng lên.',
-                'Khi ngọn đèn trên đồi được thắp lại, chúng ta sẽ cùng tổ chức đêm hội sao.'
-            ] },
-            { id: 'huy', name: 'Huy', role: 'Thợ mộc', map: 'village', x: 400, y: 520, shirt: '#bf843e', hair: '#44342b', dialogue: [
-                'Tôi nhìn khúc gỗ là đã thấy một cây cầu. Còn bạn thấy gì?',
-                'Dựng xưởng mộc rồi dùng gỗ thông để làm ván. Ván rất cần cho những công trình lớn.',
-                'Chiếc cầu phía đông sẽ dẫn đến vịnh. Mang giày tốt, đường có hơi dài đấy!'
-            ] },
-            { id: 'linh', name: 'Linh', role: 'Người pha trà', map: 'village', x: 650, y: 520, shirt: '#93b8c9', hair: '#5c394a', dialogue: [
-                'Lá bạc hà thơm nhất sau một cơn mưa. Bạn thử đi dạo trong rừng lúc trời mưa xem.',
-                'Hai lá bạc hà và một quả mâm xôi là đủ cho một ấm trà bình minh.',
-                'Trà ấm và một ngọn đèn nhỏ khiến chuyến đi đêm dễ chịu hơn nhiều.'
-            ] },
-            { id: 'thao', name: 'Thảo', role: 'Người chăm vườn', map: 'village', x: 900, y: 620, shirt: '#eaaa70', hair: '#604432', dialogue: [
-                'Những luống đất phía nam đang chờ người gieo trồng. Ghé lại sau khi cây đã chín nhé.',
-                'Nhà kính giúp quả lớn nhanh hơn. Một khu vườn nhỏ cũng đủ nuôi cả chuyến phiêu lưu.',
-                'Tôi thích mâm xôi, nhưng điều tôi thích hơn là thấy mảnh đất trống thành khu vườn.'
-            ] },
-            { id: 'bao', name: 'Bảo', role: 'Người coi chợ', map: 'village', x: 1150, y: 520, shirt: '#a493d1', hair: '#413d54', dialogue: [
-                'Có vật liệu dư thì ghé bán ở chợ. Đừng bán hết đồ dành cho nhiệm vụ đang nhận nhé!',
-                'Mở sạp phiên chợ sẽ giúp vật liệu của bạn bán được giá hơn.',
-                'Túi hành trình lớn hơn luôn là món đầu tư tốt cho người hay đi xa.'
-            ] },
-            { id: 'nam', name: 'Nam', role: 'Thợ đèn', map: 'village', x: 400, y: 620, shirt: '#e4bd62', hair: '#3e4b62', dialogue: [
-                'Đèn phải soi được đường chứ! Dựng dãy đèn lối đi, tối đến bạn sẽ thấy khác ngay.',
-                'Đèn sao cầm tay giúp bạn nhìn rõ xung quanh trong cả đêm tối và mưa.',
-                'Đèn dẫn sao trên đồi cần nhiều vật liệu, nhưng tôi tin chúng ta sẽ làm được.'
-            ] },
-            { id: 'yen', name: 'Yến', role: 'Người sưu tầm chuyện xưa', map: 'village', x: 650, y: 620, shirt: '#76adb0', hair: '#4a354d', dialogue: [
-                'Tàn Tích Mây từng là trạm quan sát bầu trời. Kho lưu trữ của làng có bản đồ đến đó.',
-                'Những bia cộng hưởng giữ lại ký ức của cơn mưa sao. Hãy chạm vào chúng khi khám phá.',
-                'Tôi muốn ghi lại tên mọi người đã giúp làng hồi sinh. Cả tên bạn nữa.'
-            ] },
-            { id: 'son', name: 'Sơn', role: 'Đầu bếp', map: 'village', x: 1150, y: 620, shirt: '#e98f89', hair: '#634334', dialogue: [
-                'Sau chuyến đi dài, một hộp cơm dã ngoại sẽ giúp bạn hồi sức.',
-                'Có bếp chung rồi thì mang cá, quả và lá bạc hà đến chế biến.',
-                'Đêm hội sao cần thật nhiều món ngon. Tôi dành cho bạn một chỗ ngồi cạnh cửa sổ.'
-            ] },
-            { id: 'sen', name: 'Sen', role: 'Người dẫn đường rừng', map: 'forest', x: 350, y: 550, shirt: '#759b63', hair: '#694631', dialogue: [
-                'Rừng có gỗ, bạc hà và những chú slime nghịch ngợm. Nhớ giữ sức khi đi xa.',
-                'Bia cộng hưởng ở sâu trong rừng đang phát ra một tiếng ngân rất lạ.',
-                'Hãy hái vừa đủ và quay lại sau. Rừng luôn có quà mới cho người kiên nhẫn.'
-            ] },
-            { id: 'kiet', name: 'Kiệt', role: 'Người bạn của thủy triều', map: 'coast', x: 350, y: 550, shirt: '#68a4cd', hair: '#554135', dialogue: [
-                'Mặt nước lấp lánh là chỗ có cá. Đứng gần rồi tương tác để thả câu.',
-                'Bờ vịnh còn có mảnh sao bị sóng đưa vào. Tìm cả những rương nhỏ ven đường nhé.',
-                'Tôi sẽ đem cá đến đêm hội. Bạn giúp tôi làm cây cầu chắc hơn là đủ!'
-            ] },
-            { id: 'ly', name: 'Ly', role: 'Nhà thám hiểm', map: 'ruins', x: 350, y: 550, shirt: '#b08ec5', hair: '#3d4962', dialogue: [
-                'Chào người đồng hành! Tinh thể trời nằm giữa các cột đá của Tàn Tích Mây.',
-                'Tôi tìm được vài rương bị bỏ quên. Hãy để ý những góc khuất sau tường đá.',
-                'Khôi phục đài ngắm sao và đèn dẫn sao, chúng ta sẽ hiểu thông điệp của bầu trời.'
-            ] }
+            {
+                id: 'mira', name: 'Mira', role: 'Người giữ bản đồ', map: 'village', x: 800, y: 550, shirt: '#df7961', hair: '#533b42',
+                dialogue: [
+                    'Chào mừng đến Làng Ánh Sao! Cơn mưa sao làm xáo trộn mọi thứ, nhưng cũng để lại những con đường mới.',
+                    'Ghé sổ hành trình để nhận nhiệm vụ. Mỗi việc nhỏ sẽ giúp ngôi làng sáng lên.',
+                    'Khi ngọn đèn trên đồi được thắp lại, chúng ta sẽ cùng tổ chức đêm hội sao.'
+                ],
+                giftPreferences: {
+                    loved: ['meal', 'star'],
+                    liked: ['tea', 'berry'],
+                    neutral: ['wood', 'herb', 'crystal', 'plank', 'carrot', 'wheat'],
+                    disliked: ['ore']
+                },
+                giftReactions: {
+                    loved: 'Món quà tuyệt vời quá! Chuyến thám hiểm hôm nay lại có thêm niềm vui rồi!',
+                    liked: 'Cảm ơn bạn! Món quà này rất hữu ích cho các chuyến đi.',
+                    neutral: 'Cảm ơn bạn nhé! Tôi sẽ cất nó cẩn thận.',
+                    disliked: 'Quặng thô nặng quá... Mang theo vẽ bản đồ thì bất tiện lắm.'
+                },
+                heartDialogues: {
+                    2: 'Nhờ có bạn khôi phục từng lối đi, bản đồ Làng Ánh Sao giờ đây đã ngập tràn ánh sáng hy vọng.',
+                    4: 'Khi cơn mưa sao rơi xuống, tôi từng nghĩ ngôi làng này sẽ mãi chìm vào quên lãng. Cảm ơn bạn đã luôn đồng hành cùng tôi.',
+                    5: 'Bạn không chỉ là một nhà thám hiểm, bạn là linh hồn của thung lũng này!'
+                },
+                milestoneRewards: {
+                    2: { coins: 50, items: { berry: 2 } },
+                    4: { coins: 100, items: { star: 1 } },
+                    5: { renown: 3, items: { meal: 1 } }
+                }
+            },
+            {
+                id: 'huy', name: 'Huy', role: 'Thợ mộc', map: 'village', x: 400, y: 520, shirt: '#bf843e', hair: '#44342b',
+                dialogue: [
+                    'Tôi nhìn khúc gỗ là đã thấy một cây cầu. Còn bạn thấy gì?',
+                    'Dựng xưởng mộc rồi dùng gỗ thông để làm ván. Ván rất cần cho những công trình lớn.',
+                    'Chiếc cầu phía đông sẽ dẫn đến vịnh. Mang giày tốt, đường có hơi dài đấy!'
+                ],
+                giftPreferences: {
+                    loved: ['plank', 'ore'],
+                    liked: ['wood', 'lantern'],
+                    neutral: ['crystal', 'tea', 'meal', 'carrot', 'wheat', 'star'],
+                    disliked: ['herb', 'fish']
+                },
+                giftReactions: {
+                    loved: 'Ván gỗ thẳng thớm và quặng tốt thế này! Cậu đúng là hiểu ý dân thợ mộc nhất!',
+                    liked: 'Cảm ơn cậu nhé, đồ tốt cho xưởng mộc đấy!',
+                    neutral: 'Cảm ơn cậu, tôi sẽ dùng nó khi cần.',
+                    disliked: 'Mùi cá tanh hay thảo mộc này dễ ám vào thớ gỗ lắm, tôi không ưng đâu.'
+                },
+                heartDialogues: {
+                    2: 'Tiếng cưa xẻ gỗ mỗi sớm làm tôi thấy làng mình đang hồi sinh từng ngày.',
+                    4: 'Cây cầu ra vịnh đứng vững qua bao đợt gió lớn chính là nhờ những thanh ván mà cậu giúp tôi làm đấy.',
+                    5: 'Tìm được người tri kỷ hiểu từng thớ gỗ như cậu quý hơn cả rương vàng.'
+                },
+                milestoneRewards: {
+                    2: { coins: 50, items: { wood: 3 } },
+                    4: { coins: 100, items: { plank: 3 } },
+                    5: { renown: 3, items: { plank: 5 } }
+                }
+            },
+            {
+                id: 'linh', name: 'Linh', role: 'Người pha trà', map: 'village', x: 650, y: 520, shirt: '#93b8c9', hair: '#5c394a',
+                dialogue: [
+                    'Lá bạc hà thơm nhất sau một cơn mưa. Bạn thử đi dạo trong rừng lúc trời mưa xem.',
+                    'Hai lá bạc hà và một quả mâm xôi là đủ cho một ấm trà bình minh.',
+                    'Trà ấm và một ngọn đèn nhỏ khiến chuyến đi đêm dễ chịu hơn nhiều.'
+                ],
+                giftPreferences: {
+                    loved: ['tea', 'herb'],
+                    liked: ['berry', 'crystal'],
+                    neutral: ['wood', 'plank', 'star', 'meal', 'carrot', 'wheat'],
+                    disliked: ['fish', 'ore']
+                },
+                giftReactions: {
+                    loved: 'Lá bạc hà tươi sau mưa và ấm trà này... Hương thơm thật thanh khiết! Cảm ơn bạn!',
+                    liked: 'Thật nhã nhặn! Món quà này làm ấm lòng người pha trà.',
+                    neutral: 'Cảm ơn bạn nhé, tôi sẽ giữ gìn cẩn thận.',
+                    disliked: 'Mùi tanh và bụi quặng thế này sẽ làm hỏng mất vị thanh của trà...'
+                },
+                heartDialogues: {
+                    2: 'Mỗi cơn mưa qua đi đều để lại giọt sương trên lá. Lắng nghe tiếng mưa cũng là một cách tìm thấy bình yên.',
+                    4: 'Ngày làng bị chia cắt, tôi từng sợ không còn ai ghé quán uống trà nữa. Thật may là bạn đã đến.',
+                    5: 'Ấm trà ngon nhất là ấm trà được sẻ chia cùng tri kỷ. Tách trà đầu ngày luôn dành riêng cho bạn.'
+                },
+                milestoneRewards: {
+                    2: { coins: 40, items: { herb: 2 } },
+                    4: { coins: 80, items: { tea: 2 } },
+                    5: { renown: 3, items: { tea: 2 } }
+                }
+            },
+            {
+                id: 'thao', name: 'Thảo', role: 'Người chăm vườn', map: 'village', x: 900, y: 620, shirt: '#eaaa70', hair: '#604432',
+                dialogue: [
+                    'Những luống đất phía nam đang chờ người gieo trồng. Ghé lại sau khi cây đã chín nhé.',
+                    'Nhà kính giúp quả lớn nhanh hơn. Một khu vườn nhỏ cũng đủ nuôi cả chuyến phiêu lưu.',
+                    'Tôi thích mâm xôi, nhưng điều tôi thích hơn là thấy mảnh đất trống thành khu vườn.'
+                ],
+                giftPreferences: {
+                    loved: ['berry', 'tea'],
+                    liked: ['herb', 'wood', 'carrot', 'wheat'],
+                    neutral: ['plank', 'star', 'meal'],
+                    disliked: ['ore', 'crystal']
+                },
+                giftReactions: {
+                    loved: 'Những quả mâm xôi mọng nước tuyệt vời! Nhìn chúng là tôi thấy công sức được đền đáp xứng đáng.',
+                    liked: 'Cây cối và đất vườn sẽ rất thích món quà này đấy!',
+                    neutral: 'Cảm ơn bạn nhé, món quà mộc mạc và dễ thương lắm.',
+                    disliked: 'Đá quặng khô khốc này chẳng giúp hạt mầm lớn lên được chút nào...'
+                },
+                heartDialogues: {
+                    2: 'Cây cỏ cũng có tiếng nói riêng. Tưới tắm đủ nước và tình cảm, chúng sẽ đơm hoa kết trái.',
+                    4: 'Nhìn khu vườn từ mảnh đất trống biến thành những luống quả xanh tươi, tôi biết thung lũng đã thực sự sống lại.',
+                    5: 'Mỗi hạt mầm tôi gieo hôm nay đều mang lời chúc bình an dành cho bạn.'
+                },
+                milestoneRewards: {
+                    2: { coins: 40, items: { berry: 4 } },
+                    4: { coins: 80, items: { tea: 1 } },
+                    5: { renown: 3, items: { berry: 5 } }
+                }
+            },
+            {
+                id: 'bao', name: 'Bảo', role: 'Người coi chợ', map: 'village', x: 1150, y: 520, shirt: '#a493d1', hair: '#413d54',
+                dialogue: [
+                    'Có vật liệu dư thì ghé bán ở chợ. Đừng bán hết đồ dành cho nhiệm vụ đang nhận nhé!',
+                    'Mở sạp phiên chợ sẽ giúp vật liệu của bạn bán được giá hơn.',
+                    'Túi hành trình lớn hơn luôn là món đầu tư tốt cho người hay đi xa.'
+                ],
+                giftPreferences: {
+                    loved: ['crystal', 'star'],
+                    liked: ['meal', 'lantern', 'fish'],
+                    neutral: ['plank', 'ore', 'wood', 'berry', 'carrot', 'wheat'],
+                    disliked: ['herb']
+                },
+                giftReactions: {
+                    loved: 'Ánh sáng lấp lánh này... Đích thị là bảo vật quý giá nhất phiên chợ! Cậu thật có mắt nhìn hàng!',
+                    liked: 'Món hàng giá trị đấy! Cảm ơn cậu đã ưu ái mang đến phiên chợ.',
+                    neutral: 'Được đấy, buôn bán luôn chào đón những món đồ hữu ích.',
+                    disliked: 'Lá cỏ dại này bày ra chợ chẳng ai hỏi mua đâu, mất công dọn sạp lắm.'
+                },
+                heartDialogues: {
+                    2: 'Chợ không chỉ là nơi đổi chác, mà là nơi người ta gặp nhau để thấy làng mình không còn cô độc.',
+                    4: 'Thương gia đi khắp bốn phương nhưng chỉ có Làng Ánh Sao là nơi tôi muốn neo lại thuyền buôn.',
+                    5: 'Với tôi, mối giao hảo chân thành của chúng ta có giá trị hơn mọi rương ngọc ngà châu báu.'
+                },
+                milestoneRewards: {
+                    2: { coins: 80 },
+                    4: { coins: 150, items: { star: 1 } },
+                    5: { renown: 3, coins: 200 }
+                }
+            },
+            {
+                id: 'nam', name: 'Nam', role: 'Thợ đèn', map: 'village', x: 400, y: 620, shirt: '#e4bd62', hair: '#3e4b62',
+                dialogue: [
+                    'Đèn phải soi được đường chứ! Dựng dãy đèn lối đi, tối đến bạn sẽ thấy khác ngay.',
+                    'Đèn sao cầm tay giúp bạn nhìn rõ xung quanh trong cả đêm tối và mưa.',
+                    'Đèn dẫn sao trên đồi cần nhiều vật liệu, nhưng tôi tin chúng ta sẽ làm được.'
+                ],
+                giftPreferences: {
+                    loved: ['lantern', 'star'],
+                    liked: ['ore', 'plank'],
+                    neutral: ['tea', 'meal', 'wood', 'crystal', 'carrot', 'wheat'],
+                    disliked: ['fish', 'herb']
+                },
+                giftReactions: {
+                    loved: 'Chiếc đèn sao tự tay bạn chế tác thật hoàn hảo! Ngọn lửa sao bên trong tỏa sáng ấm áp lạ kỳ!',
+                    liked: 'Vật liệu làm đèn rất tốt! Cảm ơn bạn nhiều nhé.',
+                    neutral: 'Cảm ơn bạn! Món đồ này sẽ dùng được vào việc thích hợp.',
+                    disliked: 'Mùi tanh nồng hay lá ướt này dễ làm tắt ngọn lửa đèn đường mất.'
+                },
+                heartDialogues: {
+                    2: 'Ban đêm không còn đáng sợ nữa khi từng góc đường đều có ánh đèn đón bước chân bạn.',
+                    4: 'Khi ngọn đèn trên đồi được thắp lên, tôi đã thấy ánh mắt của mọi người bừng sáng như những vì sao.',
+                    5: 'Dù đêm tối có mịt mùng đến đâu, chỉ cần bạn cần, tôi sẽ là ngọn đèn dẫn lối cho bạn trở về.'
+                },
+                milestoneRewards: {
+                    2: { coins: 50, items: { ore: 2 } },
+                    4: { coins: 80, items: { lantern: 1 } },
+                    5: { renown: 3, items: { star: 2 } }
+                }
+            },
+            {
+                id: 'yen', name: 'Yến', role: 'Người sưu tầm chuyện xưa', map: 'village', x: 650, y: 620, shirt: '#76adb0', hair: '#4a354d',
+                dialogue: [
+                    'Tàn Tích Mây từng là trạm quan sát bầu trời. Kho lưu trữ của làng có bản đồ đến đó.',
+                    'Những bia cộng hưởng giữ lại ký ức của cơn mưa sao. Hãy chạm vào chúng khi khám phá.',
+                    'Tôi muốn ghi lại tên mọi người đã giúp làng hồi sinh. Cả tên bạn nữa.'
+                ],
+                giftPreferences: {
+                    loved: ['star', 'crystal'],
+                    liked: ['tea', 'lantern'],
+                    neutral: ['berry', 'herb', 'plank', 'meal', 'wood', 'carrot', 'wheat'],
+                    disliked: ['ore', 'fish']
+                },
+                giftReactions: {
+                    loved: 'Những mảnh sao và tinh thể mang ký ức của bầu trời cổ xưa! Phát hiện này sẽ làm sáng tỏ cả trang sử của làng!',
+                    liked: 'Thật tao nhã và hữu dụng cho những đêm thức chép sử thi.',
+                    neutral: 'Cảm ơn bạn, tôi sẽ ghi nhận món quà vào nhật ký hành trình.',
+                    disliked: 'Quặng chưa mài thô ráp và cá ẩm ướt dễ làm ố những trang thư tịch cổ...'
+                },
+                heartDialogues: {
+                    2: 'Tàn Tích Mây lưu giữ những vết tích về những người ngắm sao từ ngàn năm trước. Họ cũng từng yêu thung lũng như chúng ta.',
+                    4: 'Tôi đã viết một chương dài trong sử thi làng về bạn — người đánh thức những đài thiên văn ngủ say.',
+                    5: 'Thời gian có thể xóa nhòa đền đài, nhưng tình bạn giữa chúng ta sẽ sống mãi trong trang sử này.'
+                },
+                milestoneRewards: {
+                    2: { coins: 60, items: { tea: 1 } },
+                    4: { coins: 100, items: { crystal: 1 } },
+                    5: { renown: 3, items: { star: 2 } }
+                }
+            },
+            {
+                id: 'son', name: 'Sơn', role: 'Đầu bếp', map: 'village', x: 1150, y: 620, shirt: '#e98f89', hair: '#634334',
+                dialogue: [
+                    'Sau chuyến đi dài, một hộp cơm dã ngoại sẽ giúp bạn hồi sức.',
+                    'Có bếp chung rồi thì mang cá, quả và lá bạc hà đến chế biến.',
+                    'Đêm hội sao cần thật nhiều món ngon. Tôi dành cho bạn một chỗ ngồi cạnh cửa sổ.'
+                ],
+                giftPreferences: {
+                    loved: ['fish', 'meal'],
+                    liked: ['berry', 'herb', 'carrot', 'wheat'],
+                    neutral: ['wood', 'tea', 'star'],
+                    disliked: ['ore', 'plank', 'crystal']
+                },
+                giftReactions: {
+                    loved: 'Cá vịnh tươi roi rói! Cơm dã ngoại thơm phức! Đây chính là nguyên liệu tuyệt nhất cho gian bếp chung!',
+                    liked: 'Gia vị và hoa quả tươi ngon! Bếp hôm nay lại có món hấp dẫn rồi!',
+                    neutral: 'Cảm ơn bạn! Món này cũng hữu ích cho gian bếp đấy.',
+                    disliked: 'Gỗ đá kim loại này đâu thể cho vào nồi hầm được hả bạn?'
+                },
+                heartDialogues: {
+                    2: 'Nấu ăn cho cả làng là niềm hạnh phúc lớn nhất của tôi. Tiếng cười bên mâm cơm làm tan biến mọi mệt nhọc.',
+                    4: 'Bí quyết của một món ngon không nằm ở gia vị đắt tiền, mà ở tấm lòng muốn người thưởng thức được ấm bụng.',
+                    5: 'Bàn ăn cạnh cửa sổ nhìn ra quảng trường luôn luôn để sẵn phần cơm nóng hổi dành riêng cho bạn!'
+                },
+                milestoneRewards: {
+                    2: { coins: 50, items: { meal: 1 } },
+                    4: { coins: 80, items: { meal: 2 } },
+                    5: { renown: 3, items: { meal: 3 } }
+                }
+            },
+            {
+                id: 'sen', name: 'Sen', role: 'Người dẫn đường rừng', map: 'forest', x: 350, y: 550, shirt: '#759b63', hair: '#694631',
+                dialogue: [
+                    'Rừng có gỗ, bạc hà và những chú slime nghịch ngợm. Nhớ giữ sức khi đi xa.',
+                    'Bia cộng hưởng ở sâu trong rừng đang phát ra một tiếng ngân rất lạ.',
+                    'Hãy hái vừa đủ và quay lại sau. Rừng luôn có quà mới cho người kiên nhẫn.'
+                ],
+                giftPreferences: {
+                    loved: ['herb', 'meal'],
+                    liked: ['wood', 'berry', 'carrot', 'wheat'],
+                    neutral: ['fish', 'tea', 'plank', 'star'],
+                    disliked: ['crystal', 'lantern']
+                },
+                giftReactions: {
+                    loved: 'Lá thảo mộc rừng sâu và cơm dã ngoại tiếp sức! Chuyến đi tuần rừng hôm nay có bạn tiếp sức thì yên tâm rồi!',
+                    liked: 'Món quà từ thiên nhiên luôn làm lòng người dịu lại.',
+                    neutral: 'Cảm ơn bạn, chuyến đi rừng sắp tới sẽ hữu ích.',
+                    disliked: 'Ánh sáng nhân tạo và đá phát quang làm kinh động muông thú ban đêm...'
+                },
+                heartDialogues: {
+                    2: 'Rừng Rì Rào che chở cho muôn loài. Hãy bước đi thật êm ái, cây cối sẽ thì thầm dẫn đường cho bạn.',
+                    4: 'Ngày trước chỉ có tôi một mình lắng nghe tiếng gió rít qua tàng cây. Giờ đây tôi biết mình có một người bạn đồng hành tin cậy.',
+                    5: 'Rừng sâu có thể hiểm trở với người lạ, nhưng với bạn, mọi ngọn cây ngọn cỏ đều sẽ dang tay chào đón.'
+                },
+                milestoneRewards: {
+                    2: { coins: 50, items: { herb: 3 } },
+                    4: { coins: 80, items: { meal: 2 } },
+                    5: { renown: 3, items: { herb: 5 } }
+                }
+            },
+            {
+                id: 'kiet', name: 'Kiệt', role: 'Người bạn của thủy triều', map: 'coast', x: 350, y: 550, shirt: '#68a4cd', hair: '#554135',
+                dialogue: [
+                    'Mặt nước lấp lánh là chỗ có cá. Đứng gần rồi tương tác để thả câu.',
+                    'Bờ vịnh còn có mảnh sao bị sóng đưa vào. Tìm cả những rương nhỏ ven đường nhé.',
+                    'Tôi sẽ đem cá đến đêm hội. Bạn giúp tôi làm cây cầu chắc hơn là đủ!'
+                ],
+                giftPreferences: {
+                    loved: ['fish', 'lantern'],
+                    liked: ['tea', 'wood'],
+                    neutral: ['berry', 'plank', 'star', 'meal', 'herb', 'carrot', 'wheat'],
+                    disliked: ['ore', 'crystal']
+                },
+                giftReactions: {
+                    loved: 'Con cá vịnh lấp lánh vảy bạc và cây đèn sao soi mặt nước đêm! Bạn đúng là bạn câu ăn ý nhất trần đời!',
+                    liked: 'Ấm lòng lắm! Có thứ này ra khơi đón gió biển thì tuyệt.',
+                    neutral: 'Cảm ơn bạn! Đi biển luôn cần chuẩn bị chu đáo.',
+                    disliked: 'Quặng sắt với đá nặng trĩu này mang xuống thuyền chỉ làm đắm bè thôi...'
+                },
+                heartDialogues: {
+                    2: 'Biển cả bao la nhưng cũng rất rộng lượng. Cứ kiên nhẫn thả câu, sóng sẽ mang món quà bất ngờ tới cho bạn.',
+                    4: 'Cây Cầu Gió Biển nối liền vịnh với làng đã giúp tiếng cười trở lại với bến nước này. Công của bạn lớn lắm.',
+                    5: 'Sóng biển vỗ bờ rồi lại rút ra xa, nhưng tình bạn giữa chúng ta sẽ vững chãi như rạn san hô dưới đáy vịnh.'
+                },
+                milestoneRewards: {
+                    2: { coins: 50, items: { fish: 2 } },
+                    4: { coins: 80, items: { lantern: 1, fish: 2 } },
+                    5: { renown: 3, items: { fish: 4 } }
+                }
+            },
+            {
+                id: 'ly', name: 'Ly', role: 'Nhà thám hiểm', map: 'ruins', x: 350, y: 550, shirt: '#b08ec5', hair: '#3d4962',
+                dialogue: [
+                    'Chào người đồng hành! Tinh thể trời nằm giữa các cột đá của Tàn Tích Mây.',
+                    'Cổ nhân sắp xếp các bia sao theo quỹ đạo ánh sáng: từ Tây sang Bắc rồi về Đông. Hãy lắng nghe tiếng chuông ngân của từng phiến đá.',
+                    'Khôi phục đài ngắm sao và đèn dẫn sao, chúng ta sẽ hiểu thông điệp của bầu trời.'
+                ],
+                giftPreferences: {
+                    loved: ['crystal', 'lantern'],
+                    liked: ['star', 'meal'],
+                    neutral: ['tea', 'ore', 'berry', 'plank', 'herb', 'carrot', 'wheat'],
+                    disliked: ['wood']
+                },
+                giftReactions: {
+                    loved: 'Tinh thể trời nguyên vẹn và ngọn đèn sao bền bỉ! Với hai thứ này, không góc khuất nào ngăn được bước chân ta!',
+                    liked: 'Thức ăn dự trữ và mảnh sao dẫn đường, thật chu đáo!',
+                    neutral: 'Cảm ơn người bạn đồng hành! Món đồ này sẽ có ích.',
+                    disliked: 'Khúc gỗ mục này vướng víu quá, leo trèo trong tàn tích chỉ tổ vấp ngã.'
+                },
+                heartDialogues: {
+                    2: 'Những vết nứt trên cột đá Tàn Tích Mây không phải là đổ nát, mà là dấu ấn kiêu hãnh của thời gian.',
+                    4: 'Khám phá di tích không phải để chiếm đoạt kho báu, mà để nhắc nhở chúng ta về những giấc mơ của tiền nhân.',
+                    5: 'Dù bầu trời có sụp xuống hay ngàn năm trôi qua, ta biết mình đã tìm được người đồng hành vĩ đại nhất.'
+                },
+                milestoneRewards: {
+                    2: { coins: 60, items: { star: 1 } },
+                    4: { coins: 100, items: { crystal: 2 } },
+                    5: { renown: 3, items: { crystal: 2, star: 1 } }
+                }
+            }
         ],
         upgrades: [
             { id: 'well', name: 'Giếng Suối Trong', description: 'Phục hồi thể lực nhanh hơn khi nghỉ bên giếng giữa làng.', cost: 70, materials: { wood: 4, ore: 2 }, prerequisites: [], effect: 'Hồi thể lực nhanh hơn ở làng.' },

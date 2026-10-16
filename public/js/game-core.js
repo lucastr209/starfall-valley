@@ -6,6 +6,7 @@
   'use strict';
   const finite = (n, fallback = 0, max = 1000000) => Number.isFinite(n) ? Math.min(max, Math.max(0, Math.floor(n))) : fallback;
   const cleanName = name => (typeof name === 'string' ? name : '').replace(/[<>\u0000-\u001f\u007f]/g, '').trim().slice(0, 18) || 'Nhà thám hiểm';
+  const cleanPetName = name => (typeof name === 'string' ? name : '').replace(/[<>\u0000-\u001f\u007f]/g, '').trim().slice(0, 18) || 'Cún Sao';
   const record = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const safeKey = (id, pattern) => typeof id === 'string' && pattern.test(id) && !['__proto__', 'constructor', 'prototype'].includes(id);
   const unlockedMap = (s, map) => map !== 'coast' && map !== 'ruins' || s.upgrades.includes(map === 'coast' ? 'bridge' : 'archive');
@@ -14,7 +15,13 @@
     return { version: 1, name: cleanName(name), coins: 180, xp: 0, renown: 0, health: 100, stamina: 100,
       inventory: Object.fromEntries(Object.keys(data.items).map(id => [id, 0])), upgrades: [], quests: {},
       visited: ['village'], day: 1, minutes: 480, map: 'village', x: 800, y: 550,
-      resources: {}, crops: [null, null, null, null], shrines: [], chests: [], stats: {}, tracked: null };
+      resources: {}, crops: [null, null, null, null],
+      cropTypes: ['berry', 'berry', 'berry', 'berry'],
+      watered: [false, false, false, false],
+      selectedSeed: 'berry',
+      pet: { name: 'Cún Sao', type: 'dog' },
+      friendship: Object.fromEntries(data.npcs.map(n => [n.id, { points: 0, talkedToday: false, giftedToday: false, unlockedRewards: [] }])),
+      shrines: [], chests: [], puzzles: [], stats: {}, tracked: null };
   }
   function restoreState(raw, data) {
     const s = createState(raw && raw.name, data);
@@ -34,8 +41,30 @@
     s.visited = [...new Set(['village', ...(Array.isArray(raw.visited) ? raw.visited : []).filter(id => data.regions.some(r => r.id === id) && unlockedMap(s, id))])];
     s.resources = Object.fromEntries(Object.entries(record(raw.resources)).filter(([id, t]) => safeKey(id, /^[a-z0-9_-]{1,80}$/) && Number.isFinite(t) && t >= 0 && t <= Number.MAX_SAFE_INTEGER).slice(0, 1000));
     s.crops = [0, 1, 2, 3].map(i => Number.isFinite(raw.crops?.[i]) && raw.crops[i] >= 0 && raw.crops[i] <= Number.MAX_SAFE_INTEGER ? raw.crops[i] : null);
+    const validCrops = ['berry', 'carrot', 'wheat'];
+    s.cropTypes = [0, 1, 2, 3].map(i => typeof raw.cropTypes?.[i] === 'string' && (validCrops.includes(raw.cropTypes[i]) || Object.hasOwn(data.items, raw.cropTypes[i])) ? raw.cropTypes[i] : 'berry');
+    s.watered = [0, 1, 2, 3].map(i => Boolean(raw.watered?.[i]));
+    s.selectedSeed = typeof raw.selectedSeed === 'string' && (validCrops.includes(raw.selectedSeed) || Object.hasOwn(data.items, raw.selectedSeed)) ? raw.selectedSeed : 'berry';
+    const rawPet = record(raw.pet);
+    s.pet = {
+      name: cleanPetName(rawPet.name),
+      type: typeof rawPet.type === 'string' && /^[a-z0-9_-]{1,20}$/.test(rawPet.type) ? rawPet.type : 'dog'
+    };
+    const savedFriendship = record(raw.friendship);
+    s.friendship = Object.fromEntries(data.npcs.map(n => {
+      const stored = record(savedFriendship[n.id]);
+      return [n.id, {
+        points: finite(stored.points, 0, 500),
+        talkedToday: Boolean(stored.talkedToday),
+        giftedToday: Boolean(stored.giftedToday),
+        unlockedRewards: Array.isArray(stored.unlockedRewards)
+          ? [...new Set(stored.unlockedRewards.filter(lvl => Number.isInteger(lvl) && [2, 4, 5].includes(lvl)).sort((a, b) => a - b))]
+          : []
+      }];
+    }));
     s.shrines = [...new Set((Array.isArray(raw.shrines) ? raw.shrines : []).filter(id => ['forest', 'coast', 'ruins'].includes(id) && unlockedMap(s, id)))];
     s.chests = [...new Set((Array.isArray(raw.chests) ? raw.chests : []).filter(id => safeKey(id, /^[a-z0-9_-]{1,80}$/)))].slice(0, 1000);
+    s.puzzles = [...new Set((Array.isArray(raw.puzzles) ? raw.puzzles : []).filter(id => safeKey(id, /^[a-z0-9_-]{1,80}$/)))].slice(0, 100);
     s.stats = Object.fromEntries(Object.entries(record(raw.stats)).filter(([id]) => safeKey(id, /^[a-z0-9_:-]{1,80}$/)).slice(0, 1000).map(([id, n]) => [id, finite(n)]));
     const savedQuests = record(raw.quests);
     for (let pass = 0; pass < data.quests.length; pass++) {
@@ -77,9 +106,14 @@
   }
   function event(s, type, target, amount, data) {
     amount = finite(amount);
-    const targets = { talk: data.npcs.map(n => n.id), gather: Object.keys(data.items), deliver: Object.keys(data.items), craft: data.recipes.map(r => r.id), visit: data.regions.map(r => r.id), build: data.upgrades.map(u => u.id), fish: ['fish'], fight: ['slime'], plant: ['berry'], harvest: ['berry'], shrine: ['forest', 'coast', 'ruins'], chest: ['treasure'], night: ['village'], rain: ['herb'] };
+    const targets = { talk: data.npcs.map(n => n.id), gift: data.npcs.map(n => n.id), gather: Object.keys(data.items), deliver: Object.keys(data.items), craft: data.recipes.map(r => r.id), visit: data.regions.map(r => r.id), build: data.upgrades.map(u => u.id), fish: ['fish'], fight: ['slime'], plant: ['berry', 'carrot', 'wheat'], harvest: ['berry', 'carrot', 'wheat'], shrine: ['forest', 'coast', 'ruins'], chest: ['treasure'], night: ['village'], rain: ['herb'] };
     if (!amount || !Object.hasOwn(targets, type) || !targets[type].includes(target)) return false;
     s.stats[`${type}:${target}`] = finite((s.stats[`${type}:${target}`] || 0) + amount);
+    if (type === 'talk' && s.friendship?.[target] && !s.friendship[target].talkedToday) {
+      s.friendship[target].talkedToday = true;
+      s.friendship[target].points = Math.min(500, s.friendship[target].points + 10);
+      checkMilestones(s, target, data);
+    }
     for (const q of data.quests) {
       const entry = s.quests[q.id];
       if (entry?.status !== 'active') continue;
@@ -151,7 +185,7 @@
     return { ok: true, message: `Đã xây ${u.name}! ${u.effect}` };
   }
   function sell(s, item, n, data) {
-    const prices = { wood: 8, ore: 10, herb: 9, berry: 12, fish: 25, star: 32, crystal: 35, plank: 28, tea: 32, meal: 60, lantern: 90 };
+    const prices = { wood: 8, ore: 10, herb: 9, berry: 12, carrot: 16, wheat: 14, seed_carrot: 6, seed_wheat: 5, fish: 25, star: 32, crystal: 35, plank: 28, tea: 32, meal: 60, lantern: 90 };
     n = Math.min(finite(n), s.inventory[item] || 0);
     if (!n || !Object.hasOwn(prices, item) || !Object.hasOwn(data.items, item)) return { ok: false, message: 'Không có vật phẩm để bán.' };
     const coins = Math.floor(prices[item] * n * (s.upgrades.includes('market') ? 1.5 : 1));
@@ -160,6 +194,15 @@
   }
   function nextDay(s, data) {
     s.day++; s.minutes = 480; s.health = 100; s.stamina = 100;
+    s.watered = [0, 1, 2, 3].map(() => weather(s) === 'rain');
+    if (s.friendship) {
+      for (const n of data.npcs) {
+        if (s.friendship[n.id]) {
+          s.friendship[n.id].talkedToday = false;
+          s.friendship[n.id].giftedToday = false;
+        }
+      }
+    }
     for (const q of data.quests.filter(q => q.kind === 'daily')) delete s.quests[q.id];
     if (data.quests.find(q => q.id === s.tracked)?.kind === 'daily') s.tracked = null;
   }
@@ -170,5 +213,72 @@
     s.map = map; if (!s.visited.includes(map)) s.visited.push(map);
     event(s, 'visit', map, 1, data); return true;
   }
-  return { createState, restoreState, cleanName, capacity, level, weather, isNight, dailyQuests, available, accept, event, progress, complete, claim, addItem, craft, build, sell, nextDay, visit };
+  function checkMilestones(s, npcId, data) {
+    const f = s.friendship?.[npcId];
+    if (!f) return [];
+    const npc = data.npcs.find(n => n.id === npcId);
+    if (!npc) return [];
+    const hearts = Math.floor(f.points / 100);
+    const unlocked = [];
+    for (const m of [2, 4, 5]) {
+      if (hearts >= m && !f.unlockedRewards.includes(m)) {
+        f.unlockedRewards.push(m);
+        f.unlockedRewards.sort((a, b) => a - b);
+        const r = npc.milestoneRewards?.[m];
+        if (r) {
+          if (r.coins) s.coins = finite(s.coins + r.coins);
+          if (r.renown) s.renown = finite(s.renown + r.renown);
+          if (r.xp) s.xp = finite(s.xp + r.xp);
+          if (r.items) {
+            for (const [item, count] of Object.entries(r.items)) {
+              addItem(s, item, count, data);
+            }
+          }
+          unlocked.push({ milestone: m, reward: r });
+        }
+      }
+    }
+    return unlocked;
+  }
+  function giveGift(s, npcId, itemId, data) {
+    const npc = data.npcs.find(n => n.id === npcId);
+    if (!npc || !s.friendship?.[npcId]) return { ok: false, success: false, message: 'Cư dân không tồn tại.' };
+    if (!Object.hasOwn(data.items, itemId) || (s.inventory[itemId] || 0) <= 0) return { ok: false, success: false, message: 'Bạn không có vật phẩm này trong túi.' };
+    const f = s.friendship[npcId];
+    if (f.giftedToday) return { ok: false, success: false, message: 'Hôm nay bạn đã tặng quà cho người này rồi.' };
+
+    const prefs = npc.giftPreferences || {};
+    let tier = 'neutral';
+    let pointsDelta = 20;
+    if (prefs.loved?.includes(itemId)) {
+      tier = 'loved';
+      pointsDelta = 80;
+    } else if (prefs.liked?.includes(itemId)) {
+      tier = 'liked';
+      pointsDelta = 45;
+    } else if (prefs.disliked?.includes(itemId)) {
+      tier = 'disliked';
+      pointsDelta = -15;
+    }
+
+    f.points = Math.max(0, Math.min(500, f.points + pointsDelta));
+    s.inventory[itemId] -= 1;
+    f.giftedToday = true;
+    event(s, 'gift', npcId, 1, data);
+    const rewards = checkMilestones(s, npcId, data);
+    const hearts = Math.floor(f.points / 100);
+    const reaction = npc.giftReactions?.[tier] || '';
+    return {
+      ok: true,
+      success: true,
+      tier,
+      pointsDelta,
+      points: f.points,
+      hearts,
+      reaction,
+      rewards,
+      message: reaction
+    };
+  }
+  return { createState, restoreState, cleanName, capacity, level, weather, isNight, dailyQuests, available, accept, event, progress, complete, claim, addItem, craft, build, sell, nextDay, visit, giveGift, checkMilestones };
 });
