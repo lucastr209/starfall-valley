@@ -115,61 +115,357 @@
     if(me.health===0)objective='Bạn bị hạ. Đồng đội đến gần và nhấn Cứu; giữ vị trí trong hai giây. Cả đội bị hạ sẽ trở về trại.';
     $('objective').textContent=objective;
   }
-  function rect(x,y,w,h,color){ctx.fillStyle=color;ctx.fillRect(x,y,w,h);}
-  function text(str,x,y,color='#f6edcf',size=12){ctx.fillStyle=color;ctx.font=size+'px system-ui';ctx.textAlign='center';ctx.fillText(str,x,y);}
-  function circle(x,y,r,color){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();}
-  function tree(x,y,color){rect(x-6,y-18,12,42,'#745d46');circle(x,y-45,33,color);circle(x-18,y-30,25,color);circle(x+18,y-30,25,color);rect(x-15,y-52,7,5,'#92a66f66');}
-  function house(x,y,color,label){rect(x-38,y-50,76,50,'#d4bf86');ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(x-49,y-48);ctx.lineTo(x,y-87);ctx.lineTo(x+49,y-48);ctx.fill();rect(x-8,y-28,16,28,'#584332');rect(x-29,y-34,12,12,'#f5d47f');text(label,x,y+20,'#e5d9a8',11);}
+  function rect(x,y,w,h,color){ctx.fillStyle=color;ctx.fillRect(Math.floor(x),Math.floor(y),Math.ceil(w),Math.ceil(h));}
+  function text(str,x,y,color='#f6edcf',size=12){ctx.fillStyle=color;ctx.font='bold '+size+'px system-ui';ctx.textAlign='center';ctx.fillText(str,Math.floor(x),Math.floor(y));}
+  function circle(x,y,r,color){ctx.beginPath();ctx.arc(Math.floor(x),Math.floor(y),r,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();}
+  function pixelEllipse(x,y,w,h,color){rect(x-w/2+4,y-h/2,w-8,h,color);rect(x-w/2,y-h/2+3,w,h-6,color);}
+  function dropShadow(x,y,w,h,alpha=0.35){rect(x-w/2+3,y-h/2,w-6,h,`rgba(18,32,24,${alpha*0.6})`);rect(x-w/2,y-h/2+2,w,h-4,`rgba(18,32,24,${alpha})`);}
+
+  // Cây pixel đa tầng với bóng đổ dither và tán lá đung đưa
+  function drawTree(x,y,size=1,tone=0,anim=0){
+    ctx.save();ctx.translate(Math.floor(x),Math.floor(y));ctx.scale(size,size);
+    dropShadow(5,2,54,15,0.4);
+    rect(-5,-44,10,45,'#563f2e');rect(-2,-38,4,38,'#8a6542');rect(2,-32,3,30,'#3a2c20');
+    const sway=reduced?0:Math.round(Math.sin(anim*1.2+x*0.03)*2);
+    ctx.save();ctx.translate(sway,0);
+    const pal=[['#2c5344','#3f7354','#5c9966','#8eb875'],['#345c52','#488065','#66a875','#9ec27e'],['#3c5f3c','#57854a','#78a35b','#b1bf76']][tone%3];
+    rect(-18,-76,36,54,pal[0]);rect(-28,-68,56,38,pal[0]);rect(-34,-58,68,20,pal[0]);
+    rect(-24,-71,44,36,pal[1]);rect(-30,-59,52,21,pal[1]);rect(-14,-81,28,18,pal[1]);
+    rect(-15,-74,26,18,pal[2]);rect(-24,-61,20,14,pal[2]);rect(8,-63,12,10,pal[2]);
+    rect(-10,-73,10,5,pal[3]);rect(-21,-58,7,4,pal[3]);rect(1,-67,7,4,pal[3]);
+    rect(-29,-33,12,3,pal[0]);rect(13,-25,14,4,pal[0]);
+    ctx.restore();ctx.restore();
+  }
+
+  // Nhà gỗ Trại Ánh Sao với vách gỗ, ngói cedar, ống khói nhả khói và đèn lồng ấm áp
+  function drawCabin(x,y,anim=0){
+    dropShadow(x+8,y+6,120,24,0.45);
+    // Nền móng đá
+    rect(x-52,y-8,104,16,'#4e5445');rect(x-50,y-6,100,5,'#6f7762');
+    // Vách gỗ cabin
+    rect(x-46,y-50,92,44,'#936b47');rect(x+26,y-50,20,44,'#6e4c30');
+    for(let i=0;i<4;i++)rect(x-46,y-48+i*11,92,2,'#4e341f');
+    // Trụ gỗ góc
+    rect(x-46,y-50,6,44,'#4e341f');rect(x+40,y-50,6,44,'#3e2817');
+    // Mái ngói xếp tầng
+    for(let i=0;i<6;i++){const ins=(5-i)*7;rect(x-54+ins,y-86+i*7,108-ins*2,8,'#b55b46');rect(x-52+ins,y-84+i*7,104-ins*2,2,'#d47c66');}
+    rect(x-54,y-46,108,6,'#5a281d');
+    // Ống khói đá & khói bay
+    rect(x+22,y-96,14,24,'#5c5f53');rect(x+20,y-98,18,5,'#767a6d');
+    if(!reduced){const smokeY=(anim*16)%30;circle(x+29,y-102-smokeY,4+smokeY*0.18,'rgba(230,235,225,0.45)');}
+    // Cửa gỗ & bậc thềm
+    rect(x-11,y-26,22,26,'#4e341f');rect(x-9,y-24,18,24,'#68462b');rect(x+3,y-14,3,3,'#d6b35d');
+    // Cửa sổ vàng ấm áp
+    rect(x-38,y-38,18,16,'#2e1f13');rect(x-36,y-36,14,12,'#f8dc74');rect(x-30,y-36,2,12,'#5a3a1f');rect(x-36,y-31,14,2,'#5a3a1f');
+    // Đèn lồng treo trước hiên
+    rect(x+16,y-36,3,8,'#332214');rect(x+13,y-28,9,11,'#ffcd58');circle(x+17,y-23,12,'rgba(255,210,80,0.18)');
+    text('Trại Ánh Sao',x,y+24,'#f3e6c0',11);
+  }
+
+  // Lửa trại nhấp nháy với đốm lửa bốc lên
+  function drawCampfire(x,y,anim=0){
+    dropShadow(x,y+2,42,12,0.4);
+    // Vòng đá lửa
+    for(let a=0;a<Math.PI*2;a+=Math.PI/4){rect(x+Math.cos(a)*14-3,y+Math.sin(a)*8-3,6,6,'#596058');rect(x+Math.cos(a)*14-2,y+Math.sin(a)*8-2,4,4,'#7a8378');}
+    // Củi cháy
+    rect(x-11,y-4,22,6,'#3d281a');rect(x-4,y-11,8,18,'#2a1c12');
+    // Ngọn lửa nhảy múa
+    const f=reduced?0:Math.sin(anim*8)*2,f2=reduced?0:Math.cos(anim*11)*1.5;
+    circle(x,y-6+f*0.5,10+f2,'#ff7830');circle(x,y-9+f,7,'#ffa938');circle(x,y-11+f,4,'#fff07a');
+    if(!reduced){const spark=(anim*22)%18;rect(x+f*2-1,y-16-spark,2,2,'#ffdf6d');}
+  }
+
+  // Các công trình phục hồi làng (Nhà Ươm Sao, Bến Hải Đăng, Đài Cầu Sao)
+  function drawVillageBuilding(x,y,ch,built,anim=0){
+    if(!built){
+      // Khung gỗ công trình đang chờ xây
+      dropShadow(x,y+4,80,18,0.3);
+      rect(x-34,y-42,68,44,'#46352777');
+      for(let i=0;i<4;i++)rect(x-34+i*22,y-42,4,44,'#8b6743');
+      rect(x-34,y-42,68,4,'#8b6743');rect(x-34,y-20,68,3,'#6e5033');
+      text('✦ CÔNG TRÌNH CHỜ XÂY ✦',x,y-22,'#f5d378',9);
+      text(ch.building,x,y+20,'#c8d0b2',11);
+      return;
+    }
+    dropShadow(x+6,y+6,94,22,0.45);
+    if(ch.id==='deepwood'){
+      // Nhà Ươm Sao: Nhà kính khung gỗ phủ rêu xanh
+      rect(x-40,y-46,80,48,'#3d483b');rect(x-36,y-42,72,44,'#608f7588');
+      for(let i=0;i<4;i++)rect(x-36+i*24,y-42,3,44,'#47664f');
+      rect(x-36,y-22,72,3,'#47664f');
+      for(let i=0;i<5;i++){const ins=(4-i)*6;rect(x-44+ins,y-76+i*6,88-ins*2,7,'#476d4f');rect(x-42+ins,y-74+i*6,84-ins*2,2,'#73a67d');}
+      rect(x-10,y-26,20,26,'#2c3d31');text('🌱',x,y-8,'#a7f3d0',12);
+      text(ch.building,x,y+24,'#d8f5d0',11);
+    }else if(ch.id==='tideisles'){
+      // Bến Hải Đăng: Tháp đá ngọc bích ven biển
+      rect(x-34,y-50,68,52,'#456573');rect(x-30,y-46,60,48,'#6c94a3');
+      rect(x-14,y-86,28,40,'#456573');rect(x-10,y-82,20,36,'#89b8c7');
+      // Đèn hải đăng quay
+      rect(x-16,y-96,32,12,'#e07a7a');circle(x,y-90,14,'rgba(165,243,252,0.3)');circle(x,y-90,6,'#fffbeb');
+      rect(x-10,y-26,20,26,'#253b45');text('⚓',x,y-8,'#93c5fd',12);
+      text(ch.building,x,y+24,'#cce7f5',11);
+    }else{
+      // Đài Cầu Sao: Kiến trúc tháp thiên văn tím huyền ảo
+      rect(x-38,y-48,76,50,'#3b2f4a');rect(x-34,y-44,68,46,'#594770');
+      for(let i=0;i<5;i++){const ins=(4-i)*6;rect(x-42+ins,y-78+i*6,84-ins*2,7,'#644b82');rect(x-40+ins,y-76+i*6,80-ins*2,2,'#a884d6');}
+      // Ngôi sao pha lê trên đỉnh
+      const glow=reduced?0:Math.sin(anim*4)*3;
+      circle(x,y-86+glow,10,'rgba(232,121,249,0.3)');text('✦',x,y-82+glow,'#f5d0fe',15);
+      rect(x-10,y-26,20,26,'#261b33');text('🔭',x,y-8,'#f0abfc',12);
+      text(ch.building,x,y+24,'#eedcfc',11);
+    }
+  }
+
+  // Khu vực lối bí mật & Rương kho báu
+  function drawSecretPassage(s,i,open,found,anim=0){
+    dropShadow(s.x,s.y-10,108,24,0.35);
+    // Vách đá cổ kính bao quanh
+    for(const w of s.walls){rect(w.x,w.y,w.w,w.h,'#344136');rect(w.x+1,w.y+1,w.w-2,w.h-2,'#516353');}
+    // Cửa chắn năng lực
+    if(!open){
+      rect(s.gate.x,s.gate.y,s.gate.w,s.gate.h,i===0?'#4a3320':i===1?'#284e66':'#483b63');
+      if(i===0){
+        // Rễ cây chằng chịt
+        for(let r=0;r<4;r++)rect(s.gate.x+6+r*22,s.gate.y-4,14,24,'#6e492b');
+        text('♧ RỄ CỔ CHẮN',s.x,s.y+7,'#e2c293',11);
+      }else if(i===1){
+        // Dòng nước xoáy
+        rect(s.gate.x,s.gate.y-2,s.gate.w,s.gate.h+4,'#2d637a');
+        text('≈ NƯỚC SÂU CHẮN',s.x,s.y+7,'#a5f3fc',11);
+      }else{
+        // Cầu sao vỡ nát
+        rect(s.gate.x,s.gate.y-2,s.gate.w,s.gate.h+4,'#4c3866');
+        text('◇ CẦU SAO ĐỨT',s.x,s.y+7,'#e9d5ff',11);
+      }
+    }else{
+      // Lối đã mở sạch sẽ
+      rect(s.gate.x,s.gate.y,s.gate.w,s.gate.h,'#839775');
+      rect(s.gate.x+2,s.gate.y+2,s.gate.w-4,s.gate.h-4,'#a6ba98');
+    }
+    // Rương kho báu gỗ bọc đồng
+    const cx=s.chest.x,cy=s.chest.y;
+    dropShadow(cx,cy+6,26,10,0.3);
+    rect(cx-12,cy-10,24,18,found?'#4a4537':'#9c6f3d');
+    rect(cx-10,cy-8,20,14,found?'#665e49':'#c99557');
+    rect(cx-12,cy-10,24,3,'#e5c158');rect(cx-12,cy-2,24,2,'#734e28');
+    rect(cx-3,cy-3,6,6,found?'#544d38':'#ffe07a');
+    text(found?'✓ Đã nhận':s.name,s.x,s.y+34,found?'#8da88a':'#e8dcbe',10);
+  }
+
+  // Quái thường chuẩn Pixel Art (Slime, Sprout, Warden)
+  function drawMobPixel(m,x,y,anim=0){
+    const def={color:m.kind==='sprout'?'#6b9468':m.kind==='warden'?'#8a6e4d':'#7ca878',maxHp:m.maxHp};
+    pixelEllipse(x+3,y+4,38,10,'#20322b66');
+    rect(x-19,y-18,38,16,def.color);rect(x-14,y-28,28,18,def.color);rect(x-9,y-30,18,6,'#d4d5ab');
+    if(m.kind==='sprout'){
+      rect(x-16,y-6,32,4,'#8e6393');rect(x-11,y-27,22,3,'#d8addd');
+      const footWaddle=reduced?0:Math.round(Math.sin(anim*7+m.id.charCodeAt(m.id.length-1))*2);
+      rect(x-12+footWaddle,y-2,6,4,'#5e4635');rect(x+6-footWaddle,y-2,6,4,'#5e4635');
+      const leafSway=reduced?0:Math.round(Math.sin(anim*4)*2);
+      rect(x-3,y-48,6,22,'#4e7a4b');rect(x-15+leafSway,y-44,12,6,'#76ad72');rect(x+3-leafSway,y-44,12,6,'#76ad72');
+      rect(x-6,y-52,12,6,'#e2a6d4');rect(x-3,y-50,6,3,'#fbe089');
+      rect(x-10,y-16,4,4,'#3d1a3c');rect(x+6,y-16,4,4,'#3d1a3c');rect(x-9,y-16,1,1,'#fbe089');rect(x+7,y-16,1,1,'#fbe089');
+    }else if(m.kind==='warden'){
+      rect(x-17,y-6,34,4,'#4e3c27');
+      rect(x-23,y-44,12,34,'#6b5336');rect(x-21,y-42,8,30,'#a68c65');
+      rect(x+11,y-44,12,34,'#6b5336');rect(x+13,y-42,8,30,'#a68c65');
+      rect(x-26,y-54,4,12,'#6b5336');rect(x+22,y-54,4,12,'#6b5336');
+      rect(x-22,y-34,10,5,'#48683f');rect(x+12,y-34,10,5,'#48683f');
+      const eyeGlow=reduced?'#74dfaa':(Math.sin(anim*6)>0?'#b5f5d3':'#74dfaa');
+      rect(x-4,y-18,8,5,'#2d4229');rect(x-3,y-17,6,3,eyeGlow);
+    }else{
+      // Slime mọng nước
+      rect(x-17,y-6,34,4,'#6a9867');rect(x-12,y-29,24,3,'#b5deb2');rect(x-16,y-19,4,15,'#b5deb2');
+      rect(x-10,y-25,3,2,'#ffffff');rect(x+7,y-23,2,2,'#ffffff');
+      const coreY=y-16+(reduced?0:Math.round(Math.sin(anim*4)*1.5));
+      rect(x-2,coreY-2,4,4,'#fef08a');rect(x-1,coreY-1,2,2,'#fffbeb');
+      rect(x-12,y-14,4,4,'#33595b');rect(x+7,y-14,4,4,'#33595b');rect(x-11,y-14,1,1,'#ffffff');rect(x+8,y-14,1,1,'#ffffff');
+    }
+    // Thanh máu
+    rect(x-17,y+8,34,4,'#2d3b32');rect(x-17,y+8,Math.max(0,m.hp)/def.maxHp*34,4,'#f0a06c');
+  }
+
+  // Boss hùng mạnh chuẩn Pixel Art với Lõi phản công
+  function drawBossPixel(m,x,y,anim=0){
+    pixelEllipse(x,y+6,92,26,'#20322b66');
+    const vulnerable=m.stage==='recovery';
+    if(m.kind==='forestBoss'){
+      // Hộ Vệ Rêu Cổ (Forest Titan)
+      rect(x-32,y-68,64,65,'#353c36');rect(x-28,y-64,56,58,'#525c53');
+      rect(x-46,y-52,18,50,'#353c36');rect(x-42,y-48,12,42,'#525c53');
+      rect(x+28,y-52,18,50,'#353c36');rect(x+30,y-48,12,42,'#525c53');
+      rect(x-36,y-72,72,10,'#506846');rect(x-32,y-70,64,6,'#79946c');
+      rect(x-20,y-84,40,26,'#525c53');rect(x-22,y-86,44,6,'#79946c');
+      rect(x-32,y-96,10,32,'#506846');rect(x+22,y-96,10,32,'#506846');
+      rect(x-14,y-74,6,5,'#6ee7b7');rect(x+8,y-74,6,5,'#6ee7b7');
+      if(vulnerable){
+        circle(x,y-38,24,'rgba(110,231,183,0.35)');
+        rect(x-12,y-48,24,26,'#353c36');rect(x-8,y-44,16,20,'#6ee7b7');rect(x-4,y-40,8,12,'#c5f0b1');
+      }else{rect(x-9,y-45,18,23,'#506846');rect(x-5,y-41,10,15,'#79946c');}
+      text('HỘ VỆ RÊU CỔ',x,y-104,'#fef08a',13);
+    }else if(m.kind==='tideBoss'){
+      // Hộ Vệ Sóng Ngầm (Tide Leviathan)
+      rect(x-30,y-68,60,65,'#3e636b');rect(x-26,y-64,52,58,'#6e9ca4');
+      rect(x-44,y-52,18,50,'#3e636b');rect(x-40,y-48,12,42,'#6e9ca4');
+      rect(x+26,y-52,18,50,'#3e636b');rect(x+28,y-48,12,42,'#6e9ca4');
+      rect(x-22,y-84,44,28,'#4d757d');
+      rect(x-34,y-98,10,32,'#e07a7a');rect(x+24,y-98,10,32,'#e07a7a');
+      rect(x-13,y-73,6,5,'#a5f3fc');rect(x+7,y-73,6,5,'#a5f3fc');
+      if(vulnerable){
+        circle(x,y-38,24,'rgba(103,232,249,0.35)');
+        rect(x-12,y-48,24,26,'#3e636b');rect(x-8,y-44,16,20,'#67e8f9');rect(x-4,y-40,8,12,'#f0fdfa');
+      }else{rect(x-9,y-45,18,23,'#4d757d');rect(x-5,y-41,10,15,'#6e9ca4');}
+      text('HỘ VỆ SÓNG NGẦM',x,y-104,'#a5f3fc',13);
+    }else{
+      // Hộ Vệ Thiên Thạch (Sky Archon)
+      rect(x-30,y-68,60,65,'#261b30');rect(x-26,y-64,52,58,'#433352');
+      const lev=reduced?0:Math.round(Math.sin(anim*3)*4);
+      rect(x-46,y-56+lev,16,44,'#433352');rect(x-42,y-52+lev,10,36,'#a38cb6');
+      rect(x+30,y-56-lev,16,44,'#433352');rect(x+32,y-52-lev,10,36,'#a38cb6');
+      rect(x-22,y-86,44,30,'#352445');rect(x-34,y-100,10,32,'#a38cb6');rect(x+24,y-100,10,32,'#a38cb6');
+      rect(x-13,y-74,6,5,'#f472b6');rect(x+7,y-74,6,5,'#f472b6');
+      if(vulnerable){
+        circle(x,y-38,24,'rgba(232,121,249,0.35)');
+        rect(x-12,y-48,24,26,'#261b30');rect(x-8,y-44,16,20,'#e879f9');rect(x-4,y-40,8,12,'#fdf4ff');
+      }else{rect(x-9,y-45,18,23,'#433352');rect(x-5,y-41,10,15,'#a38cb6');}
+      text('HỘ VỆ THIÊN THẠCH',x,y-104,'#f5d0fe',13);
+    }
+    // Trạng thái Pha & Lộ lõi
+    text('PHA '+m.phase+(vulnerable?' · LỘ LÕI PHẢN CÔNG!':''),x,y+24,vulnerable?'#86efac':'#fde047',11);
+    // Thanh HP Boss uy nghi
+    rect(x-46,y-84,92,6,'#232a24');rect(x-45,y-83,90*Math.max(0,m.hp)/m.maxHp,4,vulnerable?'#4ade80':'#fb923c');
+  }
+
   function draw(now){
     requestAnimationFrame(draw);if(!state||document.hidden)return;
     const c=D.chapters[state.chapter],t=reduced?0:now/1000,alpha=Math.min(1,(now-receivedAt)/100);
-    rect(0,0,800,560,c?c.floor:'#527052');
-    // Họa tiết cố định theo tọa độ, không dùng random mỗi frame để tránh nhấp nháy.
-    for(let y=0;y<560;y+=24)for(let x=0;x<800;x+=24){rect(x+((y*3+x)%11),y+7,3,2,c?'#e1e7ce18':'#a4c57c33');}
-    rect(20,255,760,42,c?'#a8a38544':'#b4aa7466');rect(15,20,770,12,c?c.color:'#314c38');rect(15,530,770,14,c?c.color:'#314c38');
-    if(c){
-      for(const o of D.obstacles[state.room]){rect(o.x+5,o.y+9,o.w,o.h,'#1b302b77');rect(o.x,o.y,o.w,o.h,c.color);rect(o.x,o.y,o.w,7,c.accent+'66');}
-      if(state.room===1)D.switches.forEach((s,i)=>{circle(s.x,s.y,42,state.puzzleSolved?'#a8d99b44':'#e8cf7144');rect(s.x-17,s.y-32,34,42,c.color);text(i===0?'☘':'☽',s.x,s.y-4,c.accent,25);text(i===0?'BIA TÂY':'BIA ĐÔNG',s.x,s.y+29,c.accent,10);});
-      if(state.room===3){circle(400,350,26,'#f4c36a44');text('✦',400,358,'#ffdb87',30);text(c.resident+' · Tương tác để nghỉ',400,400,'#fff2c4',13);}
-      if(state.room<4){rect(752,230,26,90,state.mobs.some(m=>m.hp>0)||(state.room===1&&!state.puzzleSolved)?'#b6a27a':'#c6e8b0');text('→',763,282,'#253d30',25);}
-      if(state.finished){text('✦ '+c.name.toUpperCase()+' ĐÃ THỨC TỈNH ✦',400,100,c.accent,19);text('Phần thưởng đã lưu · Trở về làng',400,127,'#fff4d8',13);}
+
+    // 1. Nền thế giới dither tự nhiên
+    if(!c){
+      // Bản đồ Trại Ánh Sao (Làng bình yên)
+      rect(0,0,800,560,'#4a6e4d');
+      // Ma trận hạt cỏ Bayer dither
+      for(let y=0;y<560;y+=16)for(let x=0;x<800;x+=16){
+        const p=((x*7+y*13)%23);
+        if(p<8)rect(x,y+6,2,2,'#59835d');else if(p<12)rect(x+8,y+10,3,1,'#3b5c3e');
+      }
+      // Đường sỏi uốn lượn trung tâm với viền sỏi
+      rect(20,250,760,52,'#c7b282');rect(20,248,760,2,'#a89569');rect(20,302,760,2,'#a89569');
+      for(let x=24;x<770;x+=28){rect(x,254,4,2,'#ded0aa');rect(x+14,296,5,2,'#b09d72');}
+      // Ranh giới tự nhiên
+      rect(15,16,770,12,'#28422e');rect(15,532,770,14,'#28422e');
     }else{
-      house(125,170,'#a56a4f','Trại Ánh Sao');tree(70,420,'#2c543e');tree(730,410,'#2e5742');tree(720,130,'#284c39');
-      D.chapters.forEach((ch,i)=>{const x=320+i*180;if(state.world.buildings.includes(ch.id))house(x,465,['#6b915a','#5b8193','#84749a'][i],ch.building);else{rect(x-35,435,70,25,'#3c563e');text(ch.building,x,485,'#c2cba5',10);}});
-      D.secrets.forEach((s,i)=>{const open=state.world.abilities.includes(D.chapters[i].ability),found=state.world.secrets.includes(D.chapters[i].id);
-        rect(s.x-48,s.y-90,96,116,i===1?'#467d88':i===2?'#8d80a0':'#769765');
-        for(const wall of s.walls)rect(wall.x,wall.y,wall.w,wall.h,'#2a4538');
-        if(!open){rect(s.gate.x,s.gate.y,s.gate.w,s.gate.h,i===0?'#825f43':i===1?'#214f6e':'#554d75');text(i===0?'♧':i===1?'≈':'◇',s.x,s.y+7,'#c4c9a5',24);}
-        else rect(s.gate.x,s.gate.y,s.gate.w,s.gate.h,'#d5c28b');
-        rect(s.chest.x-12,s.chest.y-12,24,19,found?'#6a7156':'#e0bf6e');rect(s.chest.x-2,s.chest.y-12,4,19,'#8c7243');
-        text(found?'Đã khám phá':s.name,s.x,s.y+51,'#d8d8b8',10);});
+      // Phòng Dungeon: Màu nền sàn đá chuyên biệt từng chương
+      rect(0,0,800,560,c.floor);
+      // Gạch lát sàn đá dither
+      for(let y=0;y<560;y+=28)for(let x=0;x<800;x+=28){
+        rect(x,y,27,27,c.color);rect(x,y,27,1,c.accent+'33');rect(x,y,1,27,c.accent+'22');
+      }
+      rect(15,16,770,12,'#1b2720');rect(15,532,770,14,'#1b2720');
     }
-    // Vùng báo đòn luôn ở trên nền và dưới nhân vật; màu xanh là thời điểm phản công.
+
+    // 2. Vật thể cảnh quan theo từng chế độ
+    if(!c){
+      // Trại Ánh Sao: Nhà chính, lửa trại, cây cối, lối bí mật & công trình
+      drawCabin(130,175,t);
+      drawCampfire(225,185,t);
+      drawTree(68,430,1.2,0,t);drawTree(734,420,1.25,1,t);drawTree(720,135,1.1,2,t);
+      // 3 Công trình xây làng
+      D.chapters.forEach((ch,i)=>{drawVillageBuilding(320+i*180,470,ch,state.world.buildings.includes(ch.id),t);});
+      // 3 Lối bí mật mở bằng năng lực
+      D.secrets.forEach((s,i)=>{
+        const open=state.world.abilities.includes(D.chapters[i].ability),found=state.world.secrets.includes(D.chapters[i].id);
+        drawSecretPassage(s,i,open,found,t);
+      });
+    }else{
+      // Trong Dungeon: Chướng ngại vật cổ, bia cơ chế, cổng chuyển phòng
+      for(const o of D.obstacles[state.room]){
+        dropShadow(o.x+o.w/2,o.y+o.h+4,o.w+12,16,0.4);
+        rect(o.x,o.y,o.w,o.h,c.color);rect(o.x+2,o.y+2,o.w-4,o.h-4,c.floor);
+        // Chạm khắc hoa văn rune trên cột đá
+        for(let py=o.y+10;py<o.y+o.h-10;py+=18)rect(o.x+8,py,o.w-16,3,c.accent+'55');
+        rect(o.x,o.y,o.w,4,c.accent+'aa');
+      }
+      // Phòng 2: Bia cơ chế cộng hưởng phong cách bia đá cổ
+      if(state.room===1)D.switches.forEach((s,i)=>{
+        dropShadow(s.x,s.y+14,54,16,0.35);
+        circle(s.x,s.y,38,state.puzzleSolved?'rgba(167,243,208,0.25)':'rgba(253,230,138,0.2)');
+        rect(s.x-16,s.y-34,32,46,'#323c34');rect(s.x-14,s.y-32,28,42,'#4e5c51');
+        text(i===0?'☘':'☽',s.x,s.y-6,state.puzzleSolved?'#86efac':'#fde047',24);
+        text(i===0?'BIA TÂY':'BIA ĐÔNG',s.x,s.y+26,c.accent,10);
+      });
+      // Phòng 4: Trạm nghỉ người giữ rừng (lều trại ấm cúng)
+      if(state.room===3){
+        dropShadow(400,360,70,18,0.4);
+        // Lều nghỉ
+        ctx.beginPath();ctx.moveTo(365,355);ctx.lineTo(400,310);ctx.lineTo(435,355);ctx.closePath();ctx.fillStyle='#856142';ctx.fill();
+        ctx.beginPath();ctx.moveTo(385,355);ctx.lineTo(400,325);ctx.lineTo(415,355);ctx.closePath();ctx.fillStyle='#362415';ctx.fill();
+        drawCampfire(455,352,t);
+        text('✦ '+c.resident+' · Trạm Nghỉ',400,395,'#fef3c7',12);
+      }
+      // Cổng qua phòng phía Đông: Cổng đá cổ phát sáng
+      if(state.room<4){
+        const open=!state.mobs.some(m=>m.hp>0)&&(state.room!==1||state.puzzleSolved);
+        rect(748,220,32,106,'#2c3830');rect(752,224,24,98,open?c.accent:'#524738');
+        text(open?'CỔNG MỞ →':'KHÓA 🔒',740,210,open?'#86efac':'#fca5a5',10);
+      }
+      if(state.finished){
+        text('✦ CHIẾN THẮNG: '+c.name.toUpperCase()+' ĐÃ THỨC TỈNH ✦',400,90,c.accent,20);
+        text('Phần thưởng đã lưu bền vững · Trở về trại để phục hồi làng',400,118,'#fef9c3',12);
+      }
+    }
+
+    // 3. Vùng báo đòn (Telegraph) rõ ràng dưới chân
     for(const e of state.mobs)if(e.hp>0){
       if(e.stage==='windup'||e.stage==='active'){
-        ctx.save();ctx.translate(e.x,e.y);ctx.rotate(Math.atan2(e.dy??0,e.dx??1));ctx.fillStyle=e.stage==='windup'?'#ffda5a70':'#ff775b90';ctx.strokeStyle='#ffea82';ctx.lineWidth=2;
-        const tell=e.tell;
-        if(e.style==='charge'){ctx.fillRect(-tell.radius,-tell.radius,tell.chargeLength+2*tell.radius,2*tell.radius);ctx.strokeRect(-tell.radius,-tell.radius,tell.chargeLength+2*tell.radius,2*tell.radius);}
-        else{const arc=(e.style==='projectile'?tell.projectileArc:tell.arc)*Math.PI/360,range=e.style==='projectile'?tell.projectileRange:tell.range;ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,range,-arc,arc);ctx.closePath();ctx.fill();ctx.stroke();}ctx.restore();
+        ctx.save();ctx.translate(e.x,e.y);ctx.rotate(Math.atan2(e.dy??0,e.dx??1));
+        ctx.fillStyle=e.stage==='windup'?'rgba(250,204,21,0.45)':'rgba(239,68,68,0.55)';
+        ctx.strokeStyle='#fef08a';ctx.lineWidth=2;const tell=e.tell;
+        if(e.style==='charge'){
+          ctx.fillRect(-tell.radius,-tell.radius,tell.chargeLength+2*tell.radius,2*tell.radius);
+          ctx.strokeRect(-tell.radius,-tell.radius,tell.chargeLength+2*tell.radius,2*tell.radius);
+        }else{
+          const arc=(e.style==='projectile'?tell.projectileArc:tell.arc)*Math.PI/360,range=e.style==='projectile'?tell.projectileRange:tell.range;
+          ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,range,-arc,arc);ctx.closePath();ctx.fill();ctx.stroke();
+        }
+        ctx.restore();
       }
-      if(e.boss&&e.stage==='recovery')circle(e.x,e.y,45,'#a9efcf44');
     }
+
+    // 4. Quái vật & Boss với Sprite Pixel Art
     for(const e of state.mobs)if(e.hp>0){
-      const size=e.boss?31:19,colors={slime:'#c0ce80',sprout:'#acc36d',warden:'#afa799',forestBoss:'#b7a56d',tideBoss:'#86c7cf',skyBoss:'#c3ace2'};
-      circle(e.x,e.y+8,size,'#21342b55');rect(e.x-size,e.y-size,size*2,size*2,colors[e.kind]);rect(e.x-size+4,e.y-size+5,size*2-8,5,'#d9e5b788');rect(e.x-10,e.y-5,6,6,'#2a352a');rect(e.x+5,e.y-5,6,6,'#2a352a');
-      if(e.boss){text(e.kind==='forestBoss'?'Hộ Vệ Rêu Cổ':e.kind==='tideBoss'?'Hộ Vệ Sóng Ngầm':'Hộ Vệ Thiên Thạch',e.x,e.y-53,'#fff3d8',12);text('PHA '+e.phase+(e.stage==='recovery'?' · LỘ LÕI':''),e.x,e.y+49,e.stage==='recovery'?'#c3ffda':'#ffe4a3',11);}
-      rect(e.x-28,e.y-size-14,56,5,'#243d30');rect(e.x-28,e.y-size-14,56*e.hp/e.maxHp,5,'#ebad84');if(e.id===state.marked)text('⚑',e.x,e.y-size-27,'#fff0a3',23);
+      if(e.boss)drawBossPixel(e,e.x,e.y,t);else drawMobPixel(e,e.x,e.y,t);
+      if(e.id===state.marked)text('⚑ MỤC TIÊU',e.x,e.y-(e.boss?120:44),'#fde047',12);
     }
+
+    // 5. Nhân vật người chơi & Đồng đội (dùng StardropActors pixel chibi)
     for(const p of [...state.players].sort((a,b)=>a.y-b.y)){
       const before=previous?.chapter===state.chapter&&previous?.room===state.room?previous.players.find(a=>a.id===p.id):null;
       const x=before&&Math.hypot(before.x-p.x,before.y-p.y)<80?before.x+(p.x-before.x)*alpha:p.x,y=before&&Math.hypot(before.x-p.x,before.y-p.y)<80?before.y+(p.y-before.y)*alpha:p.y;
-      ctx.save();ctx.globalAlpha=p.connected?1:.4;
-      if(p.health===0){circle(x,y,22,'#c3897866');text('♡',x,y+4,'#ffc4aa',25);}else globalThis.StardropActors.draw(ctx,{id:'player',isPlayer:true,x,y,direction:p.direction,distance:p.travel,moving:p.moving,running:p.running,motionWeight:p.moving?1:0,runWeight:p.running?1:0,reducedMotion:reduced,time:t,shirt:p.id===state.you?'#e2b46e':'#7cb6ac'});
-      rect(x-22,y-70,44,4,'#20362a');rect(x-22,y-70,44*p.health/100,4,p.id===state.you?'#e7ce87':'#8ed5bd');text(p.name,x,y-79,p.id===state.you?'#ffe3a5':'#deefdf',11);
-      if(p.revive)text('Cứu '+Math.min(100,Math.round(p.revive.time/2*100))+'%',x,y+30,'#d3f4d5',12);ctx.restore();
+      ctx.save();ctx.globalAlpha=p.connected?1:0.4;
+      if(p.health===0){
+        circle(x,y,22,'rgba(239,68,68,0.3)');text('♡ CẦN CỨU',x,y+4,'#fca5a5',12);
+      }else{
+        globalThis.StardropActors.draw(ctx,{id:'player',isPlayer:true,x,y,direction:p.direction,distance:p.travel,moving:p.moving,running:p.running,motionWeight:p.moving?1:0,runWeight:p.running?1:0,reducedMotion:reduced,time:t,shirt:p.id===state.you?'#eab308':'#38bdf8'});
+      }
+      // Thanh máu & Tên nhân vật dạng backplate tối màu chuẩn WCAG
+      rect(x-24,y-72,48,6,'#1a241e');
+      rect(x-24,y-72,48*Math.max(0,p.health)/100,6,p.id===state.you?'#facc15':'#4ade80');
+      text((p.id===state.host?'♛ ':'')+p.name,x,y-80,p.id===state.you?'#fef08a':'#e2e8f0',11);
+      if(p.revive)text('Đang cứu '+Math.min(100,Math.round(p.revive.time/2*100))+'%',x,y+24,'#86efac',11);
+      ctx.restore();
     }
-    for(const s of state.projectiles){circle(s.x,s.y,s.friendly?4:7,s.friendly?'#ffe5a0':'#ffbb8d');}
-    for(const f of state.effects){if(['attack','help','wait'].includes(f.kind)){circle(f.x,f.y,35,'#f0da9055');text(f.kind==='help'?'♡':f.kind==='wait'?'◷':'⚑',f.x,f.y-30,'#ffebad',25);}else{ctx.strokeStyle='#f5e2a9';ctx.lineWidth=3;ctx.beginPath();ctx.arc(f.x,f.y,32,0,Math.PI);ctx.stroke();}}
+
+    // 6. Đạn bay & Hiệu ứng phép thuật
+    for(const s of state.projectiles){circle(s.x,s.y,s.friendly?5:8,s.friendly?'#fef08a':'#fb923c');}
+    for(const f of state.effects){
+      if(['attack','help','wait'].includes(f.kind)){
+        circle(f.x,f.y,32,'rgba(253,224,71,0.25)');
+        text(f.kind==='help'?'♡ CẦN GIÚP':f.kind==='wait'?'◷ CHỜ TÔI':'⚑ TẬP TRUNG',f.x,f.y-28,'#fef08a',12);
+      }else{
+        ctx.strokeStyle='#fef08a';ctx.lineWidth=3;ctx.beginPath();ctx.arc(f.x,f.y,32,0,Math.PI);ctx.stroke();
+      }
+    }
   }
   function tone(frequency,duration=.12){if(!sound||!audio)return;const oscillator=audio.createOscillator(),gain=audio.createGain();oscillator.type='triangle';oscillator.frequency.value=frequency;gain.gain.setValueAtTime(.035,audio.currentTime);gain.gain.exponentialRampToValueAtTime(.001,audio.currentTime+duration);oscillator.connect(gain);gain.connect(audio.destination);oscillator.start();oscillator.stop(audio.currentTime+duration);}
   $('sound').onclick=async()=>{try{audio ||= new (window.AudioContext||window.webkitAudioContext)();await audio.resume();sound=!sound;$('sound').textContent='Âm thanh: '+(sound?'Bật':'Tắt');$('sound').setAttribute('aria-pressed',String(sound));tone(440,.3);}catch{tell('Trình duyệt chưa mở được âm thanh.');}};
