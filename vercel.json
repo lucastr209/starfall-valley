@@ -5,7 +5,6 @@
   "outputDirectory": "dist",
   "regions": ["sin1"],
   "fluid": true,
-  "public": false,
   "functions": { "api/play.mjs": { "maxDuration": 300 } },
   "rewrites": [
     { "source": "/play", "destination": "/api/play" },
