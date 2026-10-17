@@ -1,7 +1,7 @@
 /* The minimap renders only positions already visible to this game client. */
 (function (root) {
   'use strict';
-  const BACKGROUNDS = { village:'#7c9d75', forest:'#496f56', coast:'#acbd9a', ruins:'#77867a' };
+  const BACKGROUNDS = { village:'#6c9e47', forest:'#46724e', coast:'#8ba66c', ruins:'#728378' };
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const finitePoint = point => point && Number.isFinite(point.x) && Number.isFinite(point.y);
   function geometry(options) {
@@ -42,8 +42,17 @@
       ctx.fillRect(layout.x,layout.y,layout.worldWidth * layout.scale,layout.worldHeight * layout.scale);
       if (options.terrain) {
         // A missing or not-yet-ready optional terrain image must not stop gameplay.
-        try { ctx.drawImage(options.terrain,layout.x,layout.y,layout.worldWidth * layout.scale,layout.worldHeight * layout.scale); } catch (_) {}
+        try {
+          ctx.imageSmoothingEnabled = true;
+          ctx.drawImage(options.terrain,layout.x,layout.y,layout.worldWidth * layout.scale,layout.worldHeight * layout.scale);
+          ctx.imageSmoothingEnabled = false;
+        } catch (_) {
+          ctx.imageSmoothingEnabled = false;
+        }
       }
+      ctx.strokeStyle = '#182d30';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(layout.x - 0.5, layout.y - 0.5, layout.worldWidth * layout.scale + 1, layout.worldHeight * layout.scale + 1);
       const camera=options.camera;
       if (finitePoint(camera) && Number.isFinite(camera.width) && camera.width > 0 && Number.isFinite(camera.height) && camera.height > 0) {
         const left=sx(camera.x),top=sy(camera.y),right=sx(camera.x + camera.width),bottom=sy(camera.y + camera.height);
@@ -53,7 +62,7 @@
         }
       }
       if (Array.isArray(options.objects)) for (const object of options.objects) {
-        if (!visible(object) || (object.kind !== 'gate' && object.kind !== 'portal')) continue;
+        if (!visible(object) || !['gate','portal','door'].includes(object.kind)) continue;
         const x=sx(object.x),y=sy(object.y),size=3 * radius;
         ctx.fillStyle='#64d8eb';ctx.strokeStyle='#203b3d';ctx.lineWidth=1;
         ctx.fillRect(x-size,y-size,size*2,size*2);ctx.strokeRect(x-size,y-size,size*2,size*2);

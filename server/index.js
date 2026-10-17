@@ -18,6 +18,7 @@ const CONTENT_TYPES = Object.freeze({
   '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.webmanifest': 'application/manifest+json; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
   '.png': 'image/png'
 });
 // The local server and deployment build publish the same explicit allowlist.
@@ -152,7 +153,8 @@ function createGameServer(options = {}) {
         response.end('Không đọc được tài nguyên trò chơi.');
         return;
       }
-      response.writeHead(200, { ...headers, 'Content-Type': asset[1], 'Content-Length': body.length });
+      const download=({'recovery/forest-checkpoint.json':{'Content-Disposition':'attachment; filename="starfall-valley-forest-recovery.json"'},'recovery/cave-checkpoint.json':{'Content-Disposition':'attachment; filename="starfall-valley-cave-checkpoint.json"'}})[asset[0]]||{};
+      response.writeHead(200, { ...headers, ...download, 'Content-Type': asset[1], 'Content-Length': body.length });
       response.end(request.method === 'HEAD' ? undefined : body);
     });
   });

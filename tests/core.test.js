@@ -4,8 +4,66 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const C = require('../public/js/game-core.js');
 const D = require('../public/js/game-data.js');
+const X = require('../public/js/exploration-core.js');
 const fresh = () => C.createState('Người thử nghiệm', D);
 const snapshot = s => JSON.stringify(s);
+
+// Đi hết câu chuyện bằng các thao tác được hỗ trợ để kiểm save và mục tiêu sau lễ hội.
+function finishStory() {
+  const s = fresh(); C.resumeStory(s, D);
+  for (const q of D.quests.filter(q => q.kind === 'story')) { performObjectives(s, q); assert.equal(C.claim(s, q.id, D, q.giver).ok, true); }
+  return s;
+}
+
+test('Journey stages cover the story once and advance only on claimed story quests', () => {
+  const ids = D.journey.stages.flatMap(stage => stage.quests);
+  assert.deepEqual(ids, D.quests.filter(q => q.kind === 'story').map(q => q.id));
+  const s = fresh(); C.resumeStory(s, D);
+  assert.equal(C.journeyProgress(s, D).done, 0);
+  for (const [i, q] of D.quests.filter(q => q.kind === 'story').entries()) {
+    performObjectives(s, q);
+    assert.equal(C.journeyProgress(s, D).done, i, 'Unclaimed objectives do not finish a chapter');
+    assert.equal(C.claim(s, q.id, D, q.giver).ok, true);
+    const j = C.journeyProgress(s, D);
+    assert.equal(j.done, i + 1); assert.equal(j.current, i < 13 ? 0 : i < 21 ? 1 : 2);
+    assert.equal(j.finished, i === 23);
+  }
+  s.quests.side01 = { status: 'claimed', progress: [1, 1, 1] };
+  assert.equal(C.journeyProgress(s, D).done, 24);
+  assert.equal(C.journeyProgress(s, D).next, null);
+});
+
+test('Resuming legacy story gaps is idempotent and preserves active progress and chosen side tracking', () => {
+  const s = fresh(); s.quests.story01 = { status: 'claimed', progress: [1] }; s.stats['gather:wood'] = 40;
+  assert.equal(C.resumeStory(s, D), true); assert.equal(s.tracked, 'story02');
+  assert.deepEqual(s.quests.story02.progress, [0, 0], 'Repeat objectives begin when accepted');
+  C.event(s, 'gather', 'wood', 3, D); C.accept(s, 'side01', D); s.tracked = 'side01';
+  const before = snapshot(s); assert.equal(C.resumeStory(s, D), false); assert.equal(snapshot(s), before);
+  const finished = finishStory(), saved = snapshot(finished);
+  assert.equal(C.resumeStory(finished, D), false); assert.equal(snapshot(finished), saved);
+});
+
+test('Personal goals count existing progress, require story completion and survive valid saves', () => {
+  const freshState = fresh(); assert.equal(C.chooseGoal(freshState, 'builder', D), false);
+  const s = finishStory();
+  s.chests = ['chest-forest', 'chest-forest', 'unknown-chest'];
+  assert.equal(C.personalGoals(s, D).find(g => g.id === 'treasure').done, 1);
+  assert.equal(C.personalGoals(s, D).find(g => g.id === 'neighbors').total, 30);
+  assert.equal(C.personalGoals(s, D).find(g => g.id === 'builder').total, 12);
+  assert.equal(C.chooseGoal(s, 'treasure', D), true); s.festivalSeen = true;
+  const restored = C.restoreState(s, D); assert.equal(restored.personalGoal, 'treasure'); assert.equal(restored.festivalSeen, true);
+  const unchanged = snapshot(s); assert.equal(C.chooseGoal(s, '__proto__', D), false); assert.equal(snapshot(s), unchanged);
+  assert.equal(C.chooseGoal(s, null, D), true); assert.equal(s.chests.length, 3);
+  s.chests = [...D.journey.treasureIds]; assert.equal(C.personalGoals(s, D).find(g => g.id === 'treasure').complete, true);
+});
+
+test('Festival and goals default safely on old saves and cannot be forged before the finale', () => {
+  const s = finishStory(); delete s.festivalSeen; delete s.personalGoal;
+  const old = C.restoreState(s, D); assert.equal(old.festivalSeen, false); assert.equal(old.personalGoal, null);
+  assert.deepEqual(old.inventory, s.inventory); assert.equal(old.coins, s.coins);
+  const forged = C.restoreState({ ...fresh(), festivalSeen: true, personalGoal: 'builder', quests: { story24: { status: 'claimed', progress: [1] } } }, D);
+  assert.equal(forged.festivalSeen, false); assert.equal(forged.personalGoal, null);
+});
 
 function supply(s, item, count) {
   const missing = Math.max(0, count - s.inventory[item]);
@@ -26,6 +84,14 @@ function performObjectives(s, q) {
     const left = o.count - C.progress(s, q)[i];
     if (left <= 0) return;
     switch (o.type) {
+      case 'explore': assert.equal(X.enter(s,o.target,D).ok,true); break;
+      case 'cave': {
+        const cave=D.exploration.rooms.find(r=>r.id===o.target);
+        assert.equal(X.readClue(s,cave.id,D).ok,true);
+        cave.sequence.forEach(symbol=>assert.equal(X.puzzleInput(s,cave.id,symbol,D).ok,true));
+        assert.equal(X.solve(s,cave.id,D).ok,true);assert.equal(X.markVictory(s,cave.id,D).ok,true);
+        assert.equal(X.claimLoot(s,cave.id,D).ok,true);break;
+      }
       case 'deliver': supply(s, o.target, o.count); break;
       case 'build': buildWithMaterials(s, o.target); break;
       case 'visit': assert.equal(C.visit(s, o.target, D), true); break;
@@ -72,19 +138,20 @@ function claimAndCheck(s, q) {
   assert.equal(snapshot(s), claimed, `${q.id} cannot reward twice`);
 }
 
-test('Catalogue: all 60 quests, 12 upgrades and 4 recipes have valid references and no dependency cycles', () => {
-  assert.equal(D.quests.length, 60);
+test('Catalogue: legacy quests and forest adventure have valid references and no dependency cycles', () => {
+  assert.equal(D.quests.length, 76);
   assert.equal(D.quests.filter(q => q.kind === 'story').length, 24);
-  assert.equal(D.quests.filter(q => q.kind === 'side').length, 24);
+  assert.equal(D.quests.filter(q => q.kind === 'side').length, 30);
   assert.equal(D.quests.filter(q => q.kind === 'daily').length, 12);
-  assert.equal(D.upgrades.length, 12); assert.equal(D.recipes.length, 4);
+  assert.equal(D.upgrades.length, 12); assert.equal(D.recipes.length, 5);
   const tables = [D.quests, D.upgrades, D.recipes, D.npcs, D.regions];
   tables.forEach(entries => assert.equal(new Set(entries.map(x => x.id)).size, entries.length));
   const idSet = list => new Set(list.map(x => x.id));
   const quests = idSet(D.quests), upgrades = idSet(D.upgrades), npcs = idSet(D.npcs), regions = idSet(D.regions), recipes = idSet(D.recipes), items = new Set(Object.keys(D.items));
-  const targets = { talk: npcs, gather: items, deliver: items, craft: recipes, visit: regions, build: upgrades, fish: new Set(['fish']), fight: new Set(['slime']), plant: new Set(['berry']), harvest: new Set(['berry']), shrine: new Set(['forest', 'coast', 'ruins']), chest: new Set(['treasure']), night: new Set(['village']), rain: new Set(['herb']) };
+  const targets = { proof:new Set(D.adventure.proofs.map(p=>p.id)), talk: npcs, gather: items, deliver: items, craft: recipes, visit: regions, build: upgrades, fish: new Set(['fish']), fight: new Set(['slime']), plant: new Set(['berry']), harvest: new Set(['berry']), shrine: new Set(['forest', 'coast', 'ruins']), chest: new Set(['treasure']), night: new Set(['village']), rain: new Set(['herb']) };
+  targets.explore=new Set(D.exploration.rooms.map(r=>r.id));targets.cave=new Set(D.exploration.rooms.filter(r=>r.kind==='cave').map(r=>r.id));
   D.quests.forEach(q => {
-    assert.ok(['story', 'side', 'daily'].includes(q.kind));
+    assert.ok(['story', 'side', 'daily','adventure'].includes(q.kind));
     q.requires.forEach(id => assert.ok(quests.has(id)));
     if (q.upgrade) assert.ok(upgrades.has(q.upgrade));
     if (q.giver) assert.ok(npcs.has(q.giver));
@@ -151,6 +218,11 @@ test('Every upgrade charges exact costs, respects prerequisites and refuses dupl
 test('Every recipe checks unlocks, consumes exact inputs and produces exact outputs atomically', async t => {
   for (const r of D.recipes) await t.test(r.id, () => {
     const s = fresh(); s.coins = 10000;
+    if(r.proof){
+      assert.equal(C.craft(s,r.id,D).ok,false);
+      s.quests.story05={status:'claimed',progress:[1,1]};
+      for(const proof of D.adventure.proofs)C.recordProof(s,proof.id,D);
+    }
     Object.entries(r.input).forEach(([item, n]) => supply(s, item, n));
     if (r.requires) { const before = snapshot(s); assert.equal(C.craft(s, r.id, D).ok, false); assert.equal(snapshot(s), before); buildWithMaterials(s, r.requires); }
     Object.entries(r.input).forEach(([item, n]) => supply(s, item, n));
@@ -265,4 +337,35 @@ test('Restore permits unordered valid upgrade and quest histories, and tracks on
   const restored = C.restoreState(s, D); assert.equal(restored.map, 'ruins'); assert.deepEqual(new Set(restored.upgrades), new Set(s.upgrades)); assert.equal(restored.quests.story03.status, 'claimed'); assert.equal(restored.tracked, 'story04');
   s.tracked = 'story03'; assert.equal(C.restoreState(s, D).tracked, null);
   s.inventory.wood = 200; s.upgrades.push('bag'); assert.equal(C.restoreState(s, D).inventory.wood, 200);
+});
+
+test('Journal partitions ready, claimed and available quests without mutating progress', () => {
+  const s = fresh(); C.accept(s, 'story01', D); C.event(s, 'talk', 'mira', 1, D); C.claim(s, 'story01', D, 'mira');
+  C.accept(s, 'side01', D); C.accept(s, 'side02', D); C.event(s, 'gather', 'wood', 8, D); s.tracked = 'side01';
+  const before = snapshot(s), entries = C.journalEntries(s, D);
+  assert.equal(entries.active[0].id, 'side02'); assert.equal(entries.active[1].id, 'side01');
+  assert.ok(entries.history.some(q => q.id === 'story01')); assert.ok(!entries.available.some(q => s.quests[q.id]));
+  assert.ok(entries.available.every(q => C.available(s, q, D))); assert.equal(snapshot(s), before);
+  assert.deepEqual(C.journalEntries(s, D, 'invalid'), entries);
+  assert.ok(C.journalEntries(s, D, 'side').active.every(q => q.kind === 'side'));
+});
+
+test('Journal retains accepted daily quests outside the rotating board and only offers today candidates', () => {
+  const s = fresh(); s.quests.story01 = { status: 'claimed', progress: [1] };
+  for (const q of D.quests.filter(q => q.kind === 'daily')) s.quests[q.id] = { status: 'active', progress: q.objectives.map(() => 0) };
+  const accepted = Object.keys(s.quests).length - 1;
+  assert.equal(C.journalEntries(s, D, 'daily').active.length, accepted);
+  s.quests = { story01: { status: 'claimed', progress: [1] } };
+  const board = new Set(C.dailyQuests(s, D).map(q => q.id));
+  assert.ok(C.journalEntries(s, D, 'daily').available.every(q => board.has(q.id)));
+});
+
+test('Story continuation preserves other tracked work and expired contracts select valid remaining work', () => {
+  const s = fresh(); C.accept(s, 'story01', D); C.event(s, 'talk', 'mira', 1, D); C.claim(s, 'story01', D, 'mira');
+  C.accept(s, 'side01', D); s.tracked = 'side01'; C.event(s, 'gather', 'wood', 6, D); C.event(s, 'gather', 'herb', 3, D);
+  assert.equal(C.claim(s, 'story02', D).ok, true); assert.equal(s.tracked, 'side01');
+  C.accept(s, 'daily01', D); s.tracked = 'daily01'; C.nextDay(s, D);
+  assert.equal(s.quests.daily01, undefined); assert.equal(s.quests.story02.status, 'claimed');
+  assert.equal(s.quests[s.tracked].status, 'active'); const before = snapshot(s);
+  assert.equal(C.ensureTrackedQuest(s, D), s.tracked); assert.equal(snapshot(s), before);
 });

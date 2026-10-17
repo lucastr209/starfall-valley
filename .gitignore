@@ -9,6 +9,7 @@ node_modules/
 /starfall-valley/
 /.vscode/
 /test-artifacts/
+/work/
 
 /.agents/
 /skills-lock.json

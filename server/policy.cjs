@@ -88,7 +88,8 @@ function environmentOptions(env = process.env) {
     allowedOrigins,
     maxClients: positiveInteger(env.MAX_CLIENTS, 60, 200),
     maxConnectionsPerIp: positiveInteger(env.MAX_CONNECTIONS_PER_IP, 8, 200),
-    trustedProxyIps: env.TRUSTED_PROXY_IPS || ''
+    trustedProxyIps: env.TRUSTED_PROXY_IPS || '',
+    maxHttpPerMinute: env.MAX_HTTP_PER_MINUTE ? positiveInteger(env.MAX_HTTP_PER_MINUTE, 240, 50000) : undefined
   };
 }
 

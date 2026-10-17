@@ -10,7 +10,7 @@ const actorArt = require('../public/js/world-actors.js');
 // Exercise the shipped browser source. The stubs model events, storage and canvas
 // calls; real browser rendering/fullscreen remains a separate visual check.
 function loadGame({ storage = new Map(), saved, search = '?qa=1', hostname = 'localhost', now = 1700000000000, width = 960, height = 600, viewportWidth, viewportHeight, visualViewportWidth, visualViewportHeight, userAgent = '', platform = '', maxTouchPoints = 0, standalone = false, legacyStandalone = false, reducedMotion = false, expectQA = true } = {}) {
-  const calls = [], elements = new Map(), raf = [], sockets = [], timers = new Map(), observers = [], clicks = [], downloads = [], objectURLs = new Map();
+  const calls = [], elements = new Map(), raf = [], sockets = [], timers = new Map(), observers = [], clicks = [], downloads = [], objectURLs = new Map(), reloads=[];
   const markup = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
   let clock = now, performanceClock = 0, created = 0, timerId = 0;
   class Target {
@@ -126,8 +126,9 @@ function loadGame({ storage = new Map(), saved, search = '?qa=1', hostname = 'lo
     static createObjectURL(blob) { const url=`blob:qa-${objectURLs.size}`;objectURLs.set(url,blob);return url; }
     static revokeObjectURL(url) { objectURLs.delete(url); }
   }
-  const sandbox = { document, window, navigator, location: { search, protocol: 'http:', host: `${hostname}:4173`, hostname }, localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, String(value)) }, Date: FakeDate, performance: { now: () => performanceClock }, URLSearchParams, structuredClone, WebSocket: FakeSocket,
+  const sandbox = { document, window, navigator, location: { search, protocol: 'http:', host: `${hostname}:4173`, hostname, reload(){reloads.push(new Map(storage));} }, localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, String(value)) }, Date: FakeDate, performance: { now: () => performanceClock }, URLSearchParams, structuredClone, WebSocket: FakeSocket,
     Blob:FakeBlob,URL:BrowserURL,matchMedia, ResizeObserver: FakeResizeObserver, requestAnimationFrame: callback => raf.push(callback), setTimeout: (fn, delay) => { timers.set(++timerId, { fn, delay }); return timerId; }, clearTimeout: id => timers.delete(id), console };
+  window.location=sandbox.location;
   if (saved) storage.set(search.includes('qa=1') ? 'starfall-valley-qa-save' : 'starfall-valley-save-v1', JSON.stringify(saved));
   vm.createContext(sandbox);
   for (const [, file] of markup.matchAll(/<script\b[^>]*\bsrc="([^"]+)"[^>]*>/g)) {
@@ -138,7 +139,7 @@ function loadGame({ storage = new Map(), saved, search = '?qa=1', hostname = 'lo
   }
   const qa = sandbox.StardropQA;
   if (expectQA) assert.ok(qa, 'Local QA API is available'); else assert.equal(qa, undefined, 'Debug API is absent outside QA mode');
-  const env = { qa, elements, calls, storage, sockets, document, window, navigator, visualViewport, displayMode, directions, raf, timers, motionPreference, clicks, downloads, objectURLs, effects: sandbox.StardropEffects, paths: sandbox.StardropPaths, actors: sandbox.StardropActors, minimap: sandbox.StardropMinimap, saveTransfer:sandbox.StardropSaveTransfer,
+  const env = { qa, elements, calls, storage, sockets, document, window, navigator, visualViewport, displayMode, directions, raf, timers, motionPreference, clicks, downloads, objectURLs, reloads, effects: sandbox.StardropEffects, paths: sandbox.StardropPaths, actors: sandbox.StardropActors, minimap: sandbox.StardropMinimap, saveTransfer:sandbox.StardropSaveTransfer,
     el: id => document.getElementById(id),
     advance(ms) { clock += ms; performanceClock += ms; },
     resize(width, height) { const stage = this.el('canvas-stage'); stage.clientWidth = width; stage.clientHeight = height; observers.forEach(o => o.callback()); },
@@ -156,15 +157,396 @@ function loadGame({ storage = new Map(), saved, search = '?qa=1', hostname = 'lo
 }
 
 const objects = (e, map = e.qa.getState().map) => e.qa.getWorld()[map].objects;
+
+async function enterTestRoom(e,id){
+  const room=e.qa.data.exploration.rooms.find(r=>r.id===id),door=objects(e,room.map).find(o=>o.roomId===id);
+  assert.ok(door,`Có cửa vào ${id}`);e.at(door);e.qa.interact();
+  if(!e.qa.getInterior?.())await e.button({landmark:door.id});
+  assert.equal(e.qa.getInterior()?.id,id);return door;
+}
+test('all ten homes open into walkable rooms with residents and return safely through their exit',async()=>{
+  for(const room of require('../public/js/game-data.js').exploration.rooms.filter(r=>r.kind!=='cave')){
+    const e=loadGame();await e.start();e.set({upgrades:unlocked(e)});const door=await enterTestRoom(e,room.id);
+    const scene=e.qa.getInterior();assert.ok(scene.residents.some(n=>n.id===room.npc));assert.equal(e.qa.collides(scene.spawn.x,scene.spawn.y),false);
+    const outside=residentPositions(e);e.step(.5);assert.equal(residentPositions(e),outside,'Cư dân ngoài trời không dùng tọa độ phòng');
+    const resident=scene.residents[0];e.at(resident);e.qa.interact();assert.equal(e.el('dialog-title').textContent,resident.name);await e.el('dialog-close').dispatch('click');
+    const exit=scene.objects.find(o=>o.action==='exit');e.at(exit);e.qa.interact();assert.equal(e.qa.getInterior(),null);assert.equal(e.qa.getState().map,room.map);assert.ok(Math.hypot(e.qa.getState().x-door.x,e.qa.getState().y-door.y)<90);
+  }
+});
+test('saving and exporting inside a home persist its outdoor position and reload without trapping the player',async()=>{
+  const e=loadGame();await e.start();const door=await enterTestRoom(e,'home-mira');e.set({x:800,y:600,coins:913});
+  await e.button({exportSave:''});const raw=JSON.parse(await e.downloads[0].blob.text()).progress;assert.equal(raw.x,door.x);assert.equal(raw.y,door.y);assert.equal(raw.coins,913);
+  e.step(6);const saved=JSON.parse(e.storage.get(e.qa.storageKey));assert.equal(saved.x,door.x);assert.equal(saved.y,door.y);
+  const reloaded=loadGame({storage:e.storage});await reloaded.start();assert.equal(reloaded.qa.getInterior(),null);assert.equal(reloaded.qa.collides(reloaded.qa.getState().x,reloaded.qa.getState().y),false);
+});
+test('indoor shop buys materials and unique gear only while its counter is open',async()=>{
+  const e=loadGame();await e.start();e.set({coins:2000});await enterTestRoom(e,'shop-leaf');const counter=e.qa.getInterior().objects.find(o=>o.action==='shop');e.at(counter);e.qa.interact();assert.equal(e.el('dialog-title').textContent,'Cửa hàng Chợ Lá');
+  await e.button({buy:'wood',quantity:'5'});assert.equal(e.qa.getState().inventory.wood,5);assert.equal(e.qa.getState().coins,1930);
+  await e.button({buy:'copperblade',quantity:'1'});assert.equal(e.qa.getState().inventory.copperblade,1);const coins=e.qa.getState().coins;
+  await e.button({buy:'copperblade',quantity:'1'});assert.equal(e.qa.getState().coins,coins);
+  await e.el('dialog-close').dispatch('click');await e.button({buy:'wood',quantity:'5'});assert.equal(e.qa.getState().inventory.wood,5);
+  await e.el('btn-leave-room').dispatch('click');assert.equal(e.qa.getInterior(),null);
+});
+test('Bao offers the shop from his indoor dialogue and local quests can be accepted and handed in there',async()=>{
+  const e=loadGame({search:'?qa=1&scene=homes&room=shop-leaf'});await e.start();await enterTestRoom(e,'shop-leaf');const bao=e.qa.getInterior().residents.find(n=>n.id==='bao');e.at(bao);e.qa.interact();assert.match(e.el('dialog-body').innerHTML,/data-open-shop/);await e.button({accept:'indoor02'});assert.equal(e.qa.getState().quests.indoor02.status,'active');
+  const s=e.qa.getState();s.inventory.plank=4;s.inventory.tea=3;e.qa.setState(s);await e.button({claim:'indoor02'});assert.equal(e.qa.getState().quests.indoor02.status,'claimed');assert.equal(e.qa.getState().inventory.plank,0);assert.equal(e.qa.getState().inventory.tea,0);
+  await e.button({openShop:''});assert.equal(e.el('dialog-title').textContent,'Cửa hàng Chợ Lá');
+});
+test('interior transitions close online presence, clear movement and reconnect only outside',async()=>{
+  const e=loadGame();await e.start();const socket=e.sockets[0];socket.readyState=1;socket.onopen();socket.onmessage({data:JSON.stringify({type:'welcome',id:'self'})});
+  await e.key('shift');await enterTestRoom(e,'home-mira');assert.equal(socket.readyState,3);assert.equal(e.qa.getLocomotion().touchRun,false);assert.equal(e.qa.getLocomotion().running,false);
+  const sent=socket.sent.length;e.step(.3);assert.equal(socket.sent.length,sent);assert.deepEqual(Array.from(e.qa.getActorLabels().map(a=>a.id)).sort(),['mira','player']);
+  await e.el('btn-home').dispatch('click');assert.equal(e.qa.getInterior(),null);assert.equal(e.sockets.length,1);await e.start();assert.equal(e.sockets.length,2);
+});
+test('new huts leave every legacy encounter spawn outside foundations and tree trunks',()=>{
+  const e=loadGame();
+  for(const [id,waves]of Object.entries(e.qa.data.adventure.encounters)){
+    const point=e.qa.data.adventure.objects.find(o=>o.id===id);
+    for(const wave of waves)wave.forEach((kind,i)=>assert.equal(e.qa.blockedAt(point.map,point.x+(i-(wave.length-1)/2)*40,point.y-30),false,`${id}/${kind} không bị nhốt trong chòi mới`));
+  }
+});
+test('all three caves solve through touch handlers, finish every combat wave and grant loot only once',async()=>{
+  for(const room of require('../public/js/game-data.js').exploration.rooms.filter(r=>r.kind==='cave')){
+    const e=loadGame({search:'?qa=1&scene=adventure'});await e.start();e.set({upgrades:unlocked(e)});await enterTestRoom(e,room.id);
+    const point=action=>e.qa.getInterior().objects.find(o=>o.action===action);
+    e.at(point('clue'));e.qa.interact();assert.match(e.el('dialog-body').innerHTML,/manh mối|Rễ|Trăng|Sao/);await e.el('dialog-close').dispatch('click');
+    e.at(point('puzzle'));e.qa.interact();for(const symbol of ['star','star','star'])await e.button({caveSymbol:symbol});await e.button({caveCheck:''});assert.ok(!e.qa.getState().exploration.solved.includes(room.id));
+    await e.button({caveReset:''});for(const symbol of room.sequence)await e.button({caveSymbol:symbol});await e.button({caveCheck:''});assert.ok(e.qa.getState().exploration.solved.includes(room.id));
+    e.at(point('boss'));e.qa.interact();assert.ok(e.qa.getActiveMobs().some(m=>m.hp>0));const count=e.qa.getActiveMobs().length;e.qa.interact();assert.equal(e.qa.getActiveMobs().length,count);
+    await e.el('btn-journal').dispatch('click');assert.match(e.el('dialog-body').innerHTML,new RegExp(room.name));await e.el('dialog-close').dispatch('click');
+    // Fixture giữ địch ở hồi chiêu để kiểm callback thật; không dùng tốc độ harness làm thời lượng chơi.
+    for(let wave=0;wave<room.waves.length;wave++){
+      const alive=e.qa.getActiveMobs().filter(m=>m.hp>0);assert.equal(alive.length,room.waves[wave].length);
+      for(const m of alive){m.hp=1;m.combat={stage:'recovery',style:'vulnerable',timer:100,cycle:0};e.at({map:room.map,x:m.x,y:m.y+45});await e.key('w');e.step(.001);await e.key('w','keyup');e.qa.attack();advanceCombat(e,.22);assert.equal(m.hp,0);}
+      if(wave+1<room.waves.length){assert.ok(!e.qa.getState().exploration.cleared.includes(room.id));advanceCombat(e,2.1);}
+    }
+    assert.ok(e.qa.getState().exploration.cleared.includes(room.id));assert.ok(!e.qa.getState().adventure.proofs.includes('rootBoss'));
+    e.at(point('loot'));e.qa.interact();for(const [item,n]of Object.entries(room.loot))assert.equal(e.qa.getState().inventory[item],n);
+    const coins=e.qa.getState().coins;e.qa.interact();assert.equal(e.qa.getState().coins,coins);
+    await e.el('btn-leave-room').dispatch('click');await enterTestRoom(e,room.id);e.at(point('boss'));e.qa.interact();assert.equal(e.qa.getActiveMobs().length,0);
+  }
+});
+test('cave puzzle drafts survive reload and retreat or defeat clears the indoor encounter',async()=>{
+  const e=loadGame({search:'?qa=1&scene=adventure'});await e.start();await enterTestRoom(e,'cave-forest');
+  const point=action=>e.qa.getInterior().objects.find(o=>o.action===action);e.at(point('clue'));e.qa.interact();await e.el('dialog-close').dispatch('click');e.at(point('puzzle'));e.qa.interact();await e.button({caveSymbol:'leaf'});await e.el('dialog-close').dispatch('click');
+  const reload=loadGame({storage:e.storage});await reload.start();assert.deepEqual(Array.from(reload.qa.getState().exploration.puzzles['cave-forest']),['leaf']);assert.equal(reload.qa.getInterior(),null);
+  await enterTestRoom(reload,'cave-forest');const room=reload.qa.getInterior();reload.at(room.objects.find(o=>o.action==='puzzle'));reload.qa.interact();await reload.button({caveSymbol:'moon'});await reload.button({caveSymbol:'star'});await reload.button({caveCheck:''});reload.at(room.objects.find(o=>o.action==='boss'));reload.qa.interact();
+  await reload.el('btn-journal').dispatch('click');await reload.button({retreat:''});assert.equal(reload.qa.getInterior(),null);assert.ok(!reload.qa.getState().exploration.cleared.includes('cave-forest'));
+  await enterTestRoom(reload,'cave-forest');const sockets=reload.sockets.length;reload.set({health:0});reload.step(.01);assert.equal(reload.qa.getInterior(),null);assert.equal(reload.qa.getState().map,'village');assert.equal(reload.qa.getState().health,100);assert.equal(reload.sockets.length,sockets+1);
+});
+test('failed import in a room preserves its context and successful import clears it',async()=>{
+  const e=loadGame();await e.start();await enterTestRoom(e,'home-mira');const before=e.qa.getState(),candidate={...before,coins:777,x:850,y:565};
+  const text=e.saveTransfer.encode(candidate,e.qa.data),input=e.el('save-file');input.files=[{name:'save.json',size:Buffer.byteLength(text),text:async()=>text}];await input.dispatch('change');
+  const set=e.storage.set.bind(e.storage);e.storage.set=()=>{throw Error('quota');};await e.button({importSave:''});assert.equal(e.qa.getInterior().id,'home-mira');assert.equal(e.qa.getState().coins,before.coins);await e.el('dialog-close').dispatch('click');
+  e.storage.set=set;input.files=[{name:'save.json',size:Buffer.byteLength(text),text:async()=>text}];await input.dispatch('change');const sockets=e.sockets.length;await e.button({importSave:''});assert.equal(e.qa.getInterior(),null);assert.equal(e.qa.getState().coins,777);assert.equal(e.sockets.length,sockets+1);
+});
+test('interior rendering keeps outdoor weather and actors out of the room',async()=>{
+  const e=loadGame();await e.start();await enterTestRoom(e,'home-mira');e.set({day:2,minutes:1200});e.calls.length=0;e.qa.drawGame();
+  assert.ok(e.calls.some(c=>c.name==='fillText'&&c.args[0]==='Nhà Bản Đồ'));
+  assert.ok(!e.calls.some(c=>c.name==='drawImage'&&c.context==='gameCanvas'),'Không vẽ terrain ngoài trời');assert.ok(!e.calls.some(c=>c.strokeStyle==='#d8e6eb80'),'Không mưa trong nhà');
+});
+
+test('fast travel clears interior context only after the destination is validated',async()=>{
+  const e=loadGame();await e.start();await enterTestRoom(e,'home-mira');const sockets=e.sockets.length;
+  await e.button({travel:'missing'});assert.equal(e.qa.getInterior().id,'home-mira');
+  await e.button({travel:'forest'});assert.equal(e.qa.getInterior(),null);assert.equal(e.qa.getState().map,'forest');assert.equal(e.qa.getState().y,440);assert.equal(e.sockets.length,sockets+1);
+  e.step(6);const saved=JSON.parse(e.storage.get(e.qa.storageKey));assert.equal(saved.map,'forest');assert.equal(saved.y,440);
+});
+test('indoor walking and running keep their real locomotion state while outdoor NPCs remain paused',async()=>{
+  const e=loadGame();await e.start();await enterTestRoom(e,'home-mira');const start=e.qa.getState(),npcs=residentPositions(e);
+  await e.key('d');await e.key('shift');e.step(.2);assert.ok(e.qa.getState().x>start.x);assert.equal(e.qa.getState().moving,true);assert.equal(e.qa.getLocomotion().running,true);
+  await e.key('shift','keyup');e.step(.1);assert.equal(e.qa.getLocomotion().running,false);assert.equal(e.qa.getState().moving,true);assert.equal(residentPositions(e),npcs);
+  await e.key('d','keyup');e.step(.1);assert.equal(e.qa.getState().moving,false);
+});
+test('room camera stays within its floor instead of following the outdoor map into empty margins',async()=>{
+  const e=loadGame();await e.start();await enterTestRoom(e,'home-mira');e.resize(960,600);e.calls.length=0;e.qa.drawGame();
+  const translation=e.calls.find(c=>c.context==='gameCanvas'&&c.name==='translate'),height=e.el('gameCanvas').height,width=e.el('gameCanvas').width;
+  assert.ok(-translation.args[0]>=320&&-translation.args[0]+width<=1280);
+  assert.ok(-translation.args[1]>=240&&-translation.args[1]+height<=920);
+});
+test('house and cave QA scenes start outside a reachable doorway and use valid isolated progress',async()=>{
+  for(const [scene,room]of [['homes','shop-leaf'],['caves','cave-forest'],['caves','cave-coast'],['caves','cave-ruins']]){
+    const e=loadGame({search:`?qa=1&scene=${scene}&room=${room}`});await e.start();const r=e.qa.data.exploration.rooms.find(r=>r.id===room),s=e.qa.getState();assert.equal(s.map,r.map);assert.ok(Math.hypot(s.x-r.x,s.y-r.y)<=40);assert.equal(e.qa.collides(s.x,s.y),false);assert.equal(s.inventory.copperblade,1);assert.equal(s.adventure.weapon,'copperblade');await enterTestRoom(e,room);
+  }
+});
+
+test('owned weapons and outfits equip from inventory and render the selected player outfit',async()=>{
+  const e=loadGame();await e.start();const s=e.qa.getState();s.inventory.copperblade=1;s.inventory.travelercoat=1;e.qa.setState(s);
+  await e.el('btn-inventory').dispatch('click');assert.match(e.el('dialog-body').innerHTML,/data-equip="copperblade"/);assert.match(e.el('dialog-body').innerHTML,/data-equip="travelercoat"/);
+  await e.button({equip:'copperblade'});await e.button({equip:'travelercoat'});
+  assert.equal(e.qa.getState().adventure.weapon,'copperblade');assert.equal(e.qa.getState().exploration.outfit,'travelercoat');
+  const renders=[],original=e.actors.draw;e.actors.draw=(c,args)=>{renders.push(args);return original(c,args);};e.qa.drawGame();
+  assert.equal(renders.find(r=>r.id==='player').shirt,e.qa.data.exploration.equipment.travelercoat.color);
+  await e.button({equip:'none'});assert.equal(e.qa.getState().exploration.outfit,null);
+  const rare=e.qa.getState();rare.inventory.forestamber=1;e.qa.setState(rare);await e.el('btn-inventory').dispatch('click');assert.doesNotMatch(e.el('dialog-body').innerHTML,/data-sell="forestamber"/);
+});
+
+test('mobile installation gate blocks browser start and preserves save, while backup remains available',async()=>{
+  const storage=new Map([['starfall-valley-save-v1','{"version":99,"original":"keep"}']]);
+  const e=loadGame({storage,search:'',hostname:'starfall-valley.vercel.app',userAgent:'iPhone Safari',expectQA:false});
+  const original=storage.get('starfall-valley-save-v1');
+  assert.equal(e.el('install-screen').hidden,false);
+  await e.start();
+  assert.equal(e.el('start-screen').hidden,true);
+  assert.equal(storage.get('starfall-valley-save-v1'),original);
+  assert.equal(e.sockets.length,0);
+  await e.button({exportSave:''});assert.equal(e.downloads.length,1);
+  await e.document.dispatch('visibilitychange');assert.equal(storage.get('starfall-valley-save-v1'),original);
+});
+test('installed iPhone can start; production QA query cannot bypass installation',async()=>{
+  const installed=loadGame({search:'',userAgent:'iPhone',legacyStandalone:true,expectQA:false});
+  await installed.start();assert.equal(installed.el('install-screen').hidden,true);assert.equal(installed.el('play-screen').hidden,false);
+  const browser=loadGame({search:'?qa=1',hostname:'starfall-valley.vercel.app',userAgent:'iPhone',expectQA:false});
+  await browser.start();assert.equal(browser.el('install-screen').hidden,false);assert.equal(browser.sockets.length,0);
+});
+test('Android native prompt consumes one event and installation still requires launching the app',async()=>{
+  const e=loadGame({search:'',userAgent:'Android Chrome',expectQA:false});let prompts=0;
+  await e.window.dispatch('beforeinstallprompt',{prompt:async()=>{prompts++;},userChoice:Promise.resolve({outcome:'accepted'})});
+  assert.equal(e.el('btn-install-app').hidden,false);
+  await e.el('btn-install-app').dispatch('click');await e.el('btn-install-app').dispatch('click');
+  assert.equal(prompts,1);assert.match(e.el('install-status').textContent,/Màn hình chính/);
+  await e.window.dispatch('appinstalled');await e.start();assert.equal(e.sockets.length,0);
+  e.displayMode.matches=true;await e.displayMode.dispatch('change');await e.start();
+  assert.equal(e.el('install-screen').hidden,true);assert.equal(e.el('play-screen').hidden,false);
+});
 const object = (e, kind, item, map) => objects(e, map).find(o => o.kind === kind && (!item || o.item === item));
 const unlocked = e => e.qa.data.upgrades.map(u => u.id);
 const npc = (e, id) => e.qa.getNPCs().find(n => n.id === id);
 const residentPositions = e => JSON.stringify(e.qa.getNPCs().map(n => [n.id, n.map, n.x, n.y]));
+
+test('Journal defaults to active and separates available and history after claiming a quest', async () => {
+  const e = loadGame(); await e.start(); const s = e.qa.getState(); s.quests.story01.progress = [1]; e.qa.setState(s);
+  await e.el('btn-journal').dispatch('click');
+  assert.match(e.el('dialog-body').innerHTML, /data-journal-view="active"[^>]*aria-pressed="true"/);
+  assert.match(e.el('dialog-body').innerHTML, /Sẵn sàng nhận thưởng/);
+  await e.button({ claim: 'story01' });
+  assert.doesNotMatch(e.el('dialog-body').innerHTML, /data-quest-id="story01"/);
+  assert.match(e.el('dialog-body').innerHTML, /data-quest-id="story02"/);
+  await e.button({ journalView: 'history' }); assert.match(e.el('dialog-body').innerHTML, /data-quest-id="story01"/);
+  assert.doesNotMatch(e.el('dialog-body').innerHTML, /data-quest-id="story02"/);
+  await e.button({ journalView: 'available' }); assert.match(e.el('dialog-body').innerHTML, /data-accept="side01"/);
+  assert.doesNotMatch(e.el('dialog-body').innerHTML, /data-quest-id="story01"/);
+});
+
+test('Journal empty categories give a next action and preserve selected filters across refresh', async () => {
+  const e = loadGame(); await e.start(); await e.el('btn-journal').dispatch('click'); await e.button({ tab: 'daily' });
+  assert.match(e.el('dialog-body').innerHTML, /Chưa có nhiệm vụ đang làm/);
+  await e.button({ journalView: 'available' }); assert.match(e.el('dialog-body').innerHTML, /Chưa có nhiệm vụ có thể nhận/);
+  assert.match(e.el('dialog-body').innerHTML, /data-open-story/);
+  await e.button({ openStory: '' }); assert.match(e.el('dialog-body').innerHTML, /Việc tiếp theo:/);
+});
+
+test('Forest adventure QA starts from a valid legacy save and advances through a real landmark interaction', async () => {
+  const e = loadGame({search:'?qa=1&scene=adventure'}); await e.start();
+  assert.equal(e.qa.getState().quests.story05.status,'claimed'); assert.equal(e.qa.getState().quests.adv01.status,'active');
+  for(const id of ['trail','trail-2','trail-3']){const trail=objects(e,'forest').find(o=>o.proof===id);assert.ok(trail);e.at(trail);e.qa.interact();}
+  assert.ok(e.qa.getState().adventure.proofs.includes('trail'));
+  await e.button({claim:'adv01'});assert.equal(e.qa.getState().quests.adv02.status,'active');
+  assert.match(e.el('journey-stage').textContent,/Rễ Sao/);
+});
+
+test('Boss victory through a directional attack persists its proof and resets transient combat on modal', async () => {
+  const e=loadGame({search:'?qa=1&scene=boss'});await e.start();
+  const arena=objects(e,'forest').find(o=>o.proof==='rootBoss');e.at(arena,{x:arena.x,y:arena.y+25});e.qa.interact();
+  const boss=e.qa.getWorld().forest.mobs.find(m=>m.kind==='rootBoss');assert.ok(boss);boss.hp=1;boss.combat={stage:'recovery',timer:3,style:'vulnerable',phase:2,cycle:1};
+  e.set({x:boss.x,y:boss.y+50});await e.key('w');e.step(.001);await e.key('w','keyup');e.qa.attack();
+  for(let i=0;i<12;i++)e.step(1/60);
+  assert.ok(e.qa.getState().adventure.proofs.includes('rootBoss'));
+  await e.button({claim:'adv06'});assert.equal(e.qa.getState().inventory.rootblade,1);
+  const coins=e.qa.getState().coins;await e.button({claim:'adv06'});assert.equal(e.qa.getState().coins,coins);
+  await e.key('v');await e.el('btn-journal').dispatch('click');assert.equal(e.qa.getCombat().dodge,null);
+});
+
+test('Dodge speed never stacks held walking or running and advances gait by real dodge distance', async () => {
+  for(const sprint of [false,true]){
+    const e=loadGame();await e.start();e.set({x:800,y:550});await e.key('d');if(sprint)await e.key('Shift');e.step(.001);const x=e.qa.getState().x,walk=e.qa.getLocomotion().distance;await e.key('v');e.step(.05);
+    almost(e.qa.getState().x,x+18,'Dodge alone moves 360 pixels per second');almost(e.qa.getLocomotion().distance,walk+18,'Gait counts the actual dash');
+  }
+});
+
+test('Visible sword keeps its locked attack direction when movement turns during windup', async () => {
+  const e=loadGame();await e.start();e.set({x:800,y:550});await e.key('d');e.step(.001);await e.key('d','keyup');e.qa.attack();await e.key('a');e.step(.01);
+  assert.equal(e.qa.getCombat().attack.direction,'right');e.calls.length=0;e.qa.drawGame();
+  const rotation=e.calls.find(c=>c.context==='gameCanvas'&&c.name==='rotate');assert.ok(rotation.args[0]>0,'Blade still faces right while the actor turns left');
+});
+
+test('Import clears enemy attack phases so a different save receives a fresh warning', async () => {
+  const e=loadGame();await e.start();e.set({map:'forest',x:420,y:700});const mob=e.qa.getWorld().forest.mobs[0];
+  mob.combat={stage:'active',timer:.3,aimX:420,aimY:700,vx:1,vy:0,style:'charge',phase:1,cycle:0};
+  const text=e.saveTransfer.encode(e.qa.getState(),e.qa.data),input=e.el('save-file');input.files=[{name:'progress.json',size:Buffer.byteLength(text),text:async()=>text}];await input.dispatch('change');await e.button({importSave:''});
+  e.step(.02);assert.equal(e.qa.getState().health,100);assert.equal(mob.combat.stage,'windup');
+});
+
+test('Adventure tracking points to the unmet landmark instead of sending the player to its giver', async () => {
+  const e=loadGame({search:'?qa=1&scene=adventure'});await e.start();assert.equal(e.qa.getGuide().id,'trail');
+  assert.match(e.el('npc-guide').textContent,/Dấu rễ thức giấc/);
+});
+
+test('An active charge warning points along its locked velocity after passing the original aim', async () => {
+  const e=loadGame();await e.start();e.set({map:'forest',x:800,y:550});const mob=e.qa.getWorld().forest.mobs[0];mob.x=800;mob.y=700;mob.combat={stage:'active',timer:.3,aimX:750,aimY:700,vx:1,vy:0,style:'charge',phase:1,cycle:0};
+  e.calls.length=0;e.qa.drawGame();const line=e.calls.find(c=>c.context==='gameCanvas'&&c.name==='lineTo');assert.ok(line.args[0]>800,'The charge is still going right');
+});
+
+test('A nearby resident cannot cover a closer adventure landmark needed for rescue or preparation', async () => {
+  const e=loadGame({search:'?qa=1&scene=adventure'});await e.start();const s=e.qa.getState();s.adventure.proofs=['trail','training'];e.qa.setState(s);
+  e.at(objects(e,'forest').find(o=>o.proof==='rescue'));e.qa.interact();assert.match(e.el('dialog-body').innerHTML,/data-landmark="rescue"/);assert.match(e.el('dialog-body').innerHTML,/data-talk-near="sen"/);await e.button({landmark:'rescue'});assert.match(e.el('dialog-body').innerHTML,/data-rescue-route="path"/);
+});
+
+test('Mobile interaction offers the puzzle when rest or shortcut overlaps its approach', async () => {
+  for(const [id,x,y] of [['root-light',800,400],['relic',1010,510]]){
+    const e=loadGame({search:'?qa=1&scene=adventure',viewportWidth:568,viewportHeight:280});await e.start();
+    const s=e.qa.getState();s.adventure.proofs=['trail','training','rescue'];e.qa.setState(s);e.at({map:'forest',x,y});
+    await e.el('touch-interact').dispatch('click');assert.match(e.el('dialog-body').innerHTML,new RegExp('data-landmark="'+id+'"'));
+    await e.button({landmark:id});assert.match(e.el('dialog-body').innerHTML,/data-puzzle-check/);
+  }
+});
+
+test('Menu pauses preserve sword and dodge recovery instead of allowing repeated instant actions', async () => {
+  const e=loadGame();await e.start();e.qa.attack();advanceCombat(e,.12);const recovery=e.qa.getCombat().cooldown,stamina=e.qa.getState().stamina;
+  await e.el('btn-journal').dispatch('click');e.step(2);await e.el('dialog-close').dispatch('click');e.qa.attack();
+  assert.equal(e.qa.getState().stamina,stamina);almost(e.qa.getCombat().cooldown,recovery);
+  advanceCombat(e,.4);e.qa.dodge();const dashRecovery=e.qa.getCombat().dodgeCooldown,afterDodge=e.qa.getState().stamina;
+  await e.el('btn-journal').dispatch('click');await e.el('dialog-close').dispatch('click');e.qa.dodge();assert.equal(e.qa.getState().stamina,afterDodge);almost(e.qa.getCombat().dodgeCooldown,dashRecovery);
+});
+
+test('Encounter proof waits for all waves, pause freezes reinforcements and retreat resets the unfinished battle', async () => {
+  const e=loadGame({search:'?qa=1&scene=adventure'});await e.start();const s=e.qa.getState();s.adventure.proofs=['trail'];e.qa.setState(s);
+  const point=e.qa.data.adventure.objects.find(o=>o.id==='training');e.at(point);e.qa.interact();
+  const first=e.qa.getWorld().forest.mobs.find(m=>m.encounter==='training');first.hp=1;first.combat={stage:'recovery',timer:10,style:'charge',phase:1,cycle:0};
+  e.at({map:'forest',x:first.x,y:first.y+45});await e.key('w');e.step(.001);await e.key('w','keyup');e.qa.attack();advanceCombat(e,.2);
+  assert.equal(first.hp,0);assert.ok(!e.qa.getState().adventure.proofs.includes('training'));
+  await e.el('btn-journal').dispatch('click');e.step(3);assert.equal(e.qa.getWorld().forest.mobs.filter(m=>m.encounter==='training').length,1);
+  await e.el('dialog-close').dispatch('click');advanceCombat(e,2.1);assert.equal(e.qa.getWorld().forest.mobs.filter(m=>m.encounter==='training'&&m.hp>0).length,2);
+  await e.el('btn-journal').dispatch('click');await e.button({retreat:''});assert.ok(!e.qa.getWorld().forest.mobs.some(m=>m.encounter));assert.ok(!e.qa.getState().adventure.proofs.includes('training'));
+});
+
+test('The complete forest chapter uses real landmark, rescue, puzzle, combat and reward handlers', async () => {
+  const e=loadGame({search:'?qa=1&scene=adventure'});await e.start();
+  const point=id=>e.qa.data.adventure.objects.find(o=>o.id===id);
+  const activate=async id=>{const o=point(id);e.at(o);e.qa.interact();if(e.el('dialog-title').textContent==='Bạn muốn khám phá đâu?')await e.button({landmark:id});};
+  // Cố định địch ở pha hồi để kiểm hợp đồng tích hợp; hành vi/độ khó được kiểm riêng ở combat-core.
+  async function fight(id){
+    await activate(id);const mobs=e.qa.getWorld().forest.mobs;assert.ok(mobs.some(m=>m.encounter===id));
+    for(let round=0;round<4&&!e.qa.getState().adventure.proofs.includes(id);round++){
+    for(const m of mobs)m.combat={stage:'recovery',timer:100,style:'vulnerable',phase:1,cycle:0};
+    for(const m of mobs.filter(m=>m.encounter===id&&m.hp>0)){
+      e.at({map:'forest',x:m.x,y:m.y+45});await e.key('w');e.step(.001);await e.key('w','keyup');
+      for(let tries=0;m.hp>0&&tries<400;tries++){e.qa.attack();advanceCombat(e,.12);advanceCombat(e,.3);}
+      assert.equal(m.hp,0);
+    }
+    if(!e.qa.getState().adventure.proofs.includes(id))advanceCombat(e,2.1);
+    }
+    assert.ok(e.qa.getState().adventure.proofs.includes(id));
+  }
+  for(const id of ['trail','trail-2','trail-3'])await activate(id);await e.button({claim:'adv01'});await fight('training');await e.button({claim:'adv02'});
+  await activate('rescue');assert.match(e.el('dialog-body').innerHTML,/data-rescue-route="path"/);await e.button({rescueRoute:'path'});
+  assert.ok(!e.qa.getState().adventure.proofs.includes('rescue'));for(const id of ['rescue-1','rescue-2','rescue-3'])await activate(id);await e.button({claim:'adv03'});
+  await fight('root-combat');await activate('root-light');assert.match(e.el('dialog-body').innerHTML,/data-puzzle="root-light"/);
+  await e.button({puzzleCheck:'root-light'});assert.ok(!e.qa.getState().adventure.proofs.includes('root-light'));
+  await e.el('dialog-close').dispatch('click');await activate('light-1');await activate('light-2');await activate('root-light');
+  for(const symbol of ['0','1','2'])await e.button({puzzle:'root-light',symbol});await e.button({puzzleCheck:'root-light'});
+  await activate('shortcut');await e.button({claim:'adv04'});await activate('prepared');await e.button({prepare:'healer'});assert.ok(e.qa.getState().adventure.proofs.includes('prepared'));await e.button({claim:'adv05'});
+  await fight('rootBoss');await e.button({claim:'adv06'});assert.equal(e.qa.getState().inventory.rootblade,1);
+  await e.el('btn-inventory').dispatch('click');assert.match(e.el('dialog-body').innerHTML,/data-equip="rootblade"/);await e.button({equip:'rootblade'});assert.equal(e.qa.getState().adventure.weapon,'rootblade');
+  await e.el('dialog-close').dispatch('click');await activate('prepared');assert.match(e.el('dialog-body').innerHTML,/data-travel="forest"/);await e.button({travel:'forest'});
+  assert.equal(e.qa.getState().map,'forest');assert.equal(e.qa.getState().y,440);
+});
+
+test('Local combat QA supports night and rainy warning checks without leaking overrides to real saves', () => {
+  for(const weather of ['night','rain-day','rain-night']){
+    const e=loadGame({search:`?qa=1&scene=boss&weather=${weather}`});const s=e.qa.getState();
+    assert.equal(e.qa.core.isNight(s),weather!=='rain-day');assert.equal(e.qa.core.weather(s),weather.startsWith('rain')?'rain':'clear');
+  }
+  const real=loadGame({search:'?scene=boss&weather=rain-night',expectQA:false});assert.equal(real.el('map-name').textContent,'Làng Ánh Sao');
+});
+
+test('A new player finishing the introductory forest quest is guided into the adventure campaign', async () => {
+  const e=loadGame();await e.start();const s=e.qa.getState();s.upgrades=['well'];s.visited=['village','forest'];
+  for(const q of e.qa.data.quests.filter(q=>q.kind==='story').slice(0,5))s.quests[q.id]={status:q.id==='story05'?'active':'claimed',progress:q.objectives.map(o=>o.count)};
+  s.tracked='story05';e.qa.setState(s);await e.button({claim:'story05'});
+  assert.equal(e.qa.getState().tracked,'adv01');assert.match(e.el('journey-stage').textContent,/Rễ Sao/);assert.match(e.el('npc-guide').textContent,/Dấu rễ thức giấc/);
+});
+
+test('Legacy story gaps resume on entry and the central goal stays separate from side quests', async () => {
+  const original = loadGame(), s = original.qa.getState(); s.quests.story01 = { status: 'claimed', progress: [1] };
+  const e = loadGame({ saved: s }); await e.start();
+  assert.equal(e.qa.getState().quests.story02.status, 'active'); assert.equal(e.el('journey-count').textContent, '1/24');
+  assert.match(e.el('journey-stage').textContent, /Chặng 1\/3/);
+  await e.el('btn-journey').dispatch('click');
+  assert.match(e.el('dialog-body').innerHTML, /Giúp làng hồi sinh.*Theo dấu Cơn Mưa Sao.*Đêm Hội Sao trở lại/s);
+  assert.match(e.el('dialog-body').innerHTML, /Việc tiếp theo: Túi quà từ đường mòn/);
+  assert.doesNotMatch(e.el('dialog-body').innerHTML, /data-open-goals/);
+});
+
+test('Final story claim plays a festival with all residents, pauses gameplay and rewards only once on replay', async () => {
+  const storage = new Map([['starfall-valley-save-v1', 'player-progress']]), e = loadGame({ storage, search: '?qa=1&scene=finale' }); await e.start();
+  const before = e.qa.getState(), positions = residentPositions(e), draws = [], original = e.actors.draw;
+  e.actors.draw = (c, options) => { if(c.canvas.id === 'festivalCanvas') draws.push(options.id); return original(c, options); };
+  await e.el('btn-journey').dispatch('click'); await e.button({ claim: 'story24' });
+  assert.equal(e.el('dialog-title').textContent, 'Ngọn đèn đã sáng'); assert.equal(e.qa.getState().coins, before.coins + 500);
+  assert.deepEqual(new Set(draws), new Set([...e.qa.data.npcs.map(n => n.id), 'player']));
+  assert.equal(e.el('journey-count').textContent, '24/24'); assert.equal(e.qa.getState().festivalSeen, false);
+  const claimed = e.qa.getState(); await e.key('Shift'); await e.key('d'); e.tick(); e.tick();
+  assert.equal(e.qa.getState().x, claimed.x); assert.equal(e.qa.getState().minutes, claimed.minutes); assert.equal(residentPositions(e), positions);
+  assert.equal(e.qa.getLocomotion().running, false);
+  await e.button({ festivalNext: '' }); assert.equal(e.el('dialog-title').textContent, 'Điều ước của thung lũng');
+  await e.button({ festivalPrev: '' }); assert.equal(e.el('dialog-title').textContent, 'Ngọn đèn đã sáng');
+  await e.button({ festivalNext: '' }); await e.button({ festivalNext: '' }); assert.match(e.el('dialog-body').innerHTML, /24\/24 bước/);
+  await e.button({ festivalNext: '' }); assert.equal(e.qa.getState().festivalSeen, true);
+  const finished = JSON.stringify(e.qa.getState()); await e.button({ openFestival: '' }); await e.button({ festivalLater: '' });
+  assert.equal(JSON.stringify(e.qa.getState()), finished); assert.equal(storage.get('starfall-valley-save-v1'), 'player-progress');
+  const restored = loadGame({ storage }); await restored.start(); assert.equal(restored.el('game-dialog').open, false);
+  assert.equal(restored.qa.getState().festivalSeen, true);
+});
+
+test('Failed finale reward keeps the story active and never opens or acknowledges a festival', async () => {
+  const e = loadGame({ search: '?qa=1&scene=finale' }); await e.start();
+  const s = e.qa.getState(); s.inventory.meal = e.qa.core.capacity(s); e.qa.setState(s);
+  await e.el('btn-journey').dispatch('click'); await e.button({ claim: 'story24' });
+  assert.equal(e.qa.getState().quests.story24.status, 'active'); assert.equal(e.qa.getState().festivalSeen, false);
+  assert.equal(e.el('dialog-title').textContent, 'Sổ hành trình'); assert.match(e.el('toast').textContent, /đã đầy/);
+});
+
+test('Legacy completed saves show the festival once; orientation/home interruptions retain the current page', async () => {
+  const source = loadGame({ search: '?qa=1&scene=after' }), saved = source.qa.getState(); delete saved.festivalSeen;
+  const e = loadGame({ saved, viewportWidth: 844, viewportHeight: 390 }); await e.start();
+  assert.equal(e.el('dialog-title').textContent, 'Ngọn đèn đã sáng');
+  await e.button({ festivalNext: '' }); await e.viewport(390,844);
+  assert.equal(e.el('game-dialog').open, false); assert.equal(e.qa.getState().festivalSeen, false);
+  await e.viewport(844,390); e.tick(); assert.equal(e.el('dialog-title').textContent, 'Điều ước của thung lũng');
+  await e.el('btn-home').dispatch('click'); assert.equal(e.qa.getState().festivalSeen, false);
+  await e.start(); assert.equal(e.el('dialog-title').textContent, 'Điều ước của thung lũng');
+  await e.el('game-dialog').dispatch('cancel'); assert.equal(e.qa.getState().festivalSeen, true);
+});
+
+test('Personal goals persist, update after actual chest interaction and export with progress', async () => {
+  const e = loadGame({ search: '?qa=1&scene=after' }); await e.start(); await e.el('btn-journey').dispatch('click');
+  assert.match(e.el('dialog-body').innerHTML, /Sau lễ hội.*Người bạn của thung lũng.*Ngôi làng trọn vẹn.*Người tìm kho báu/s);
+  await e.button({ goal: 'treasure' }); assert.equal(e.qa.getState().personalGoal, 'treasure');
+  assert.match(e.el('journey-stage').textContent, /2\/3/); assert.equal(e.el('personal-goal-tracker').hidden, false);
+  await e.button({ goalAction: 'treasure' }); assert.match(e.el('dialog-body').innerHTML, /ĐÃ MỞ.*Tàn Tích Mây/s);
+  await e.el('dialog-close').dispatch('click'); e.at(object(e, 'chest', null, 'ruins'), { map: 'ruins' }); e.qa.interact();
+  assert.match(e.el('personal-goal-tracker').innerHTML, /Đã hoàn thành/); assert.match(e.el('journey-stage').textContent, /3\/3/);
+  await e.button({ goal: 'none' }); assert.equal(e.qa.getState().personalGoal, null); assert.equal(e.qa.getState().chests.length, 3);
+  await e.button({ goal: 'builder' });
+  const encoded = e.saveTransfer.encode(e.qa.getState(), e.qa.data), restored = e.saveTransfer.decode(encoded, e.qa.data);
+  assert.equal(restored.personalGoal, 'builder'); assert.equal(restored.festivalSeen, true);
+  const reload = loadGame({ storage: e.storage }); await reload.start(); assert.match(reload.el('journey-stage').textContent, /Ngôi làng trọn vẹn/);
+});
+
+test('Reduced motion keeps the whole festival scene static across animation frames', async () => {
+  const e = loadGame({ search: '?qa=1&scene=finale&motion=reduced' }); await e.start(); await e.button({ claim: 'story24' });
+  e.calls.length=0; e.tick(); const first = JSON.stringify(e.calls.filter(c => c.context === 'festivalCanvas'));
+  e.calls.length=0; e.tick(500); const second = JSON.stringify(e.calls.filter(c => c.context === 'festivalCanvas'));
+  assert.equal(first, second); assert.ok(first.length > 1000); assert.equal(e.qa.getState().festivalSeen, false);
+});
 function joystickPointer(e, x = 0, y = 0, pointerId = 201, extra = {}) {
   const rect = e.el('touch-joystick').getBoundingClientRect();
   return {pointerId,pointerType:'touch',button:0,isPrimary:true,clientX:rect.left+rect.width/2+x*rect.width,clientY:rect.top+rect.height/2+y*rect.height,...extra};
 }
 function advanceResidents(e, seconds) { for (let i = 0; i < Math.ceil(seconds * 10); i++) e.step(.1); }
+// Combat tiến theo frame thật; một frame trễ không được cộng dồn toàn bộ đòn tấn công.
+function advanceCombat(e, seconds) { for(let i=0;i<Math.ceil(seconds*60);i++)e.step(1/60); }
 function moveResidentFromHome(e, id, minimum = 110) {
   const catalog = e.qa.data.npcs.find(n => n.id === id);
   e.set({ map: catalog.map, x: 1500, y: 100, health: 100 });
@@ -290,18 +672,21 @@ test('Farm planting and harvesting enforce timers, greenhouse speed and full-bag
   e.set({ stamina: 2, crops: [null, null, null, null] }); e.qa.interact(); assert.equal(e.qa.getState().crops[0], null);
 });
 
-test('Combat applies cooldown, drops/rewards, mob respawn and player recovery after defeat', async () => {
-  const e = loadGame(); await e.start(); e.set({ map: 'forest', x: 420, y: 670 }); const mob = e.qa.getWorld().forest.mobs[0];
-  e.calls.length = 0; e.qa.drawGame(); assert.equal(e.calls.filter(c => c.context === 'gameCanvas' && c.name === 'fillRect' && c.fillStyle === '#629f89').length, 5, 'All live slimes have visible bodies');
-  const initial = e.qa.getState(); e.qa.attack(); assert.equal(mob.hp, 2); e.qa.attack(); assert.equal(mob.hp, 2);
-  e.step(.4); e.qa.attack(); assert.equal(mob.hp, 1); e.step(.4); e.qa.attack(); assert.ok(mob.deadUntil > 0);
-  let s = e.qa.getState(); assert.equal(s.coins, initial.coins + 18); assert.equal(s.xp, initial.xp + 18); assert.equal(s.inventory.ore, 1); assert.equal(s.stats['fight:slime'], 1);
-  e.calls.length = 0; e.qa.drawGame(); assert.equal(e.calls.filter(c => c.context === 'gameCanvas' && c.name === 'fillRect' && c.fillStyle === '#629f89').length, 4, 'Defeated slime is hidden until respawn');
-  e.step(.4); e.qa.attack(); assert.equal(e.qa.getState().stats['fight:slime'], 1);
-  e.advance(35000); e.qa.update(.01); assert.equal(mob.hp, 3);
-  e.set({ map: 'forest', x: mob.x, y: mob.y, health: 8, coins: 10 }); e.step(1.3);
-  s = e.qa.getState(); assert.equal(s.map, 'village'); assert.equal(s.health, 100); assert.equal(s.stamina, 70); assert.equal(s.coins, 0); assert.equal(s.x, 800); assert.equal(s.y, 720);
-  e.set({ stamina: 1 }); const before = JSON.stringify(e.qa.getState()); e.qa.attack(); assert.equal(JSON.stringify(e.qa.getState()), before);
+test('Combat applies windup, cooldown, drops/rewards, mob respawn and recovery after defeat', async () => {
+  const e=loadGame();await e.start();e.set({map:'forest',x:420,y:670});const mob=e.qa.getWorld().forest.mobs[0];
+  mob.combat={stage:'recovery',timer:10,cycle:0,phase:1,style:'charge'};
+  const bodies=()=>e.calls.filter(c=>c.context==='gameCanvas'&&c.name==='fillRect'&&c.args[2]===38&&c.args[3]===16&&c.fillStyle===require('../public/js/combat-data.js').enemies.slime.color).length;
+  e.calls.length=0;e.qa.drawGame();assert.equal(bodies(),5);
+  const initial=e.qa.getState();e.qa.attack();assert.equal(mob.hp,3,'Windup must finish before hit');const spent=e.qa.getState().stamina;e.qa.attack();assert.equal(e.qa.getState().stamina,spent);
+  advanceCombat(e,.12);assert.equal(mob.hp,2);advanceCombat(e,.3);e.qa.attack();advanceCombat(e,.12);assert.equal(mob.hp,1);
+  advanceCombat(e,.3);e.qa.attack();advanceCombat(e,.12);assert.ok(mob.deadUntil>0);
+  let state=e.qa.getState();assert.equal(state.coins,initial.coins+18);assert.equal(state.xp,initial.xp+18);assert.equal(state.inventory.ore,1);assert.equal(state.stats['fight:slime'],1);
+  e.calls.length=0;e.qa.drawGame();assert.equal(bodies(),4);
+  advanceCombat(e,.4);e.qa.attack();assert.equal(e.qa.getState().stats['fight:slime'],1);
+  e.advance(35000);e.qa.update(.01);assert.equal(mob.hp,3);
+  e.set({map:'forest',x:mob.x,y:mob.y,health:8,coins:10});advanceCombat(e,1.3);
+  state=e.qa.getState();assert.equal(state.map,'village');assert.equal(state.health,100);assert.equal(state.stamina,70);assert.equal(state.coins,0);assert.equal(state.x,800);assert.equal(state.y,720);
+  e.set({stamina:1});const before=JSON.stringify(e.qa.getState());e.qa.attack();assert.equal(JSON.stringify(e.qa.getState()),before);
 });
 
 test('Locked gates explain upgrades; unlocked travel records visits and safe spawn positions', async () => {
@@ -652,6 +1037,34 @@ test('Exported local progress can be confirmed on the standalone title screen wi
   await target.start();assert.equal(target.qa.getState().coins,843);assert.equal(locomotion(target).touchRun,false);assert.equal(locomotion(target).joystickPointer,null);
 });
 
+test('Refresh commits current progress before navigation and preserves storage at an unopened title screen', async () => {
+  const e=loadGame({standalone:true});await e.start();e.set({coins:912});await e.button({refreshGame:''});
+  assert.equal(e.reloads.length,1);assert.equal(JSON.parse(e.reloads[0].get(e.qa.storageKey)).coins,912);
+  for(const raw of [null,'broken JSON',JSON.stringify({version:2,coins:7777})]){
+    const storage=new Map(raw===null?[]:[['starfall-valley-qa-save',raw]]),title=loadGame({storage,standalone:true});
+    await title.el('btn-refresh-start').dispatch('click');title.document.hidden=true;await title.document.dispatch('visibilitychange');await title.window.dispatch('pagehide');
+    assert.equal(title.reloads.length,1);assert.equal(storage.get(title.qa.storageKey),raw===null?undefined:raw,'Do not overwrite unreadable or future saves while leaving title');
+  }
+});
+
+test('Refresh refuses navigation on failed persistence and title backup exports without rewriting the original save', async () => {
+  const e=loadGame({standalone:true});await e.start();const before=e.storage.get(e.qa.storageKey);e.set({coins:913});e.storage.set=()=>{throw Error('quota');};
+  await e.button({refreshGame:''});assert.equal(e.reloads.length,0);assert.equal(e.storage.get(e.qa.storageKey),before);assert.match(e.el('dialog-body').innerHTML,/data-export-save/);
+  const loaded=loadGame({saved:JSON.parse(before),standalone:true}),raw=loaded.storage.get(loaded.qa.storageKey);await loaded.el('btn-export-start').dispatch('click');
+  assert.equal(loaded.downloads.length,1);assert.equal(loaded.storage.get(loaded.qa.storageKey),raw);assert.equal(JSON.stringify(loaded.saveTransfer.decode(await loaded.downloads[0].blob.text(),loaded.qa.data)),JSON.stringify(loaded.qa.getState()));
+});
+
+test('An import that cannot persist keeps the old state and never announces successful restoration', async () => {
+  const e=loadGame();await e.start();const before=JSON.stringify(e.qa.getState()),saved=e.storage.get(e.qa.storageKey),candidate=e.qa.getState();candidate.coins=988;
+  const text=e.saveTransfer.encode(candidate,e.qa.data),input=e.el('save-file');input.files=[{name:'restore.json',size:Buffer.byteLength(text),text:async()=>text}];await input.dispatch('change');e.storage.set=()=>{throw Error('quota');};await e.button({importSave:''});
+  assert.equal(JSON.stringify(e.qa.getState()),before);assert.equal(e.storage.get(e.qa.storageKey),saved);assert.equal(e.el('dialog-title').textContent,'Chưa lưu được bản nhập');
+});
+
+test('Refresh after returning home refuses to discard a session that could not be saved', async () => {
+  const e=loadGame();await e.start();const saved=e.storage.get(e.qa.storageKey);e.set({coins:915});e.storage.set=()=>{throw Error('quota');};await e.el('btn-home').dispatch('click');await e.el('btn-refresh-start').dispatch('click');
+  assert.equal(e.reloads.length,0);assert.equal(e.qa.getState().coins,915);assert.equal(e.storage.get(e.qa.storageKey),saved);assert.match(e.el('dialog-body').innerHTML,/data-export-save/);
+});
+
 test('Malformed and oversized imports show an error without replacing local progress', async () => {
   const e=loadGame();await e.start();e.set({coins:844,inventory:{...e.qa.getState().inventory,star:8}});await e.window.dispatch('pagehide');
   const state=JSON.stringify(e.qa.getState()),saved=e.storage.get(e.qa.storageKey),input=e.el('save-file');
@@ -858,6 +1271,9 @@ test('Minimap integration follows the camera and guided resident, throttles redr
   const e = loadGame({width:640,height:300,viewportWidth:852,viewportHeight:393}); await e.start();
   const renders = [], original = e.minimap.draw;
   e.minimap.draw = (context,options) => {renders.push({context,options});return original(context,options);};
+  assert.equal(e.el('btn-minimap').getAttribute('aria-expanded'),'false','Mobile starts with the map collapsed');
+  e.qa.drawGame(); assert.equal(renders.length,0,'A collapsed map does not cover the game or redraw');
+  await e.el('btn-minimap').dispatch('click');
   e.set({x:800,y:550}); e.advance(201); e.qa.update(0); e.qa.drawGame();
   assert.equal(renders.length,1); const first = renders[0];
   assert.equal(first.context.canvas.id,'minimapCanvas'); assert.equal(first.options.map,'village'); assert.equal(first.options.player.x,e.qa.getState().x); assert.equal(first.options.player.y,e.qa.getState().y);
@@ -1093,10 +1509,10 @@ test('Planting, harvesting, fishing and combat animate their real successful gam
   e.step(2); e.advance(16000); e.qa.interact(); assert.equal(e.qa.getState().inventory.berry, 4); assert.ok(feedback(e, 'text').some(f => f.text === '+4 mâm xôi')); assert.ok(feedback(e, 'ring').length);
   e.step(2); const spot = object(e, 'fish'); e.at(spot); e.qa.interact(); assert.ok(feedback(e, 'ripple').length, 'Casting creates a local water ripple');
   e.step(Math.PI / 2 / 3.8); e.qa.interact(); assert.equal(e.qa.getState().inventory.fish, 1); assert.ok(feedback(e, 'text').some(f => f.text === '+1 cá vịnh'));
-  e.set({ map: 'forest', x: 420, y: 670 }); e.step(0); const mob = e.qa.getWorld().forest.mobs[0]; e.qa.attack();
+  e.set({ map: 'forest', x: 420, y: 670 }); e.step(0); const mob = e.qa.getWorld().forest.mobs[0]; e.qa.attack(); advanceCombat(e,.12);
   assert.equal(mob.hp, 2); assert.ok(mob.hitTime > 0); assert.equal(feedback(e, 'slash').length, 1); assert.ok(feedback(e, 'text').some(f => f.text === '−1'));
   const effectCount = allFeedback(e).length, stamina = e.qa.getState().stamina; e.qa.attack(); assert.equal(allFeedback(e).length, effectCount); assert.equal(e.qa.getState().stamina, stamina, 'Attack cooldown rejects both gameplay and animation spam');
-  e.step(.4); e.set({ x: 800, y: 170 }); e.qa.attack(); assert.equal(feedback(e, 'slash').length, 1, 'A real empty swing still has one sword trail'); assert.equal(feedback(e, 'particle').length, 10, 'A missed swing invents no impact particles');
+  advanceCombat(e,.4); e.set({ x: 800, y: 170 }); const oldImpacts=feedback(e,'particle').length; e.qa.attack(); assert.equal(feedback(e, 'slash').length, 1, 'A real empty swing still has one sword trail'); assert.equal(feedback(e, 'particle').length, oldImpacts, 'A missed swing invents no impact particles');
 });
 
 test('Feedback remains bounded under repeated pickups and is discarded across region travel or defeat', async () => {
@@ -1109,7 +1525,7 @@ test('Feedback remains bounded under repeated pickups and is discarded across re
   e.set({ upgrades: unlocked(e) }); const gate = objects(e).find(o => o.kind === 'gate' && o.to === 'coast'); e.at(gate); e.qa.interact();
   assert.equal(e.qa.getState().map, 'coast'); assert.ok(allFeedback(e).every(f => f.map === 'coast'), 'Travel does not bring old pickup clouds into the new map');
   e.set({ map: 'forest', x: 420, y: 670 }); e.step(0); e.qa.attack(); assert.ok(allFeedback(e).some(f => f.map === 'forest'));
-  const mob = e.qa.getWorld().forest.mobs[0]; e.set({ x: mob.x, y: mob.y, health: 8 }); e.step(1.3);
+  const mob = e.qa.getWorld().forest.mobs[0]; e.set({ x: mob.x, y: mob.y, health: 8 }); advanceCombat(e,1.3);
   assert.equal(e.qa.getState().map, 'village'); assert.ok(allFeedback(e).every(f => f.map === 'village'), 'Defeat also removes effects from the departed map');
   e.step(2); assert.equal(allFeedback(e).length, 0, 'Even a filled queue drains after lifetimes expire');
 });
@@ -1254,7 +1670,7 @@ test('All regional slimes spawn and respawn on land, and their wandering and pur
     const last = area.mobs[4]; assert.equal(last.homeY, 940, `${map} last slime lives below the pond`);
     for (let frame = 0; frame < 300; frame++) { const before = new Map(area.mobs.map(m => [m.id, { x: m.x, y: m.y }])); e.step(.05); assertMobLand(e, map, before, 24 * .05); }
     const pursuing = area.mobs[0]; pursuing.x = 1140; pursuing.y = 610; e.set({ x: 1080, y: 660, health: 100 }); assertMobLand(e, map);
-    for (let frame = 0; frame < 150; frame++) { const from = { x: pursuing.x, y: pursuing.y }; e.step(.05); assertMobLand(e, map); const distance = Math.hypot(pursuing.x - from.x, pursuing.y - from.y), count = Math.max(1, Math.ceil(distance / 3)); assert.ok(distance <= 38 * .05 + 1e-7, 'Pursuit keeps a steady bounded walking speed'); for (let i = 1; i <= count; i++) assert.equal(e.qa.blockedAt(map, from.x + (pursuing.x - from.x) * i / count, from.y + (pursuing.y - from.y) * i / count), false, 'Chasing around the pond corner cannot cut through water'); }
+    for (let frame = 0; frame < 150; frame++) { const from = { x: pursuing.x, y: pursuing.y }; e.step(.05); assertMobLand(e, map); const distance = Math.hypot(pursuing.x - from.x, pursuing.y - from.y), count = Math.max(1, Math.ceil(distance / 3)); assert.ok(distance <= 230 * .05 + 1e-7, 'Walking and telegraphed charges respect their maximum speed'); for (let i = 1; i <= count; i++) assert.equal(e.qa.blockedAt(map, from.x + (pursuing.x - from.x) * i / count, from.y + (pursuing.y - from.y) * i / count), false, 'Chasing around the pond corner cannot cut through water'); }
     const tree = area.trees.find(t => !e.qa.blockedAt(map, t.x - 36, t.y) && !e.qa.blockedAt(map, t.x + 36, t.y)); assert.ok(tree, `${map} has a trunk obstacle fixture`);
     pursuing.x = tree.x - 36; pursuing.y = tree.y; e.set({ x: tree.x + 36, y: tree.y, health: 100 });
     for (let frame = 0; frame < 150; frame++) { e.step(.05); assertMobLand(e, map); }
@@ -1386,7 +1802,7 @@ test('Movement and run inputs pressed inside chat, dialogs, fishing or the title
 
 test('Map travel and defeat clear movement/run input without turning teleports into gait distance', async () => {
   const e = loadGame(); await e.start(); const gate = objects(e, 'village').find(o => o.kind === 'gate' && o.to === 'forest'); e.at(gate); await e.el('touch-run').dispatch('click'); await e.key('Shift'); await e.key('d'); e.step(.01); assert.ok(locomotion(e).distance > 0); e.qa.interact(); assert.equal(e.qa.getState().map, 'forest'); assert.equal(locomotion(e).touchRun, false); assert.equal(locomotion(e).distance, 0, 'Map arrival resets gait instead of measuring the teleport'); const arrived = e.qa.getState(); e.step(.05); assert.equal(e.qa.getState().x, arrived.x); assert.equal(e.qa.getState().y, arrived.y);
-  const mob = e.qa.getWorld().forest.mobs[0]; e.at({ map: 'forest', x: mob.x, y: mob.y }, { health: 1 }); await e.el('touch-run').dispatch('click'); await e.key('Shift'); await e.key('d'); e.step(.005); assert.equal(e.qa.getState().map, 'village', 'Damage fixture returns the player to camp'); assert.equal(locomotion(e).touchRun, false); assert.equal(locomotion(e).running, false); const returned = e.qa.getState(), distance = locomotion(e).distance; e.step(.05); assert.equal(e.qa.getState().x, returned.x); assert.equal(e.qa.getState().y, returned.y); assert.equal(locomotion(e).distance, distance, 'Recovery teleport cannot leave a run animation active');
+  const mob = e.qa.getWorld().forest.mobs[0]; e.at({ map: 'forest', x: mob.x, y: mob.y }, { health: 1 }); mob.combat={stage:'active',timer:.3,aimX:mob.x,aimY:mob.y,vx:1,vy:0,style:'charge',phase:1,cycle:0}; await e.el('touch-run').dispatch('click'); await e.key('Shift'); await e.key('d'); e.step(.02); assert.equal(e.qa.getState().map, 'village', 'Damage fixture returns the player to camp'); assert.equal(locomotion(e).touchRun, false); assert.equal(locomotion(e).running, false); const returned = e.qa.getState(), distance = locomotion(e).distance; e.step(.05); assert.equal(e.qa.getState().x, returned.x); assert.equal(e.qa.getState().y, returned.y); assert.equal(locomotion(e).distance, distance, 'Recovery teleport cannot leave a run animation active');
 });
 
 test('Sprinting checks the travelled segment instead of tunnelling through trunks, ponds or map bounds', async () => {
@@ -1500,5 +1916,5 @@ test('Name and quest bounds use the chibi renderer footprint across all four reg
 
 test('Other online travellers never inherit the local lantern or damage blink', async () => {
   const e = loadGame(); await e.start(); const state = e.qa.getState(); state.map = 'forest'; state.x = 420; state.y = 700; state.inventory.lantern = 1; e.qa.setState(state); const socket = e.sockets[0]; socket.readyState = 1; socket.onopen(); socket.onmessage({ data: JSON.stringify({ type: 'welcome', id: 'self' }) }); socket.onmessage({ data: JSON.stringify({ type: 'snapshot', players: [{ id: 'peer-visible', name: 'Bạn đi rừng', map: 'forest', x: 900, y: 550, color: '#bb8899', direction: 'left', moving: false }] }) });
-  const renders = [], draw = e.actors.draw; e.actors.draw = (ctx, options) => { renders.push({ ...options }); return draw(ctx, options); }; e.step(.02); assert.equal(e.qa.getState().health, 92); e.qa.drawGame(); const player = renders.find(r => r.id === 'player'), peer = renders.find(r => r.id === 'peer-visible'); assert.ok(player && peer); assert.equal(player.hidden, true, 'The local hit frame blinks'); assert.equal(player.lantern, true); assert.equal(peer.hidden, false, 'Damage blink applies only to the struck local actor'); assert.equal(peer.lantern, false, 'A local held lantern cannot appear in another traveller hands'); assert.equal(peer.direction, 'left');
+  const renders = [], draw = e.actors.draw; e.actors.draw = (ctx, options) => { renders.push({ ...options }); return draw(ctx, options); }; advanceCombat(e,.7); assert.equal(e.qa.getState().health, 92); e.qa.drawGame(); const player = renders.find(r => r.id === 'player'), peer = renders.find(r => r.id === 'peer-visible'); assert.ok(player && peer); assert.equal(player.hidden, true, 'The local hit frame blinks'); assert.equal(player.lantern, true); assert.equal(peer.hidden, false, 'Damage blink applies only to the struck local actor'); assert.equal(peer.lantern, false, 'A local held lantern cannot appear in another traveller hands'); assert.equal(peer.direction, 'left');
 });

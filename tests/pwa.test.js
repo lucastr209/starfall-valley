@@ -107,9 +107,10 @@ test('Actual client build preserves nested assets, HTML references and manifest 
     fs.rmSync(outputRoot, { recursive: true, force: true });
   });
   const out = build({ root, outputRoot, endpoint: 'wss://online.game.test/play' });
-  for (const filename of CLIENT_FILES.filter(file => file !== 'js/client-config.js')) {
+  for (const filename of CLIENT_FILES.filter(file => !['js/client-config.js','index.html'].includes(file))) {
     assert.deepEqual(fs.readFileSync(path.join(out, filename)), fs.readFileSync(path.join(publicRoot, filename)), filename);
   }
+  assert.equal(fs.readFileSync(path.join(out,'index.html'),'utf8').replace(/\?v=[a-f0-9]{12}(?=["'])/g,''),fs.readFileSync(path.join(publicRoot,'index.html'),'utf8'),'Only public asset versions change the built HTML');
   for (const page of ['index.html', 'privacy.html']) {
     const html = fs.readFileSync(path.join(out, page), 'utf8');
     for (const [, reference] of html.matchAll(/\b(?:src|href)="([^"]+)"/g)) {
@@ -165,4 +166,24 @@ test('HTTP serves manifest, PNGs and save transfer unchanged with correct MIME, 
     assert.equal(head.headers['content-type'], mime, filename);
     assert.equal(Number(head.headers['content-length']), source.length, filename);
   }
+});
+
+test('Forest recovery is an intentional public download with a valid limited checkpoint and matching build headers', async t => {
+  const filename='recovery/forest-checkpoint.json',server=createGameServer();t.after(()=>server.shutdown());await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const r=await request(server,filename);assert.equal(r.status,200);assert.equal(r.headers['content-type'],'application/json; charset=utf-8');assert.equal(r.headers['content-disposition'],'attachment; filename="starfall-valley-forest-recovery.json"');
+  const D=require('../public/js/game-data'),T=require('../public/js/save-transfer'),s=T.decode(r.body.toString(),D);assert.equal(s.quests.adv04.status,'active');assert.equal(s.quests.advside03.status,'active');assert.equal(s.quests.adv06,undefined);assert.equal(s.inventory.rootblade,0);assert.equal(s.coins,180);
+  assert.ok(CLIENT_FILES.includes(filename));const configuration=JSON.parse(fs.readFileSync(path.join(root,'vercel.json'),'utf8'));assert.equal(configuration.headers.find(e=>e.source==='/'+filename).headers.find(h=>h.key==='Content-Disposition').value,r.headers['content-disposition']);
+  const outputRoot=fs.mkdtempSync(path.join(os.tmpdir(),'starfall-recovery-'));t.after(()=>fs.rmSync(outputRoot,{recursive:true,force:true}));const out=build({root,outputRoot});assert.deepEqual(fs.readFileSync(path.join(out,filename)),r.body);const built=JSON.parse(fs.readFileSync(path.join(out,'vercel.json'),'utf8'));assert.equal(built.headers.find(e=>e.source==='/'+filename).headers.find(h=>h.key==='Content-Disposition').value,r.headers['content-disposition']);
+});
+
+test('Cave checkpoint downloads an importable prepared save with all caves and their quests still uncompleted',async t=>{
+  const filename='recovery/cave-checkpoint.json',server=createGameServer();t.after(()=>server.shutdown());await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const r=await request(server,filename);assert.equal(r.status,200);assert.equal(r.headers['content-type'],'application/json; charset=utf-8');assert.equal(r.headers['content-disposition'],'attachment; filename="starfall-valley-cave-checkpoint.json"');
+  const D=require('../public/js/game-data'),T=require('../public/js/save-transfer'),X=require('../public/js/exploration-core'),s=T.decode(r.body.toString(),D);
+  assert.equal(s.map,'forest');assert.equal(s.x,1280);assert.equal(s.y,315);assert.equal(s.quests.story20.status,'claimed');assert.equal(s.quests.story24,undefined);assert.equal(s.adventure.weapon,'copperblade');assert.equal(s.exploration.outfit,'sailorcoat');assert.ok(s.inventory.meal>=5);assert.ok(s.inventory.tea>=5);
+  for(const room of D.exploration.rooms.filter(r=>r.kind==='cave')){assert.ok(X.unlocked(s,room.id,D));assert.ok(!s.exploration.clues.includes(room.id));assert.ok(!s.exploration.solved.includes(room.id));assert.ok(!s.exploration.cleared.includes(room.id));assert.ok(!s.exploration.looted.includes(room.id));for(const item of Object.keys(room.loot))assert.equal(s.inventory[item],0);}
+  for(const id of ['cave01','cave02','cave03','cave04'])assert.equal(s.quests[id].status,'active');
+  const header=config=>config.headers.find(e=>e.source==='/'+filename).headers.find(h=>h.key==='Content-Disposition').value;
+  assert.ok(CLIENT_FILES.includes(filename));assert.equal(header(JSON.parse(fs.readFileSync(path.join(root,'vercel.json'),'utf8'))),r.headers['content-disposition']);
+  const outputRoot=fs.mkdtempSync(path.join(os.tmpdir(),'starfall-cave-checkpoint-'));t.after(()=>fs.rmSync(outputRoot,{recursive:true,force:true}));const out=build({root,outputRoot});assert.deepEqual(fs.readFileSync(path.join(out,filename)),r.body);assert.equal(header(JSON.parse(fs.readFileSync(path.join(out,'vercel.json'),'utf8'))),r.headers['content-disposition']);
 });

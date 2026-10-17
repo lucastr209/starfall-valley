@@ -1,0 +1,267 @@
+{
+  "format": "starfall-valley-progress",
+  "version": 1,
+  "progress": {
+    "version": 1,
+    "name": "Khám phá hang động",
+    "coins": 2000,
+    "xp": 960,
+    "renown": 30,
+    "health": 100,
+    "stamina": 100,
+    "inventory": {
+      "wood": 20,
+      "ore": 20,
+      "herb": 10,
+      "berry": 10,
+      "star": 0,
+      "fish": 0,
+      "crystal": 0,
+      "plank": 0,
+      "tea": 10,
+      "lantern": 1,
+      "meal": 10,
+      "rootblade": 0,
+      "copperblade": 1,
+      "tideblade": 0,
+      "skyblade": 0,
+      "travelercoat": 0,
+      "sailorcoat": 1,
+      "mosscloak": 0,
+      "cloudcoat": 0,
+      "forestamber": 0,
+      "coastpearl": 0,
+      "cloudcore": 0
+    },
+    "upgrades": [
+      "well",
+      "workshop",
+      "lamps",
+      "bridge",
+      "archive",
+      "greenhouse",
+      "market",
+      "boots",
+      "bag",
+      "kitchen"
+    ],
+    "quests": {
+      "story01": {
+        "status": "claimed",
+        "progress": [
+          1
+        ]
+      },
+      "story02": {
+        "status": "claimed",
+        "progress": [
+          6,
+          3
+        ]
+      },
+      "story03": {
+        "status": "claimed",
+        "progress": [
+          4
+        ]
+      },
+      "story04": {
+        "status": "claimed",
+        "progress": [
+          1
+        ]
+      },
+      "story05": {
+        "status": "claimed",
+        "progress": [
+          1,
+          1
+        ]
+      },
+      "story06": {
+        "status": "claimed",
+        "progress": [
+          3,
+          1
+        ]
+      },
+      "story07": {
+        "status": "claimed",
+        "progress": [
+          6
+        ]
+      },
+      "story08": {
+        "status": "claimed",
+        "progress": [
+          1
+        ]
+      },
+      "story09": {
+        "status": "claimed",
+        "progress": [
+          2,
+          1
+        ]
+      },
+      "story10": {
+        "status": "claimed",
+        "progress": [
+          1
+        ]
+      },
+      "story11": {
+        "status": "claimed",
+        "progress": [
+          1
+        ]
+      },
+      "story12": {
+        "status": "claimed",
+        "progress": [
+          1
+        ]
+      },
+      "story13": {
+        "status": "claimed",
+        "progress": [
+          3
+        ]
+      },
+      "story14": {
+        "status": "claimed",
+        "progress": [
+          3
+        ]
+      },
+      "story15": {
+        "status": "claimed",
+        "progress": [
+          1
+        ]
+      },
+      "story16": {
+        "status": "claimed",
+        "progress": [
+          1,
+          3
+        ]
+      },
+      "story17": {
+        "status": "claimed",
+        "progress": [
+          1,
+          1
+        ]
+      },
+      "story18": {
+        "status": "claimed",
+        "progress": [
+          4,
+          1
+        ]
+      },
+      "story19": {
+        "status": "claimed",
+        "progress": [
+          1
+        ]
+      },
+      "story20": {
+        "status": "claimed",
+        "progress": [
+          1
+        ]
+      },
+      "story21": {
+        "status": "active",
+        "progress": [
+          0,
+          0,
+          0
+        ]
+      },
+      "cave01": {
+        "status": "active",
+        "progress": [
+          0,
+          0
+        ]
+      },
+      "cave02": {
+        "status": "active",
+        "progress": [
+          0,
+          0
+        ]
+      },
+      "cave03": {
+        "status": "active",
+        "progress": [
+          0,
+          0
+        ]
+      },
+      "cave04": {
+        "status": "active",
+        "progress": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "visited": [
+      "village",
+      "forest",
+      "coast",
+      "ruins"
+    ],
+    "day": 1,
+    "minutes": 480,
+    "map": "forest",
+    "x": 1280,
+    "y": 315,
+    "resources": {},
+    "crops": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "shrines": [
+      "forest",
+      "coast"
+    ],
+    "chests": [],
+    "stats": {},
+    "tracked": "cave01",
+    "exploration": {
+      "visited": [],
+      "clues": [],
+      "solved": [],
+      "cleared": [],
+      "looted": [],
+      "puzzles": {},
+      "outfit": "sailorcoat"
+    },
+    "festivalSeen": false,
+    "personalGoal": null,
+    "adventure": {
+      "proofs": [],
+      "checkpoint": null,
+      "weapon": "copperblade",
+      "milestones": [],
+      "puzzles": {
+        "relic": [],
+        "root-light": [
+          "moon",
+          "leaf",
+          "star"
+        ]
+      },
+      "loadout": "healer",
+      "supplies": 0
+    }
+  }
+}

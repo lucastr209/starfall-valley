@@ -1,0 +1,153 @@
+{
+  "format": "starfall-valley-progress",
+  "version": 1,
+  "progress": {
+    "version": 1,
+    "name": "Lữ khách khôi phục",
+    "coins": 180,
+    "xp": 390,
+    "renown": 0,
+    "health": 100,
+    "stamina": 100,
+    "inventory": {
+      "wood": 0,
+      "ore": 0,
+      "herb": 0,
+      "berry": 0,
+      "star": 0,
+      "fish": 0,
+      "crystal": 0,
+      "plank": 0,
+      "tea": 0,
+      "lantern": 0,
+      "meal": 0,
+      "rootblade": 0
+    },
+    "upgrades": [
+      "well"
+    ],
+    "quests": {
+      "story01": {
+        "status": "claimed",
+        "progress": [
+          1
+        ]
+      },
+      "story02": {
+        "status": "claimed",
+        "progress": [
+          6,
+          3
+        ]
+      },
+      "story03": {
+        "status": "claimed",
+        "progress": [
+          4
+        ]
+      },
+      "story04": {
+        "status": "claimed",
+        "progress": [
+          1
+        ]
+      },
+      "story05": {
+        "status": "claimed",
+        "progress": [
+          1,
+          1
+        ]
+      },
+      "story06": {
+        "status": "active",
+        "progress": [
+          0,
+          0
+        ]
+      },
+      "adv01": {
+        "status": "claimed",
+        "progress": [
+          1
+        ]
+      },
+      "adv02": {
+        "status": "claimed",
+        "progress": [
+          1
+        ]
+      },
+      "adv03": {
+        "status": "claimed",
+        "progress": [
+          1
+        ]
+      },
+      "adv04": {
+        "status": "active",
+        "progress": [
+          0,
+          0,
+          0
+        ]
+      },
+      "advside03": {
+        "status": "active",
+        "progress": [
+          0
+        ]
+      }
+    },
+    "visited": [
+      "village",
+      "forest"
+    ],
+    "day": 1,
+    "minutes": 480,
+    "map": "forest",
+    "x": 800,
+    "y": 440,
+    "resources": {},
+    "crops": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "shrines": [],
+    "chests": [],
+    "stats": {},
+    "tracked": "adv04",
+    "festivalSeen": false,
+    "personalGoal": null,
+    "adventure": {
+      "proofs": [
+        "trail",
+        "training",
+        "rescue"
+      ],
+      "checkpoint": "forest-rest",
+      "weapon": "starter",
+      "milestones": [
+        "trail",
+        "trail-2",
+        "trail-3",
+        "rescue-route",
+        "rescue-1",
+        "rescue-2",
+        "rescue-3"
+      ],
+      "puzzles": {
+        "relic": [],
+        "root-light": [
+          "moon",
+          "leaf",
+          "star"
+        ]
+      },
+      "loadout": "healer",
+      "supplies": 0
+    }
+  }
+}
