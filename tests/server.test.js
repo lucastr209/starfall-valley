@@ -166,7 +166,7 @@ async function snapshotAfterMove(sender, packet, predicate, receiver = sender) {
 
 test('HTTP serves only the client allowlist, with correct GET/HEAD types and query strings', async t => {
   const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'starfall-server-test-'));
-  const names = ['index.html', 'css/styles.css', 'js/game-data.js', 'js/game-core.js', 'js/npc-ai.js', 'js/world-paths.js', 'js/world-effects.js', 'js/world-actors.js', 'js/minimap.js', 'js/onboarding.js', 'js/game.js'];
+  const names = ['index.html', 'css/styles.css', 'js/data/game-data.js', 'js/core/game-core.js', 'js/core/npc-ai.js', 'js/world/world-paths.js', 'js/world/world-effects.js', 'js/world/world-actors.js', 'js/ui/minimap.js', 'js/ui/onboarding.js', 'js/game.js'];
   for (const name of names) {
     fs.mkdirSync(path.dirname(path.join(fixtureRoot, name)), { recursive: true });
     fs.writeFileSync(path.join(fixtureRoot, name), `fixture:${name}`);
@@ -178,7 +178,7 @@ test('HTTP serves only the client allowlist, with correct GET/HEAD types and que
     fs.rmSync(resolved, { recursive: true, force: true });
   });
   const server = await startServer(t, { rootDir: fixtureRoot });
-  for (const [file, type] of [['index.html', 'text/html'], ['css/styles.css', 'text/css'], ['js/game-data.js', 'text/javascript'], ['js/game-core.js', 'text/javascript'], ['js/npc-ai.js', 'text/javascript'], ['js/world-paths.js', 'text/javascript'], ['js/world-effects.js', 'text/javascript'], ['js/world-actors.js', 'text/javascript'], ['js/minimap.js', 'text/javascript'], ['js/onboarding.js', 'text/javascript'], ['js/game.js', 'text/javascript']]) {
+  for (const [file, type] of [['index.html', 'text/html'], ['css/styles.css', 'text/css'], ['js/data/game-data.js', 'text/javascript'], ['js/core/game-core.js', 'text/javascript'], ['js/core/npc-ai.js', 'text/javascript'], ['js/world/world-paths.js', 'text/javascript'], ['js/world/world-effects.js', 'text/javascript'], ['js/world/world-actors.js', 'text/javascript'], ['js/ui/minimap.js', 'text/javascript'], ['js/ui/onboarding.js', 'text/javascript'], ['js/game.js', 'text/javascript']]) {
     const response = await request(server, `/${file}?v=123`);
     assert.equal(response.status, 200);
     assert.equal(response.body, `fixture:${file}`);
@@ -209,7 +209,7 @@ test('HTTP rejects traversal, non-game files, malformed encoding and unsupported
 
 test('The actual project client assets are all available through the game server', async t => {
   const server = await startServer(t);
-  for (const file of ['index.html', 'css/styles.css', 'js/game-data.js', 'js/game-core.js', 'js/npc-ai.js', 'js/world-paths.js', 'js/world-effects.js', 'js/world-actors.js', 'js/minimap.js', 'js/onboarding.js', 'js/game.js']) {
+  for (const file of ['index.html', 'css/styles.css', 'js/data/game-data.js', 'js/core/game-core.js', 'js/core/npc-ai.js', 'js/world/world-paths.js', 'js/world/world-effects.js', 'js/world/world-actors.js', 'js/ui/minimap.js', 'js/ui/onboarding.js', 'js/game.js']) {
     const response = await request(server, `/${file}`);
     assert.equal(response.status, 200, file);
     assert.equal(response.body, fs.readFileSync(path.join(__dirname, '..', 'public', file), 'utf8'), file);

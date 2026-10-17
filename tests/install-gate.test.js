@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const Gate=require('../public/js/install-gate.js');
+const Gate=require('../public/js/ui/install-gate.js');
 
 test('mobile browser requires Home Screen launch; fullscreen cannot impersonate installation',()=>{
   for(const userAgent of ['Mozilla iPhone Safari','Mozilla Android Chrome','Mozilla iPad Safari']){

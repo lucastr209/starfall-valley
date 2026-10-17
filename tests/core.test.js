@@ -2,9 +2,9 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const C = require('../public/js/game-core.js');
-const D = require('../public/js/game-data.js');
-const X = require('../public/js/exploration-core.js');
+const C = require('../public/js/core/game-core.js');
+const D = require('../public/js/data/game-data.js');
+const X = require('../public/js/core/exploration-core.js');
 const fresh = () => C.createState('Người thử nghiệm', D);
 const snapshot = s => JSON.stringify(s);
 

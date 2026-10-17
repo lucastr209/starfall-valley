@@ -1,9 +1,9 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const D = require('../public/js/game-data.js');
-const C = require('../public/js/game-core.js');
-const A = require('../public/js/adventure-core.js');
+const D = require('../public/js/data/game-data.js');
+const C = require('../public/js/core/game-core.js');
+const A = require('../public/js/core/adventure-core.js');
 
 // Tạo save cũ đã mở rừng qua đúng chuỗi nhiệm vụ, không can thiệp dữ liệu người chơi.
 function unlocked() {
@@ -48,7 +48,7 @@ test('Unique boss reward waits for capacity, supports earlier victory and does n
   }
   assert.equal(s.inventory.rootblade, 1); assert.ok(s.inventory.wood >= 8 && s.inventory.ore >= 5 && s.coins >= 140);
   const before = JSON.stringify(s); assert.equal(C.claim(s, 'adv06', D).ok, false); assert.equal(JSON.stringify(s), before);
-  const transfer = require('../public/js/save-transfer.js'); assert.deepEqual(transfer.decode(transfer.encode(s, D), D), C.restoreState(s, D));
+  const transfer = require('../public/js/ui/save-transfer.js'); assert.deepEqual(transfer.decode(transfer.encode(s, D), D), C.restoreState(s, D));
 });
 
 test('Malformed adventure save defaults safely and equipment only equips an owned known weapon', () => {

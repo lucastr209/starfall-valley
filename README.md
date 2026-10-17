@@ -1,5 +1,11 @@
 # Thung Lũng Sao Rơi
 
+## Thức Tỉnh — phiêu lưu co-op 1–4 người
+
+Chế độ mới tại `/awakening.html`: ba chương, mỗi dungeon năm phòng, boss hai pha, kiếm/cung/trượng, cứu đồng đội, tín hiệu nhóm, năng lực mở bí mật và làng hồi sinh. Nhân vật online mới dùng tài khoản Google/Supabase; thế giới thuộc chủ phòng, chiến lợi phẩm thuộc từng người. Save Legacy giữ riêng.
+
+Backend riêng: `npm run start:coop`. Xem [hướng dẫn QA, Supabase và triển khai](docs/awakening-operations.md) trước khi chạy; production thiếu credential sẽ dừng thay vì tự lưu RAM. Bản local có QA loopback riêng. Chưa cấu hình/deploy dịch vụ thật thì chế độ này chưa dùng được trên site public.
+
 RPG hành động pixel 2D trong trình duyệt. Tuyến phiêu lưu **Rễ Sao** mở sau nhiệm vụ cốt truyện thứ năm: lần theo dấu vết, học né đòn, cứu cư dân, giải cơ chế và đánh bại **Hộ Vệ Rễ Sao**. Tuyến hồi sinh Làng Ánh Sao và đưa **Đêm Hội Sao trở lại** vẫn giữ nguyên tiến trình cũ.
 
 Bản đang phục vụ tại https://starfall-valley.vercel.app/. Nếu ứng dụng Màn hình chính đang mở bản cũ, chọn **Cập nhật game**; không xóa/cài lại để cập nhật. Kiểm iPhone thật đang chờ phản hồi người dùng, xem TEST_REPORT.

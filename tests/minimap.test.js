@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const Minimap = require('../public/js/minimap.js');
+const Minimap = require('../public/js/ui/minimap.js');
 const MAPS = ['village','forest','coast','ruins'];
 
 function canvasMock() {
@@ -35,7 +35,7 @@ test('home and cave entrances appear on the minimap only in their own region',()
 
 test('minimap loads without a browser, DOM or external dependency',()=>{
   const scope={};vm.createContext(scope);
-  vm.runInContext(fs.readFileSync(path.join(__dirname,'../public/js/minimap.js'),'utf8'),scope);
+  vm.runInContext(fs.readFileSync(path.join(__dirname,'../public/js/ui/minimap.js'),'utf8'),scope);
   assert.equal(typeof scope.StardropMinimap.draw,'function');
   assert.equal(typeof scope.StardropMinimap.project,'function');
   assert.deepEqual(Object.keys(scope),['StardropMinimap']);

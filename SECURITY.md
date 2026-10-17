@@ -1,6 +1,16 @@
 # Bảo mật — Thung Lũng Sao Rơi
 
-## Phạm vi bản thử
+## Thức Tỉnh — tài khoản và server quyết định gameplay
+
+- Áp dụng thêm cho `/awakening.html`: Supabase Auth Google/PKCE, access token được backend xác minh qua Auth; không tin user ID hoặc dữ liệu gameplay từ client. Token giữ trong `sessionStorage` riêng, không dùng localStorage Legacy. Refresh trả về sau logout không được khôi phục phiên cũ.
+- Client chỉ gửi input/lệnh đã whitelist. Server quản lý va chạm, thời gian, mob, damage, hồi chiêu, khả năng cứu đồng đội, quyền chủ phòng và thưởng. Cung/đường nhìn dùng geometry chung với combat-core; snapshot mang thông số báo đòn thật.
+- Database dùng RLS: authenticated chỉ đọc dữ liệu của chính mình; không có quyền ghi hoặc gọi RPC gameplay. Service key chỉ ở backend. Transaction cùng revision và event UUID bảo vệ thưởng/checkpoint trước retry hoặc ghi cũ.
+- Backend chạy một replica, tối đa 60 kết nối/15 phòng; mã phòng không thay thế xác thực. Không dùng thư viện Redis hiện diện Legacy làm nguồn quyết định trận đấu.
+- QA chỉ bind loopback, cần cờ server rõ ràng và URL QA phía client; production thiếu credential phải dừng. Không chạy QA RAM trên mạng công khai.
+- CSP release phải lấy từ `npm run configure:coop` với origin backend chính xác. Không thêm wildcard Render để xử lý lỗi kết nối. Tài nguyên server/migration/test vẫn ngoài allowlist client.
+- Chưa kiểm xác thực Google hoặc Supabase/Render live; chưa kiểm tải production, Safari/iPhone vật lý hoặc tuyên bố chống gian lận hoàn toàn. Xem `docs/awakening-operations.md` trước khi phát hành. Chủ dự án phải chốt chính sách lưu trữ/xóa tài khoản và backup database trước khi thu nhận người chơi thật.
+
+## Phạm vi bản thử Legacy
 
 - Không yêu cầu email/mật khẩu; tên nhân vật là biệt danh, không chứng minh danh tính.
 - Tên, vị trí và chat được chia sẻ với các khách đang online. Không ghi nội dung chat vào log.

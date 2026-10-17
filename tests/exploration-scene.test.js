@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const D=require('../public/js/game-data.js'),C=require('../public/js/game-core.js'),Scene=require('../public/js/exploration-scene.js');
+const D=require('../public/js/data/game-data.js'),C=require('../public/js/core/game-core.js'),Scene=require('../public/js/world/exploration-scene.js');
 test('all rooms provide reachable spawn, exit, residents and interactable points',()=>{
   for(const room of D.exploration.rooms){
     const scene=Scene.create(room,D);assert.equal(scene.id,room.id);

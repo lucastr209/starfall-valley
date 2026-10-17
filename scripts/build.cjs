@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
-const { CLIENT_FILES, onlineEndpoint, securityHeaders } = require('../config/deployment.cjs');
+const { CLIENT_FILES, onlineEndpoint, coopEndpoint, securityHeaders } = require('../config/deployment.cjs');
 const ROOT = path.resolve(__dirname, '..');
 
 // Chỉ đổi URL CSS/JS trong allowlist; giữ đường dẫn, query khác và fragment của trang.
@@ -18,11 +18,12 @@ function versionAssets(markup, buildId) {
 }
 
 // Tạo một bản client đồng nhất từ nguồn công khai đã chụp, không đọc cấu hình bí mật.
-function build({ root = ROOT, outputRoot = root, endpoint = process.env.ONLINE_WS_URL || '', requireOnline = false } = {}) {
+function build({ root = ROOT, outputRoot = root, endpoint = process.env.ONLINE_WS_URL || '', coopUrl = process.env.COOP_SERVER_URL || '', requireOnline = false } = {}) {
   endpoint = onlineEndpoint(endpoint);
+  coopUrl = coopEndpoint(coopUrl);
   if (requireOnline && !endpoint) throw new Error('Chưa cấu hình ONLINE_WS_URL cho server online.');
   const sources = new Map(), hash = createHash('sha256');
-  hash.update(JSON.stringify({ onlineUrl: endpoint }));
+  hash.update(JSON.stringify({ onlineUrl: endpoint, coopUrl }));
   // Kèm tên và độ dài để phân biệt ranh giới asset; config sinh từ endpoint không tự hash lại.
   for (const file of CLIENT_FILES) {
     if (file === 'js/client-config.js') continue;
@@ -41,15 +42,15 @@ function build({ root = ROOT, outputRoot = root, endpoint = process.env.ONLINE_W
   for (const file of CLIENT_FILES) {
     fs.mkdirSync(path.dirname(path.join(out, file)), { recursive: true });
     if (file === 'js/client-config.js') {
-      fs.writeFileSync(path.join(out, file), "'use strict';\nglobalThis.STARDROP_CONFIG = Object.freeze(" + JSON.stringify({ onlineUrl: endpoint, buildId }) + ');\n');
+      fs.writeFileSync(path.join(out, file), "'use strict';\nglobalThis.STARDROP_CONFIG = Object.freeze(" + JSON.stringify({ onlineUrl: endpoint, coopUrl, buildId }) + ');\n');
     } else {
       const bytes = sources.get(file);
-      fs.writeFileSync(path.join(out, file), file === 'index.html' ? versionAssets(bytes.toString('utf8'), buildId) : bytes);
+      fs.writeFileSync(path.join(out, file), ['index.html','awakening.html'].includes(file) ? versionAssets(bytes.toString('utf8'), buildId) : bytes);
     }
   }
   const config = {
     $schema: 'https://openapi.vercel.sh/vercel.json',
-    headers: [{ source: '/(.*)', headers: Object.entries({ ...securityHeaders(endpoint), 'Cache-Control': 'no-cache' }).map(([key, value]) => ({ key, value })) },{source:'/recovery/forest-checkpoint.json',headers:[{key:'Content-Disposition',value:'attachment; filename="starfall-valley-forest-recovery.json"'}]},{source:'/recovery/cave-checkpoint.json',headers:[{key:'Content-Disposition',value:'attachment; filename="starfall-valley-cave-checkpoint.json"'}]}]
+    headers: [{ source: '/(.*)', headers: Object.entries({ ...securityHeaders(endpoint, coopUrl), 'Cache-Control': 'no-cache' }).map(([key, value]) => ({ key, value })) },{source:'/recovery/forest-checkpoint.json',headers:[{key:'Content-Disposition',value:'attachment; filename="starfall-valley-forest-recovery.json"'}]},{source:'/recovery/cave-checkpoint.json',headers:[{key:'Content-Disposition',value:'attachment; filename="starfall-valley-cave-checkpoint.json"'}]}]
   };
   fs.writeFileSync(path.join(out, 'vercel.json'), JSON.stringify(config, null, 2) + '\n');
   return out;

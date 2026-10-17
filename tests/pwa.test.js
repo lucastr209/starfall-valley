@@ -18,7 +18,7 @@ const publicAssets = new Map([
   ['assets/icons/icon-192.png', 'image/png'],
   ['assets/icons/icon-512.png', 'image/png'],
   ['assets/icons/apple-touch-icon.png', 'image/png'],
-  ['js/save-transfer.js', 'text/javascript; charset=utf-8']
+  ['js/ui/save-transfer.js', 'text/javascript; charset=utf-8']
 ]);
 
 test('Home-screen game launch uses the same origin, root scope and landscape standalone display', () => {
@@ -94,9 +94,9 @@ test('Entry page supplies iPhone standalone metadata and loads save transfer aft
   assert.equal(attr(metas.find(tag => attr(tag, 'name') === 'apple-mobile-web-app-capable'), 'content'), 'yes');
   assert.match(attr(metas.find(tag => attr(tag, 'name') === 'viewport'), 'content'), /viewport-fit=cover/);
   const scripts = [...html.matchAll(/<script\b[^>]*>/gi)].map(match => attr(match[0], 'src'));
-  assert.ok(scripts.indexOf('js/game-core.js') >= 0);
-  assert.ok(scripts.indexOf('js/save-transfer.js') > scripts.indexOf('js/game-core.js'));
-  assert.ok(scripts.indexOf('js/game.js') > scripts.indexOf('js/save-transfer.js'));
+  assert.ok(scripts.indexOf('js/core/game-core.js') >= 0);
+  assert.ok(scripts.indexOf('js/ui/save-transfer.js') > scripts.indexOf('js/core/game-core.js'));
+  assert.ok(scripts.indexOf('js/game.js') > scripts.indexOf('js/ui/save-transfer.js'));
 });
 
 test('Actual client build preserves nested assets, HTML references and manifest security policy', t => {
@@ -107,7 +107,7 @@ test('Actual client build preserves nested assets, HTML references and manifest 
     fs.rmSync(outputRoot, { recursive: true, force: true });
   });
   const out = build({ root, outputRoot, endpoint: 'wss://online.game.test/play' });
-  for (const filename of CLIENT_FILES.filter(file => !['js/client-config.js','index.html'].includes(file))) {
+  for (const filename of CLIENT_FILES.filter(file => !['js/client-config.js','index.html','awakening.html'].includes(file))) {
     assert.deepEqual(fs.readFileSync(path.join(out, filename)), fs.readFileSync(path.join(publicRoot, filename)), filename);
   }
   assert.equal(fs.readFileSync(path.join(out,'index.html'),'utf8').replace(/\?v=[a-f0-9]{12}(?=["'])/g,''),fs.readFileSync(path.join(publicRoot,'index.html'),'utf8'),'Only public asset versions change the built HTML');
@@ -171,7 +171,7 @@ test('HTTP serves manifest, PNGs and save transfer unchanged with correct MIME, 
 test('Forest recovery is an intentional public download with a valid limited checkpoint and matching build headers', async t => {
   const filename='recovery/forest-checkpoint.json',server=createGameServer();t.after(()=>server.shutdown());await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const r=await request(server,filename);assert.equal(r.status,200);assert.equal(r.headers['content-type'],'application/json; charset=utf-8');assert.equal(r.headers['content-disposition'],'attachment; filename="starfall-valley-forest-recovery.json"');
-  const D=require('../public/js/game-data'),T=require('../public/js/save-transfer'),s=T.decode(r.body.toString(),D);assert.equal(s.quests.adv04.status,'active');assert.equal(s.quests.advside03.status,'active');assert.equal(s.quests.adv06,undefined);assert.equal(s.inventory.rootblade,0);assert.equal(s.coins,180);
+  const D=require('../public/js/data/game-data'),T=require('../public/js/ui/save-transfer'),s=T.decode(r.body.toString(),D);assert.equal(s.quests.adv04.status,'active');assert.equal(s.quests.advside03.status,'active');assert.equal(s.quests.adv06,undefined);assert.equal(s.inventory.rootblade,0);assert.equal(s.coins,180);
   assert.ok(CLIENT_FILES.includes(filename));const configuration=JSON.parse(fs.readFileSync(path.join(root,'vercel.json'),'utf8'));assert.equal(configuration.headers.find(e=>e.source==='/'+filename).headers.find(h=>h.key==='Content-Disposition').value,r.headers['content-disposition']);
   const outputRoot=fs.mkdtempSync(path.join(os.tmpdir(),'starfall-recovery-'));t.after(()=>fs.rmSync(outputRoot,{recursive:true,force:true}));const out=build({root,outputRoot});assert.deepEqual(fs.readFileSync(path.join(out,filename)),r.body);const built=JSON.parse(fs.readFileSync(path.join(out,'vercel.json'),'utf8'));assert.equal(built.headers.find(e=>e.source==='/'+filename).headers.find(h=>h.key==='Content-Disposition').value,r.headers['content-disposition']);
 });
@@ -179,7 +179,7 @@ test('Forest recovery is an intentional public download with a valid limited che
 test('Cave checkpoint downloads an importable prepared save with all caves and their quests still uncompleted',async t=>{
   const filename='recovery/cave-checkpoint.json',server=createGameServer();t.after(()=>server.shutdown());await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const r=await request(server,filename);assert.equal(r.status,200);assert.equal(r.headers['content-type'],'application/json; charset=utf-8');assert.equal(r.headers['content-disposition'],'attachment; filename="starfall-valley-cave-checkpoint.json"');
-  const D=require('../public/js/game-data'),T=require('../public/js/save-transfer'),X=require('../public/js/exploration-core'),s=T.decode(r.body.toString(),D);
+  const D=require('../public/js/data/game-data'),T=require('../public/js/ui/save-transfer'),X=require('../public/js/core/exploration-core'),s=T.decode(r.body.toString(),D);
   assert.equal(s.map,'forest');assert.equal(s.x,1280);assert.equal(s.y,315);assert.equal(s.quests.story20.status,'claimed');assert.equal(s.quests.story24,undefined);assert.equal(s.adventure.weapon,'copperblade');assert.equal(s.exploration.outfit,'sailorcoat');assert.ok(s.inventory.meal>=5);assert.ok(s.inventory.tea>=5);
   for(const room of D.exploration.rooms.filter(r=>r.kind==='cave')){assert.ok(X.unlocked(s,room.id,D));assert.ok(!s.exploration.clues.includes(room.id));assert.ok(!s.exploration.solved.includes(room.id));assert.ok(!s.exploration.cleared.includes(room.id));assert.ok(!s.exploration.looted.includes(room.id));for(const item of Object.keys(room.loot))assert.equal(s.inventory[item],0);}
   for(const id of ['cave01','cave02','cave03','cave04'])assert.equal(s.quests[id].status,'active');

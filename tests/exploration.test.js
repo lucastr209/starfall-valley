@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const D=require('../public/js/game-data.js'),C=require('../public/js/game-core.js'),X=require('../public/js/exploration-core.js');
+const D=require('../public/js/data/game-data.js'),C=require('../public/js/core/game-core.js'),X=require('../public/js/core/exploration-core.js');
 const fresh=()=>C.createState('Người khám phá',D);
 const open=s=>{for(let n=1;n<=5;n++)s.quests['story0'+n]={status:'claimed',progress:[1,1]};s.visited=['village','forest'];s.upgrades=['well','bridge','archive'];return s;};
 

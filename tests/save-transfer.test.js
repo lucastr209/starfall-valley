@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const data=require('../public/js/game-data.js'),core=require('../public/js/game-core.js'),transfer=require('../public/js/save-transfer.js');
+const data=require('../public/js/data/game-data.js'),core=require('../public/js/core/game-core.js'),transfer=require('../public/js/ui/save-transfer.js');
 
 test('Save transfer preserves progression and only exports known persistent game fields',()=>{
   const state=core.createState('Lữ khách',data);state.coins=320;state.xp=213;state.day=2;state.inventory.wood=15;
