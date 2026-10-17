@@ -4,6 +4,28 @@
 
     const data = {
         title: 'Thung Lũng Sao Rơi',
+        // Ba chặng gom chuỗi nhiệm vụ hiện có thành một hành trình có đích đến rõ ràng.
+        journey: {
+            goal: 'Đưa Đêm Hội Sao trở lại',
+            description: 'Khôi phục làng sau Cơn Mưa Sao, tìm lại ký ức của thung lũng và thắp Đèn Dẫn Sao để mọi người cùng đón lễ hội.',
+            finalQuest: 'story24',
+            stages: [
+                { id: 'home', title: 'Giúp làng hồi sinh', description: 'Sửa giếng, dựng xưởng, thắp đèn đường và chăm khu vườn. Chuyến đi rừng đầu tiên mang về ký ức và vật liệu cho làng.', milestone: 'Một ngôi làng có nước, ánh sáng và mùa quả mới.', quests: Array.from({ length: 14 }, (_, i) => `story${String(i + 1).padStart(2, '0')}`) },
+                { id: 'memories', title: 'Theo dấu Cơn Mưa Sao', description: 'Mở cầu tới bờ vịnh và đường lên tàn tích. Đánh thức các bia cộng hưởng, tìm tinh thể và ghép lại câu chuyện sao rơi.', milestone: 'Bờ vịnh và tàn tích mở cửa; ký ức thung lũng được tìm lại.', quests: Array.from({ length: 8 }, (_, i) => `story${i + 15}`) },
+                { id: 'festival', title: 'Đêm Hội Sao trở lại', description: 'Dựng Đài Ngắm Sao và Đèn Dẫn Sao, rồi nhận thưởng nhiệm vụ cuối để mời cả thung lũng tới lễ hội.', milestone: 'Đèn Dẫn Sao sáng lên và cư dân cùng đón đêm hội.', quests: ['story23', 'story24'] }
+            ],
+            goals: [
+                { id: 'neighbors', title: 'Người bạn của thung lũng', description: 'Hoàn thành tất cả việc của cư dân. Chọn những việc còn thiếu trong Sổ hành trình.', action: 'side', actionLabel: 'Xem việc cư dân' },
+                { id: 'builder', title: 'Ngôi làng trọn vẹn', description: 'Sở hữu đủ công trình và nâng cấp, từ nhà kính đến bếp chung và túi hành trình.', action: 'build', actionLabel: 'Xem nâng cấp' },
+                { id: 'treasure', title: 'Người tìm kho báu', description: 'Mở cả ba rương thất lạc ở Rừng Rì Rào, Bờ Vịnh Ngọc và Tàn Tích Mây.', action: 'treasure', actionLabel: 'Tìm rương còn thiếu' }
+            ],
+            treasureIds: ['chest-forest', 'chest-coast', 'chest-ruins'],
+            festival: [
+                { speaker: 'mira', title: 'Ngọn đèn đã sáng', text: 'Nhìn kìa! Đèn Dẫn Sao đã sáng trở lại. Từ giếng nước đầu tiên đến con đường qua tàn tích, mỗi việc bạn làm đã đưa chúng ta tới đêm nay.' },
+                { speaker: 'yen', title: 'Điều ước của thung lũng', text: 'Các bia ký ức kể rằng ánh sao tìm về nơi con người cùng chăm sóc. Những mảnh sao đã nối lại câu chuyện của rừng, biển và ngôi làng này.' },
+                { speaker: 'mira', title: 'Đêm Hội Sao trở lại', text: 'Cảm ơn bạn đã đưa lễ hội về nhà. Hành trình hồi sinh đã hoàn thành. Từ ngày mai, bạn có thể giúp những người bạn, xây tiếp ngôi làng hoặc tìm những kho báu còn sót lại.' }
+            ]
+        },
         regions: [
             { id: 'village', name: 'Làng Ánh Sao', subtitle: 'Mỗi mái nhà giữ một điều ước', color: '#83ba68' },
             { id: 'forest', name: 'Rừng Rì Rào', subtitle: 'Lắng nghe những đường mòn thức giấc', color: '#4c8e69' },
@@ -32,7 +54,7 @@
                 id: 'mira', name: 'Mira', role: 'Người giữ bản đồ', map: 'village', x: 800, y: 550, shirt: '#df7961', hair: '#533b42',
                 dialogue: [
                     'Chào mừng đến Làng Ánh Sao! Cơn mưa sao làm xáo trộn mọi thứ, nhưng cũng để lại những con đường mới.',
-                    'Ghé sổ hành trình để nhận nhiệm vụ. Mỗi việc nhỏ sẽ giúp ngôi làng sáng lên.',
+                    'Mục tiêu của chúng ta là đưa Đêm Hội Sao trở lại. Sổ hành trình sẽ dẫn bạn qua ba chặng khôi phục thung lũng.',
                     'Khi ngọn đèn trên đồi được thắp lại, chúng ta sẽ cùng tổ chức đêm hội sao.'
                 ],
                 giftPreferences: {
@@ -445,6 +467,10 @@
         ]
     };
 
+    const adventure=typeof module!=='undefined'&&module.exports?require('./adventure-data.js'):root.StardropAdventureData;
+    adventure.register(data);
+    const exploration=typeof module!=='undefined'&&module.exports?require('./exploration-data.js'):root.StardropExplorationData;
+    exploration.register(data);
     root.STARDROP_DATA = data;
     if (typeof module !== 'undefined' && module.exports) module.exports = data;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

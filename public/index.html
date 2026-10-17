@@ -7,14 +7,21 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Sao Rơi">
-  <title>Thung Lũng Sao Rơi — Một hành trình mới</title>
+  <title>Thung Lũng Sao Rơi — Rễ Sao thức giấc</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23fff3d3'/%3E%3Cpath d='M16 3l4 9 10 4-10 4-4 9-4-9-10-4 10-4z' fill='%23c36e51'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png">
   <script defer src="js/client-config.js"></script>
+  <script defer src="js/adventure-data.js"></script>
+  <script defer src="js/exploration-data.js"></script>
   <script defer src="js/game-data.js"></script>
   <script defer src="js/game-core.js"></script>
+  <script defer src="js/exploration-core.js"></script>
+  <script defer src="js/exploration-scene.js"></script>
+  <script defer src="js/adventure-core.js"></script>
+  <script defer src="js/combat-data.js"></script>
+  <script defer src="js/combat-core.js"></script>
   <script defer src="js/save-transfer.js"></script>
   <script defer src="js/npc-ai.js"></script>
   <script defer src="js/world-paths.js"></script>
@@ -22,31 +29,42 @@
   <script defer src="js/world-actors.js"></script>
   <script defer src="js/minimap.js"></script>
   <script defer src="js/onboarding.js"></script>
+  <script defer src="js/install-gate.js"></script>
   <script defer src="js/game.js"></script>
 </head>
 <body>
   <main id="game-wrapper">
+    <section id="install-screen" aria-labelledby="install-title" hidden>
+      <div class="install-landscape" aria-hidden="true"><span class="install-moon">✦</span><span class="install-hill hill-back"></span><span class="install-hill hill-front"></span><span class="install-cottage">⌂</span></div>
+      <div class="install-content"><span class="eyebrow">THUNG LŨNG SAO RƠI · PIXEL RPG</span><img class="install-icon" src="/assets/icons/icon-192.png" width="76" height="76" alt="Biểu tượng Sao Rơi"><h1 id="install-title">Một ngôi làng nhỏ.<br><span>Một hành trình lớn.</span></h1><p class="install-intro">Mang thung lũng về Màn hình chính để bắt đầu khám phá. Game sẽ mở trong một cửa sổ riêng, dành trọn không gian cho chuyến đi của bạn.</p>
+      <ol id="install-ios" class="install-steps"><li><b>01</b><span>Trong Safari, chạm <strong>Chia sẻ ↑</strong> ở thanh công cụ.</span></li><li><b>02</b><span>Chọn <strong>Thêm vào Màn hình chính</strong>. Bật <strong>Mở dưới dạng ứng dụng web</strong> nếu có, rồi chạm <strong>Thêm</strong>.</span></li><li><b>03</b><span>Về Màn hình chính, mở biểu tượng <strong>Sao Rơi</strong> và xoay ngang điện thoại.</span></li></ol>
+      <ol id="install-android" class="install-steps"><li><b>01</b><span>Chạm <strong>Cài Sao Rơi</strong> bên dưới nếu nút hiện ra.</span></li><li><b>02</b><span>Hoặc mở menu <strong>⋮</strong> của Chrome → <strong>Cài đặt ứng dụng / Thêm vào Màn hình chính</strong>.</span></li><li><b>03</b><span>Về Màn hình chính, mở <strong>Sao Rơi</strong> để chơi. Nếu biểu tượng vẫn mở trong browser, hãy dùng Chrome và chọn cài ứng dụng.</span></li></ol>
+      <div class="install-actions"><button id="btn-install-app" type="button" hidden>Cài Sao Rơi <span>↗</span></button><button id="btn-install-check" type="button">Tôi đã thêm biểu tượng</button></div><p id="install-status" role="status">Chỉ mở khóa chơi khi bạn mở từ ứng dụng trên Màn hình chính.</p>
+      <details class="install-backup"><summary>Đã chơi trước đây? Giữ lại tiến trình</summary><p>Sao lưu ra Tệp trước khi chuyển sang ứng dụng, rồi Nhập tiến trình khi mở biểu tượng mới. Nếu đã cài, hãy mở biểu tượng hiện có; không xóa/cài lại để cập nhật.</p><div class="npc-actions"><button type="button" data-export-save>Sao lưu ra file</button><button type="button" data-choose-save>Nhập tiến trình</button></div><p id="install-save-status" role="status"></p></details><a class="install-privacy" href="privacy.html" target="_blank" rel="noopener">Quyền riêng tư</a></div>
+    </section>
     <section id="start-screen" aria-label="Bắt đầu hành trình">
       <canvas id="titleCanvas" width="1440" height="900" aria-hidden="true"></canvas>
       <div class="title-wash"></div>
       <div class="start-content">
         <span class="eyebrow">MỘT LÀNG NHỎ · MỘT BẦU TRỜI ĐẦY BÍ MẬT</span>
         <h1>Thung Lũng<br><span>Sao Rơi</span><i aria-hidden="true">✦</i></h1>
-        <p class="intro">Sau cơn mưa sao, ngọn hải đăng đã tắt.<br>Gặp những người bạn mới, xây lại ngôi làng<br>và đánh thức ánh sáng trong thung lũng.</p>
+        <p class="intro">Sau Cơn Mưa Sao, những rễ cây cổ đã thức giấc.<br>Khám phá, chiến đấu với Hộ Vệ, xây lại làng<br>và đưa <strong>Đêm Hội Sao</strong> trở lại.</p>
+        <p class="start-journey">⌂ Chuẩn bị ở làng <span>→</span> ⚔ Thám hiểm & boss <span>→</span> ✦ Hồi sinh thung lũng</p>
         <form id="start-form">
           <label for="player-name">Tên nhà thám hiểm</label>
           <div class="start-row"><input id="player-name" maxlength="18" placeholder="Tên của bạn" autocomplete="nickname" required value="Lữ khách"><button type="submit" id="btn-start">Bắt đầu hành trình <span>→</span></button></div>
         </form>
         <p id="save-label" class="save-label">Một câu chuyện mới đang đợi bạn.</p>
-        <button id="btn-import-start" class="save-import" type="button">Nhập tiến trình đã lưu</button>
+        <div class="start-save-actions"><button id="btn-import-start" class="save-import" type="button">Nhập tiến trình</button><button id="btn-export-start" class="save-import" type="button">Sao lưu ra file</button><button id="btn-refresh-start" class="save-import" type="button">Cập nhật game</button></div>
+        <p id="start-save-status" class="save-local-note" role="status">Tiến trình chỉ lưu trên trình duyệt/ứng dụng này. Hãy sao lưu ra file trước khi xóa hoặc cài lại. Cập nhật game không cần xóa ứng dụng.</p>
         <p class="privacy-note">Hãy dùng biệt danh. Tên và chat online được người chơi khác nhìn thấy. <a href="privacy.html" target="_blank" rel="noopener">Quyền riêng tư</a></p>
-        <div class="feature-strip"><span>✦ 4 miền khám phá</span><span>⌂ 12 nâng cấp</span><span>♧ Thu thập & chế tạo</span></div>
-          <div class="start-controls">WASD / phím mũi tên: đi · Giữ Shift: chạy · E: tương tác · Space: vung kiếm<br>Trên điện thoại: xoay ngang, kéo joystick bên trái và dùng nút tương tác bên phải.</div>
+        <div class="feature-strip"><span>✦ 4 miền khám phá</span><span>⌂ 12 nâng cấp</span><span>⚔ Né đòn & boss</span></div>
+          <div class="start-controls">WASD / phím mũi tên: đi · Shift: chạy · E: tương tác · Space: kiếm · V: né<br>Trên điện thoại: xoay ngang, kéo joystick bên trái và dùng nút thao tác bên phải.</div>
       </div>
       <div class="title-sign">BÌNH MINH TẠI LÀNG SAO</div>
-      <div class="title-version">PIXEL RPG · TỰ LƯU TIẾN TRÌNH</div>
+      <div class="title-version">PIXEL RPG · TỰ LƯU TIẾN TRÌNH · <span id="game-build">Bản local</span></div>
     </section>
-    <section id="play-screen" data-mobile-panel-open="" hidden>
+    <section id="play-screen" data-mobile-panel-open="" data-mobile-menu-open="false" hidden>
       <div id="rotate-notice" hidden><span class="rotate-icon" aria-hidden="true">↻ ▭</span><h2>Xoay ngang để vào thung lũng</h2><p>Giữ điện thoại nằm ngang để bản đồ rộng hơn và hai tay điều khiển thoải mái.</p><small>Nếu màn hình chưa xoay, hãy tắt khóa xoay trên điện thoại.</small><button id="btn-portrait-home" type="button">Về màn hình đầu</button></div>
       <header class="topbar">
         <a class="game-brand" href="#" id="btn-home" title="Về màn hình đầu">✦ <span>Sao Rơi</span></a>
@@ -56,8 +74,10 @@
       </header>
       <div class="play-layout">
         <div class="world-column">
+          <button id="btn-journey" class="journey-banner" type="button" aria-label="Xem mục tiêu và tiến độ hành trình"><span><strong id="journey-goal"></strong><small id="journey-stage"></small></span><span class="journey-meter"><b id="journey-count"></b><progress id="journey-progress" max="24" value="0" aria-label="Tiến độ cốt truyện"></progress></span></button>
           <div class="mapbar"><div><span class="tiny-label">BẠN ĐANG Ở</span><strong id="map-name">Làng Sao</strong></div><span id="weather-label"></span><span id="online-status">Chơi một mình</span></div>
           <div id="canvas-stage">
+            <button id="btn-leave-room" type="button" hidden>↩ Ra ngoài</button>
             <canvas id="gameCanvas" width="960" height="600" aria-label="Bản đồ trò chơi, di chuyển bằng WASD hoặc các phím mũi tên"></canvas>
             <div id="minimap-shell" data-collapsed="false"><button id="btn-minimap" type="button" aria-label="Ẩn bản đồ thu nhỏ" aria-expanded="true" aria-controls="minimapCanvas">⌖</button><canvas id="minimapCanvas" width="200" height="140" aria-label="Bản đồ thu nhỏ"></canvas><div class="minimap-key"><span>● Bạn</span><span>◆ Mục tiêu</span><span>□ Cổng</span></div></div>
             <div id="toast" role="status" aria-live="polite"></div>
@@ -66,16 +86,17 @@
           </div>
           <div class="actionbar">
             <div class="vitals"><span>♥ <b id="health">100</b></span><span>⚡ <b id="stamina">100</b></span><span id="player-label"></span><span id="move-mode">Đi bộ</span></div>
-            <div class="game-actions"><button id="btn-journal" aria-label="Sổ nhiệm vụ">Sổ <kbd>Q</kbd></button><button id="btn-build">Xây làng <kbd>B</kbd></button><button id="btn-inventory" aria-label="Túi đồ và chế tạo">Túi <kbd>I</kbd></button><button id="btn-help" type="button" aria-label="Mở hướng dẫn chơi">? Hướng dẫn</button></div>
+            <button id="btn-mobile-menu" type="button" aria-label="Mở các chức năng" aria-controls="game-actions mobile-panel-tabs" aria-expanded="false">☰</button>
+            <div id="game-actions" class="game-actions"><button id="btn-journal" aria-label="Sổ nhiệm vụ">Sổ <kbd>Q</kbd></button><button id="btn-build">Xây làng <kbd>B</kbd></button><button id="btn-inventory" aria-label="Túi đồ và chế tạo">Túi <kbd>I</kbd></button><button id="btn-help" type="button" aria-label="Mở hướng dẫn chơi">? Hướng dẫn</button></div>
           </div>
-          <div class="touch-controls" aria-label="Điều khiển cảm ứng"><button id="touch-joystick" type="button" class="joystick" aria-label="Cần điều khiển di chuyển"><span class="joystick-guides" aria-hidden="true">✥</span><span id="joystick-knob" class="joystick-knob" aria-hidden="true"></span></button><div class="touch-actions"><button id="touch-run" aria-pressed="false">Chạy</button><button id="touch-attack" aria-label="Vung kiếm">⚔ Kiếm</button><button id="touch-interact" aria-label="Tương tác với vật hoặc cư dân gần nhất">Tương tác</button></div></div>
-          <nav class="mobile-panel-tabs" aria-label="Bảng thông tin"><button id="btn-mobile-quests" aria-label="Nhiệm vụ và cư dân" aria-controls="mobile-quests-panel" aria-expanded="false">Cư dân</button><button id="btn-mobile-chat" aria-label="Trò chuyện online" aria-controls="mobile-chat-panel" aria-expanded="false">Chat</button></nav>
+          <div class="touch-controls" aria-label="Điều khiển cảm ứng"><button id="touch-joystick" type="button" class="joystick" aria-label="Cần điều khiển di chuyển"><span class="joystick-guides" aria-hidden="true">✥</span><span id="joystick-knob" class="joystick-knob" aria-hidden="true"></span></button><div class="touch-actions"><button id="touch-run" aria-pressed="false">Chạy</button><button id="touch-dodge" aria-label="Né đòn theo hướng nhìn">↝ Né</button><button id="touch-attack" aria-label="Vung kiếm">⚔ Kiếm</button><button id="touch-interact" aria-label="Tương tác với vật hoặc cư dân gần nhất">Tương tác</button></div></div>
+          <nav id="mobile-panel-tabs" class="mobile-panel-tabs" aria-label="Bảng thông tin"><button id="btn-mobile-quests" aria-label="Nhiệm vụ và cư dân" aria-controls="mobile-quests-panel" aria-expanded="false">Cư dân</button><button id="btn-mobile-chat" aria-label="Trò chuyện online" aria-controls="mobile-chat-panel" aria-expanded="false">Chat</button></nav>
           <footer class="key-guide">WASD / ↑↓←→: di chuyển · Giữ Shift: chạy <span>E: tương tác · Space: kiếm · Esc: đóng cửa sổ</span><small id="save-status">Đã lưu</small></footer>
         </div>
         <button id="mobile-panel-backdrop" type="button" aria-label="Đóng bảng thông tin" hidden></button>
         <aside class="sidebar">
           <button id="mobile-panel-close" type="button" aria-label="Đóng bảng thông tin">✕ Đóng</button>
-          <section class="tracker panel" id="mobile-quests-panel"><div class="panel-heading"><span>HÀNH TRÌNH CỦA BẠN</span><button id="btn-tracker" aria-label="Mở sổ nhiệm vụ">↗</button></div><button id="btn-residents">Tìm cư dân & hợp đồng</button><p id="npc-guide"></p><div id="quest-tracker"></div><div id="quest-count"></div></section>
+          <section class="tracker panel" id="mobile-quests-panel"><div class="panel-heading"><span>HÀNH TRÌNH CỦA BẠN</span><button id="btn-tracker" aria-label="Mở sổ nhiệm vụ">↗</button></div><button id="btn-residents">Tìm cư dân & hợp đồng</button><p id="npc-guide"></p><div id="quest-tracker"></div><div id="personal-goal-tracker" hidden></div><div id="quest-count"></div></section>
           <section class="tips panel"><span class="tiny-label">GHI CHÚ TỪ THUNG LŨNG</span><p id="world-tip">Hãy tìm Mira gần quảng trường.</p></section>
           <section class="chat panel" id="mobile-chat-panel"><div class="panel-heading"><span>CHUYỆN TRONG LÀNG</span><span id="player-count">1 người</span></div><p class="chat-privacy">Chat công khai · Không gửi thông tin riêng tư.</p><div id="chat-log" role="log" aria-live="polite"></div><form id="chat-form"><input id="chat-input" maxlength="140" placeholder="Lời chào tới bạn bè…" aria-label="Tin nhắn"><button aria-label="Gửi tin nhắn">→</button></form></section>
         </aside>

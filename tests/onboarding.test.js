@@ -41,7 +41,7 @@ test('mobile and desktop give the actual controls and all pages stay concise', (
   assert.match(Tutorial.step(0, true).body, /Nhả tay để dừng/);
   assert.doesNotMatch(Tutorial.step(0, true).body, /phím mũi tên/);
   assert.match(Tutorial.step(0).body, /WASD.*Shift.*E.*Space/s);
-  assert.match(Tutorial.step(1).body, /Mira.*nhận nhiệm vụ trước.*Theo dõi.*nhận thưởng/s);
+  assert.match(Tutorial.step(1).body, /Đêm Hội Sao.*ba chặng.*Mira.*Cốt truyện tự nối.*Nhận việc cư dân.*trước.*Theo dõi.*Nhận thưởng/s);
   assert.match(Tutorial.step(2).body, /thể lực.*ghế.*giếng.*Túi &amp; chế tạo.*Xây làng/s);
   assert.match(Tutorial.step(3).body, /Minimap.*thông tin riêng tư.*tự lưu.*trình duyệt này/s);
   assert.match(Tutorial.step(3).body, /Chấm trắng là bạn; hình thoi vàng là mục tiêu/);

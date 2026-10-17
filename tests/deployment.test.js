@@ -5,9 +5,81 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
+const vm = require('node:vm');
 const { build } = require('../scripts/build.cjs');
 const { CLIENT_FILES, onlineEndpoint, securityHeaders } = require('../config/deployment.cjs');
 const { parseOrigins, originAllowed, createIpResolver, createRateLimiter, environmentOptions } = require('../server/policy.cjs');
+
+// Dựng client riêng để kiểm build mà không sửa nguồn hoặc tiến trình người chơi.
+function clientFixture(t) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'starfall-deploy-'));
+  t.after(() => {
+    assert.equal(path.dirname(path.resolve(root)), path.resolve(os.tmpdir()));
+    assert.ok(path.basename(root).startsWith('starfall-deploy-'));
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  for (const name of CLIENT_FILES) {
+    const target = path.join(root, 'public', name);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, name === 'index.html' ? fs.readFileSync(path.join(__dirname, '../public/index.html')) : `client ${name}`);
+  }
+  return root;
+}
+
+// Chạy cấu hình công khai đúng như trình duyệt, không phụ thuộc cách ghép chuỗi của build.
+function clientConfig(out) {
+  const sandbox = {};
+  vm.runInNewContext(fs.readFileSync(path.join(out, 'js/client-config.js'), 'utf8'), sandbox);
+  return sandbox.STARDROP_CONFIG;
+}
+
+test('Client build version is deterministic and ignores output timestamps and unlisted files', t => {
+  const root = clientFixture(t), options = { root, endpoint: 'wss://online.game.test/play' };
+  const first = clientConfig(build(options));
+  assert.match(first.buildId, /^[a-f0-9]{12}$/);
+  assert.equal(first.onlineUrl, options.endpoint);
+  fs.writeFileSync(path.join(root, 'public', 'unlisted.txt'), 'not shipped');
+  const asset = path.join(root, 'public/js/game.js');
+  fs.utimesSync(asset, new Date(1), new Date(1));
+  assert.equal(clientConfig(build(options)).buildId, first.buildId);
+  assert.equal(Object.isFrozen(first), true);
+});
+
+test('Client build version changes for each shipped source asset and the public endpoint', t => {
+  const root = clientFixture(t), options = { root, endpoint: '' };
+  const first = clientConfig(build(options)).buildId;
+  assert.match(first, /^[a-f0-9]{12}$/);
+  for (const name of CLIENT_FILES.filter(name => name !== 'js/client-config.js')) {
+    const target = path.join(root, 'public', name), original = fs.readFileSync(target);
+    fs.appendFileSync(target, '\nchanged');
+    assert.notEqual(clientConfig(build(options)).buildId, first, name);
+    fs.writeFileSync(target, original);
+  }
+  assert.notEqual(clientConfig(build({ ...options, endpoint: 'wss://online.game.test/play' })).buildId, first);
+  assert.equal(clientConfig(build({ ...options, endpoint: 'wss://online.game.test' })).buildId,
+    clientConfig(build({ ...options, endpoint: 'wss://online.game.test/' })).buildId, 'Canonical endpoint has one version');
+});
+
+test('Built HTML versions every local CSS and script URL with the published build version', t => {
+  const root = clientFixture(t), source = path.join(root, 'public/index.html');
+  fs.appendFileSync(source, '\n<script src="/js/game.js?mode=test#ready"></script><link href="./css/styles.css?v=old&amp;theme=night" rel="stylesheet"><a href="privacy.html">Privacy</a><script src="https://external.test/game.js"></script>');
+  const original = fs.readFileSync(source, 'utf8'), out = build({ root, endpoint: '' });
+  const html = fs.readFileSync(path.join(out, 'index.html'), 'utf8'), { buildId } = clientConfig(out);
+  const urls = [...html.matchAll(/\b(?:src|href)="([^"]+)"/g)].map(match => match[1]);
+  const localAssets = urls.filter(url => /^(?:\.\/|\/)?(?:js|css)\//.test(url));
+  assert.ok(localAssets.length > 10);
+  for (const url of localAssets) {
+    const parsed = new URL(url.replaceAll('&amp;', '&'), 'https://game.test/');
+    assert.equal(parsed.searchParams.get('v'), buildId, url);
+    assert.equal(parsed.searchParams.getAll('v').length, 1, url);
+    assert.ok(CLIENT_FILES.includes(parsed.pathname.slice(1)), url);
+  }
+  assert.ok(html.includes(`/js/game.js?mode=test&v=${buildId}#ready`));
+  assert.ok(html.includes('theme=night'));
+  assert.ok(urls.includes('privacy.html'));
+  assert.ok(urls.includes('https://external.test/game.js'));
+  assert.equal(fs.readFileSync(source, 'utf8'), original, 'Versioning never rewrites public source');
+});
 
 test('Deployment output is an allowlist and never copies server, secrets, archives or tests', t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'starfall-deploy-'));

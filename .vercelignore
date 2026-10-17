@@ -4,6 +4,8 @@
 starfall-valley
 archive
 test-artifacts
+work
+docs
 tests
 .env
 .env.*

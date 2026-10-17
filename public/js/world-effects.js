@@ -71,8 +71,16 @@
     }
     if (scene.flora.length) names.add(still ? 'garden-detail' : 'grass-and-flower-sway');
     for (const water of scene.water) {
-      ground.push({ type: 'ripple', x: water.x + Math.sin(motionTime * .85 + water.phase) * (still ? 0 : 6), y: water.y,
-        width: water.width + Math.sin(motionTime * 1.6 + water.phase) * (still ? 0 : 5), alpha: .24 + (still ? .1 : (Math.sin(t * 1.6 + water.phase) + 1) * .16) });
+      ground.push({
+        type: 'ripple',
+        x: water.x + Math.sin(motionTime * .85 + water.phase) * (still ? 0 : 6),
+        y: water.y,
+        width: water.width + Math.sin(motionTime * 1.6 + water.phase) * (still ? 0 : 5),
+        alpha: .24 + (still ? .1 : (Math.sin(t * 1.6 + water.phase) + 1) * .16),
+        rain: rain,
+        ringRadius: rain ? (still ? 7 : 3 + wrap(motionTime * 1.8 + water.phase, 1) * 15) : 0,
+        ringAlpha: rain ? (still ? .35 : (1 - wrap(motionTime * 1.8 + water.phase, 1)) * .55) : 0
+      });
     }
     names.add(still ? 'water-detail' : 'water-ripples');
     if (scene.map === 'coast') {
@@ -149,9 +157,27 @@
           rect(ctx, headX - 1, headY - 2, 3, 3, '#d09c65');
         }
       } else if (e.type === 'ripple') {
-        ctx.globalAlpha = e.alpha;
-        rect(ctx, e.x - e.width / 2, e.y, e.width, 2, '#d4ead6');
-        rect(ctx, e.x - e.width / 2 + 4, e.y + 4, Math.max(3, e.width - 9), 1, '#a8d4cc');
+        if (!e.rain) {
+          ctx.globalAlpha = e.alpha;
+          rect(ctx, e.x - e.width / 2, e.y, e.width, 2, '#d4ead6');
+          rect(ctx, e.x - e.width / 2 + 4, e.y + 4, Math.max(3, e.width - 9), 1, '#a8d4cc');
+        } else {
+          const r = Math.max(1, Math.round(e.ringRadius));
+          const ry = Math.max(1, Math.round(r * 0.45));
+          ctx.globalAlpha = Math.max(0, Math.min(1, e.ringAlpha));
+          // Outer concentric ring
+          rect(ctx, e.x - r, e.y, r * 2, 1, '#d8f0ed');
+          rect(ctx, e.x - Math.max(1, Math.round(r * 0.7)), e.y - ry, Math.max(2, Math.round(r * 1.4)), 1, '#c2e7e2');
+          rect(ctx, e.x - Math.max(1, Math.round(r * 0.7)), e.y + ry, Math.max(2, Math.round(r * 1.4)), 1, '#c2e7e2');
+          // Inner concentric ring
+          if (r > 5) {
+            const r2 = Math.max(1, Math.round(r * 0.5));
+            const ry2 = Math.max(1, Math.round(r2 * 0.45));
+            rect(ctx, e.x - r2, e.y, r2 * 2, 1, '#eaf7f5');
+            rect(ctx, e.x - Math.max(1, Math.round(r2 * 0.6)), e.y - ry2, Math.max(1, Math.round(r2 * 1.2)), 1, '#d4f2ec');
+            rect(ctx, e.x - Math.max(1, Math.round(r2 * 0.6)), e.y + ry2, Math.max(1, Math.round(r2 * 1.2)), 1, '#d4f2ec');
+          }
+        }
       } else if (e.type === 'surf') {
         ctx.globalAlpha = e.alpha;
         rect(ctx, e.x, e.y, e.width, 2, '#f0ead2');
@@ -202,7 +228,177 @@
     }
     ctx.restore();
   }
-  const api = { createScene, sampleAmbient, drawGround, drawAir, effectNames: (scene, options = {}) => sampleAmbient(scene, 0, options).effectNames, isWater };
+  // --- Feature 9: Dual-Layer Rainfall System ---
+  function drawRain(ctx, width, height, time, options = {}) {
+    const still = !!options.reducedMotion;
+    const rainTime = still ? 0 : timeValue(time);
+    const night = !!options.night;
+
+    ctx.save();
+
+    // Layer 1: Background Soft Rain Layer (Preserves exact test compatibility with #d8e6eb80)
+    ctx.strokeStyle = '#d8e6eb80';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const bgCount = still ? 40 : 120;
+    for (let i = 0; i < bgCount; i++) {
+      const x = (i * 73 + rainTime * 140) % (width + 50) - 25;
+      const y = (i * 97 + rainTime * 330) % (height + 50) - 25;
+      ctx.moveTo(Math.round(x), Math.round(y));
+      ctx.lineTo(Math.round(x - 6), Math.round(y + 12));
+    }
+    ctx.stroke();
+
+    // Layer 2: Foreground High-Contrast Rain Layer (Bright on dark night skies)
+    ctx.strokeStyle = night ? '#f0f9ffcc' : '#ffffffb8';
+    ctx.lineWidth = 1.25;
+    ctx.beginPath();
+    const fgCount = still ? 24 : 64;
+    for (let i = 0; i < fgCount; i++) {
+      const x = (i * 109 + rainTime * 190 + 37) % (width + 60) - 30;
+      const y = (i * 131 + rainTime * 440 + 51) % (height + 60) - 30;
+      ctx.moveTo(Math.round(x), Math.round(y));
+      ctx.lineTo(Math.round(x - 8), Math.round(y + 20));
+    }
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // --- Feature 10 Part A: Splash Pool System <= 32 ---
+  function createSplashPool(capacity = 32) {
+    const cap = Math.min(32, Math.max(1, capacity));
+    const pool = [];
+    for (let i = 0; i < cap; i++) {
+      pool.push({ active: false, x: 0, y: 0, age: 0, life: 0.16, map: '' });
+    }
+    return { pool, capacity: cap, head: 0 };
+  }
+
+  function spawnSplash(system, x, y, map) {
+    const s = system.pool[system.head];
+    system.head = (system.head + 1) % system.capacity;
+    s.active = true;
+    s.x = Math.round(x);
+    s.y = Math.round(y);
+    s.age = 0;
+    s.life = 0.16;
+    s.map = map;
+  }
+
+  function updateSplashPool(system, dt, options = {}) {
+    if (options.reducedMotion) return;
+    for (let i = 0; i < system.capacity; i++) {
+      const s = system.pool[i];
+      if (!s.active) continue;
+      s.age += dt;
+      if (s.age >= s.life) s.active = false;
+    }
+  }
+
+  function drawSplashPool(ctx, system, options = {}) {
+    ctx.save();
+    const vp = options.viewport;
+    for (let i = 0; i < system.capacity; i++) {
+      const s = system.pool[i];
+      if (!s.active) continue;
+      if (vp && (s.x < vp.x - 20 || s.x > vp.x + vp.width + 20 || s.y < vp.y - 20 || s.y > vp.y + vp.height + 20)) continue;
+      const progress = Math.min(1, s.age / s.life);
+      const alpha = (1 - progress) * 0.85;
+      ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+      const spread = Math.round(progress * 4);
+      const lift = Math.round(Math.sin(progress * Math.PI) * 3);
+      rect(ctx, s.x, s.y - lift, 2, 2, '#edf8fc');
+      rect(ctx, s.x - spread - 1, s.y - lift + 1, 1, 1, '#c5e6f5');
+      rect(ctx, s.x + spread + 2, s.y - lift + 1, 1, 1, '#c5e6f5');
+    }
+    ctx.restore();
+  }
+
+  // --- Feature 11: Ground Puddles & Wet Sheen ---
+  const PUDDLE_PRESETS = Object.freeze({
+    village: [
+      { x: 800, y: 560, w: 42, h: 22 },
+      { x: 770, y: 830, w: 36, h: 18 },
+      { x: 460, y: 560, w: 32, h: 16 },
+      { x: 1080, y: 560, w: 38, h: 20 },
+      { x: 800, y: 380, w: 30, h: 16 },
+      { x: 350, y: 780, w: 34, h: 18 }
+    ],
+    forest: [
+      { x: 800, y: 550, w: 38, h: 20 },
+      { x: 420, y: 550, w: 32, h: 16 },
+      { x: 1180, y: 550, w: 34, h: 18 },
+      { x: 800, y: 820, w: 36, h: 18 }
+    ],
+    coast: [
+      { x: 800, y: 550, w: 36, h: 18 },
+      { x: 520, y: 550, w: 32, h: 16 },
+      { x: 800, y: 780, w: 40, h: 20 }
+    ],
+    ruins: [
+      { x: 800, y: 550, w: 38, h: 20 },
+      { x: 620, y: 380, w: 32, h: 16 },
+      { x: 980, y: 720, w: 34, h: 18 }
+    ]
+  });
+
+  function drawPuddles(ctx, map, time, options = {}) {
+    const list = PUDDLE_PRESETS[map];
+    if (!list || !list.length) return;
+    const still = !!options.reducedMotion;
+    const t = timeValue(time);
+    const night = !!options.night;
+    const vp = options.viewport;
+    const lights = options.lights || [];
+
+    ctx.save();
+    for (const p of list) {
+      if (vp && (p.x + p.w / 2 < vp.x || p.x - p.w / 2 > vp.x + vp.width || p.y + p.h / 2 < vp.y || p.y - p.h / 2 > vp.y + vp.height)) continue;
+
+      // 1. Outer wet soil border
+      ctx.globalAlpha = 0.35;
+      rect(ctx, p.x - p.w / 2 - 2, p.y - p.h / 2 - 1, p.w + 4, p.h + 2, '#2e3d38');
+
+      // 2. Water puddle surface
+      ctx.globalAlpha = night ? 0.65 : 0.5;
+      rect(ctx, p.x - p.w / 2, p.y - p.h / 2, p.w, p.h, night ? '#1d2d3d' : '#466980');
+      ctx.globalAlpha = night ? 0.45 : 0.35;
+      rect(ctx, p.x - p.w / 2 + 4, p.y - p.h / 2 + 3, p.w - 8, p.h - 6, night ? '#2b455c' : '#628fa8');
+
+      // 3. Dynamic Lantern Reflection
+      if (lights.length) {
+        for (const l of lights) {
+          const dx = l.x - p.x, dy = l.y - p.y, dist = Math.hypot(dx, dy);
+          if (dist < l.r * 1.1) {
+            const reflectAlpha = (1 - dist / (l.r * 1.1)) * (night ? 0.5 : 0.3);
+            ctx.globalAlpha = Math.max(0, Math.min(1, reflectAlpha));
+            const normX = dist > 0.001 ? dx / dist : 0;
+            const normY = dist > 0.001 ? dy / dist : 0;
+            const rx = p.x + Math.round(normX * Math.min(p.w / 4, 8));
+            const ry = p.y + Math.round(normY * Math.min(p.h / 4, 4));
+            rect(ctx, rx - 4, ry - 2, 8, 4, '#f8d581');
+            rect(ctx, rx - 2, ry - 1, 4, 2, '#fff1b4');
+          }
+        }
+      }
+
+      // 4. Specular water glint shimmer
+      const shimmer = still ? 0.7 : Math.sin(t * 2 + p.x);
+      if (shimmer > 0.5) {
+        ctx.globalAlpha = night ? 0.4 : 0.5;
+        rect(ctx, p.x - 3, p.y - 1, 6, 2, night ? '#a5cfdf' : '#dff3fa');
+      }
+    }
+    ctx.restore();
+  }
+
+  const api = {
+    createScene, sampleAmbient, drawGround, drawAir,
+    effectNames: (scene, options = {}) => sampleAmbient(scene, 0, options).effectNames,
+    isWater, drawRain, createSplashPool, spawnSplash, updateSplashPool, drawSplashPool,
+    drawPuddles, PUDDLE_PRESETS
+  };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.StardropEffects = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

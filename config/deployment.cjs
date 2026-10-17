@@ -2,9 +2,10 @@
 
 const CLIENT_FILES = Object.freeze([
   'index.html', 'css/styles.css', 'js/client-config.js', 'privacy.html',
-  'manifest.webmanifest', 'assets/icons/icon-192.png', 'assets/icons/icon-512.png', 'assets/icons/apple-touch-icon.png',
+  'manifest.webmanifest', 'assets/icons/icon-192.png', 'assets/icons/icon-512.png', 'assets/icons/apple-touch-icon.png', 'recovery/forest-checkpoint.json', 'recovery/cave-checkpoint.json',
   'js/game-data.js', 'js/game-core.js', 'js/npc-ai.js', 'js/world-paths.js',
-  'js/world-effects.js', 'js/world-actors.js', 'js/minimap.js', 'js/onboarding.js', 'js/save-transfer.js', 'js/game.js'
+  'js/world-effects.js', 'js/world-actors.js', 'js/minimap.js', 'js/onboarding.js', 'js/install-gate.js', 'js/save-transfer.js', 'js/game.js',
+  'js/adventure-data.js', 'js/adventure-core.js', 'js/combat-data.js', 'js/combat-core.js', 'js/exploration-data.js', 'js/exploration-core.js', 'js/exploration-scene.js'
 ]);
 
 function onlineEndpoint(value = '') {

@@ -20,11 +20,11 @@
           'Xoay ngang điện thoại để bản đồ và nút bấm có thêm không gian.',
           'Kéo joystick bên trái theo hướng muốn đi. Nhả tay để dừng.',
           'Bật nút Chạy để đi nhanh; bấm lại để tắt.',
-          'Các nút thao tác nằm bên phải. Chạm từng nút khi cần.'
+          'Nút Né ở bên phải tránh đòn theo hướng nhìn; cần 10 thể lực.'
         ] : [
           'Dùng WASD hoặc phím mũi tên để di chuyển.',
           'Giữ Shift để chạy nhanh. Nhả phím để dừng.',
-          'Bấm E để tương tác, Space để vung kiếm.',
+          'Bấm E để tương tác, Space để vung kiếm, V để né đòn.',
           'Bạn có thể mở lại hướng dẫn bằng nút Hướng dẫn.'
         ],
         tip: 'Chạy không mất thêm thể lực. Vật cản sẽ chặn đường đi.'
@@ -32,12 +32,12 @@
       {
         title: 'Cuộc hẹn đầu tiên với Mira', subtitle: 'TRÒ CHUYỆN & NHIỆM VỤ', icon: '💬',
         points: [
-          'Bắt đầu với “Lá thư lúc bình minh”: tìm Mira gần quảng trường ở Làng Ánh Sao.',
-          mobile ? 'Đến gần cư dân rồi bấm Tương tác để trò chuyện.' : 'Đến gần cư dân rồi bấm E để trò chuyện.',
-          'Mở Sổ nhiệm vụ và nhận nhiệm vụ trước khi thu thập, chế tạo hoặc chiến đấu.',
-          'Chọn Theo dõi để tìm mục tiêu. Hoàn thành rồi nhận thưởng; nhiệm vụ giao đồ cần đến đúng cư dân.'
+          'Đưa Đêm Hội Sao trở lại qua ba chặng: hồi sinh làng, tìm ký ức và thắp Đèn Dẫn Sao.',
+          mobile ? 'Tìm Mira gần quảng trường; đến gần bấm Tương tác.' : 'Tìm Mira gần quảng trường; đến gần bấm E.',
+          'Cốt truyện tự nối khi nhận thưởng. Nhận việc cư dân và hợp đồng trước khi làm mục tiêu.',
+          'Chọn Theo dõi để tìm mục tiêu. Nhận thưởng xong, nhiệm vụ chuyển vào Lịch sử; giao đồ cần đúng cư dân.'
         ],
-        tip: 'Dấu ? chỉ nhiệm vụ mới; dấu ✓ cho biết bạn có thể nhận thưởng.'
+        tip: 'Rễ Sao mở sau chuyến rừng đầu. Sổ giữ việc đã xong trong Lịch sử.'
       },
       {
         title: 'Chuẩn bị cho chuyến đi', subtitle: 'THU THẬP & HỒI SỨC', icon: '🎒',

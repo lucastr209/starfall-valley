@@ -1,6 +1,55 @@
 # Thung Lũng Sao Rơi
 
-RPG pixel 2D trong trình duyệt, phát triển từ nền Canvas và server cộng đồng của dự án trước. Sau cơn mưa sao, bạn trở thành người giúp Làng Ánh Sao hồi sinh: làm quen cư dân, gom vật liệu, chế tạo, trồng cây, câu cá và đánh thức các bia ký ức để thắp Đèn Dẫn Sao.
+RPG hành động pixel 2D trong trình duyệt. Tuyến phiêu lưu **Rễ Sao** mở sau nhiệm vụ cốt truyện thứ năm: lần theo dấu vết, học né đòn, cứu cư dân, giải cơ chế và đánh bại **Hộ Vệ Rễ Sao**. Tuyến hồi sinh Làng Ánh Sao và đưa **Đêm Hội Sao trở lại** vẫn giữ nguyên tiến trình cũ.
+
+Bản đang phục vụ tại https://starfall-valley.vercel.app/. Nếu ứng dụng Màn hình chính đang mở bản cũ, chọn **Cập nhật game**; không xóa/cài lại để cập nhật. Kiểm iPhone thật đang chờ phản hồi người dùng, xem TEST_REPORT.
+
+Checkpoint kiểm thử hang: [Tải tiến trình](https://starfall-valley.vercel.app/recovery/cave-checkpoint.json). Sao lưu tiến trình cũ trước, tải JSON vào Tệp rồi mở game → **Nhập tiến trình**. Nhân vật cấp7 đứng trước Hang Rêu Sao, mở cả3hang và nhận4việc hang; có Kiếm Đồng Lá/Áo Hải Hành/10cơm/10trà. Câu đố/boss/rương chưa hoàn thành. Đây là save test dựng mới, không phải khôi phục dữ liệu cá nhân hoặc quyền admin server.
+
+## Nhà, cửa hàng và hang động
+
+- Nhấn **E / Tương tác** trước cửa để vào bảy ngôi nhà trong làng và ba chòi cư dân ở rừng, biển, tàn tích. Bên trong có nội thất, NPC và việc mới. Khi nhiều điểm ở gần, chọn đúng cửa hoặc cư dân trong danh sách. Đi tới cửa phía nam hoặc chọn **Ra ngoài** để rời phòng.
+- **Cửa hàng Chợ Lá** có quầy bán 14 loại vật liệu, tiếp tế, kiếm và áo. Mua vật liệu theo lượng 1/5/10; trang bị mua một lần rồi chọn trong **Túi**. Vật liệu mua không tính là tự thu thập. Áo đổi màu nhân vật và giảm sát thương; kiếm tăng sát thương thực.
+- **Hang Rêu Sao**, **Hang Thủy Triều**, **Hang Tinh Vân** nằm ở phía đông bắc các vùng tương ứng. Đọc bia, xếp ba biểu tượng, mở ấn rồi vượt các đợt canh gác và Hộ Vệ. Mỗi boss có chuỗi đòn riêng; né đòn lao và phản công khi lõi lộ. Mở rương sau chiến thắng để nhận trang bị hiếm và vật phẩm giao nhiệm vụ.
+- Thêm sáu việc cư dân gắn với các căn nhà và hang. Báu vật giao việc không bán được. Mỗi hang chỉ nhận rương một lần; túi đầy có thể dọn rồi quay lại. Bản xếp dở và chiến thắng đã lưu được giữ khi tải lại; trận chưa thắng bắt đầu lại.
+- Save/xuất file khi ở trong phòng ghi vị trí an toàn ngoài cửa; tải lại hoặc nhập file sẽ đứng ngoài. Khi vào phòng, nhân vật tạm rời phiên online; khi ra ngoài kết nối lại. Phòng hiện là trải nghiệm một người.
+- Trên mobile, link mở **hướng dẫn cài về Màn hình chính** trước khi chơi. Chỉ mở từ biểu tượng ứng dụng mới vào được; nút xác nhận cài và fullscreen browser không bỏ chặn. Màn hình này vẫn có sao lưu/nhập file để mang tiến trình sang ứng dụng. Canvas phủ toàn màn hình; nút ☰ mở các chức năng phụ, joystick và cụm nút 2×2 ở hai góc dưới. Minimap mặc định thu gọn; bấm ⌖ để mở/đóng.
+
+QA chỉ localhost: `?qa=1&scene=homes&room=shop-leaf` hoặc ID phòng khác; `?qa=1&scene=caves&room=cave-forest|cave-coast|cave-ruins`. Thêm `checkpoint=loot` vào scene hang để **chỉ kiểm giao diện nhận thưởng**, không dùng đo chiến đấu. `scene=install` xem hướng dẫn iOS; thêm `device=android` xem Android. Tải `?qa=1` không có scene để kiểm tiến trình vừa lưu.
+
+## Bản nâng cấp Rễ Sao
+
+- Sổ mặc định chỉ hiện **Đang làm**, sắp việc sẵn sàng nhận thưởng trước. **Có thể nhận** chứa việc đã mở; **Lịch sử** chứa việc đã nhận thưởng. Nhận thưởng thành công thì thẻ tự chuyển khỏi danh sách đang làm. Nhiệm vụ giao đồ vẫn cần đúng cư dân; lịch sử hợp đồng chỉ tính hôm nay.
+- Sáu nhiệm vụ phiêu lưu và bốn việc khám phá tự chọn. Ba dấu vết dẫn vào rừng; đường vòng cứu người cần nối đủ ba cột dây. Chỉ dẫn/minimap chuyển theo bước còn thiếu; từng bước được lưu. Save cũ đã qua `story05` mở nội dung mới; bước đã hoàn tất vẫn được giữ.
+- **Mạch ánh sáng**: khảo sát hai bia khắc phía bắc, xoay ba phiến rồi xác nhận. **Hộp di vật**: chọn ba ký hiệu theo lời khắc rồi xác nhận. Đóng/tải lại giữ bản xếp dở; xếp sai có thể xếp lại miễn phí. Khi trạm nghỉ, lối tắt hoặc cư dân nằm sát câu đố, **Tương tác** mở danh sách để chọn đúng địa điểm.
+- Bãi tập có hai đợt, giải cứu bằng chiến đấu có hai đợt, mạch rễ phía tây có ba đợt phối hợp cận chiến/bắn xa. Có hai giây tái bố trí giữa các đợt; chỉ thắng cả trận mới thanh tẩy địa điểm. Menu tạm dừng giữ hồi chiêu và đạn, tránh bỏ qua hồi chiêu bằng cách mở sổ.
+- **Space / Kiếm** đánh trong cung hướng nhìn, có 0,1 giây lấy đà; **V / Né** né theo hướng nhìn, tốn 10 thể lực. Vùng vàng báo đòn; địch gồm loại lao, mầm gai bắn xa, hộ vệ đòn nặng và boss hai pha. Né không cộng thêm tốc độ chạy và bị vật cản chặn.
+- Sau khi cứu người giữ đường, trạm nghỉ ở rừng trở thành checkpoint. Đường tắt và bàn tiếp tế nối chuyến đi với làng. Mở sổ trong giao tranh để **Rút lui**; trận chưa thắng được đặt lại, chứng cứ và tiến trình giữ nguyên.
+- Bàn tiếp tế cho chọn **Y tế** (hai phần, +45 máu/+25 thể lực mỗi phần) hoặc **Bền sức** (một phần, +25 máu/đầy thể lực). Trong giao tranh, mở Sổ → Dùng tiếp tế; bổ sung/đổi bộ ở làng hoặc bổ sung ở trạm sau trận. Boss có giáp rễ: đợi lõi lộ sau cú lao rồi phản công.
+- Boss thắng được lưu ngay; thưởng độc nhất qua nhiệm vụ, có thể dọn túi rồi nhận sau. Kiếm Rễ Sao gây 3 sát thương, cần vào **Túi → Trang bị**. Thưởng còn có xu/gỗ/quặng đủ xây xưởng cơ bản; làng có góc hồi sinh và xưởng mở công thức rèn lại kiếm.
+- Tuyến Rễ Sao và ba hang tự chọn bổ sung chiến đấu, trang bị và việc cư dân. Chưa có co-op chiến đấu hoặc nhạc/âm thanh mới.
+
+QA localhost: `?qa=1&scene=journal` kiểm sổ; `scene=adventure` bắt đầu chương từ save cũ hợp lệ với ngân sách nhỏ; `scene=combat` kiểm ba vai trò địch; `scene=boss` chuẩn bị trước boss. Thêm `weather=night|rain-day|rain-night` và `motion=reduced` để rà báo đòn trong ánh sáng khó/giảm chuyển động. Muốn kiểm tải lại tiến trình sau thao tác, mở `?qa=1` **không có scene**; URL có scene tạo lại fixture mỗi lần tải. Các fixture chỉ ghi khóa save QA, không dùng save người chơi.
+
+## Cập nhật và sao lưu trên iPhone
+
+Tiến trình hiện chỉ lưu trong trình duyệt/ứng dụng đang mở, chưa có sao lưu tài khoản trên server. Safari và ứng dụng Màn hình chính có thể dùng vùng lưu riêng. Trước khi đổi nơi chơi, xóa hoặc cài lại, chọn **Sao lưu ra file**, lưu JSON vào **Tệp**, rồi **Nhập tiến trình** ở nơi mới. Không coi việc cài lại biểu tượng là cách cập nhật.
+
+Chọn **Cập nhật game** ở màn hình đầu hoặc **Túi đồ**: phiên đang chơi được lưu/đọc kiểm lại trước khi tải trang; nếu lưu lỗi, game dừng cập nhật và cho xuất file. Trang đầu chưa chơi không ghi state mới đè dữ liệu chưa đọc được. Build gắn mã phiên bản vào mọi CSS/JS và hiển thị mã ở cuối màn hình đầu; phải tải lại trang đang mở trong RAM để nhận bản mới.
+
+Xóa vùng lưu của ứng dụng mà không có file xuất có thể khiến tiến trình không thể khôi phục chính xác. Checkpoint hỗ trợ tái tạo là một trạng thái mới được dựng lại, không phải bản sao của save đã mất.
+
+## Mục tiêu hành trình
+
+1. **Giúp làng hồi sinh** (bước 1–14): giếng, xưởng, đèn đường, vườn quả và chuyến đi rừng đầu tiên.
+2. **Theo dấu Cơn Mưa Sao** (bước 15–22): nối bờ vịnh, mở tàn tích, đánh thức các bia và tìm tinh thể.
+3. **Đêm Hội Sao trở lại** (bước 23–24): dựng đài ngắm sao và Đèn Dẫn Sao; nhận thưởng bước cuối để mở cảnh lễ hội với 11 cư dân.
+
+Nút mục tiêu trên HUD luôn hiển thị chặng và tiến độ cốt truyện, kể cả trên điện thoại. Sổ hành trình nêu thành quả từng chặng, bước tiếp theo và công trình cần xây. Nhiệm vụ cốt truyện tự nhận bước kế tiếp sau khi nhận thưởng; khi vào chơi hoặc nhập save trong phiên, bước còn thiếu của save cũ được nối lại, không tính ngược mục tiêu thu thập/chế tạo/chiến đấu.
+
+Lễ hội có ba trang lời thoại, có thể đóng hoặc xem lại từ Sổ hành trình. Save hoàn thành từ bản cũ được xem lễ hội lần đầu khi tiếp tục chơi. Xem lại không trao thêm thưởng; xoay màn hình hoặc về title giữa cảnh giữ trang hiện tại trong phiên. Giảm chuyển động giữ cảnh đứng yên. Cảnh kết không đổi vị trí NPC/người chơi, giờ trong game hay vùng đang chơi.
+
+Sau lễ hội có ba mục tiêu **tự chọn**: hoàn thành 24 việc cư dân, sở hữu đủ 12 nâng cấp, hoặc mở cả ba rương thất lạc. Lựa chọn và cờ đã xem lễ hội được lưu/xuất/nhập cùng tiến trình. Đổi hoặc ngừng theo dõi giữ nguyên thành quả. Việc phụ và hợp đồng ngày không bắt buộc để hoàn thành chuyện chính.
 
 ## Cấu trúc dự án
 
@@ -37,16 +86,16 @@ Không cần tải package, font hay ảnh ngoài. Mở trực tiếp `public/in
 
 ## Cách chơi
 
-- WASD / các phím mũi tên: đi; giữ **Shift** để chạy. Nhân vật quay theo bốn hướng và giữ hướng nhìn khi nhả phím. **E**: tương tác, ưu tiên cư dân trong tầm trò chuyện. **Space**: vung kiếm, có khoảng nghỉ 0,4 giây.
-- **Q** mở sổ nhiệm vụ, **B** mở xây làng, **I** mở túi/chế tạo; **Esc** đóng cửa sổ hoặc hủy câu cá. Mobile có joystick bên trái, kiếm/tương tác và nút **Chạy** bên phải để bật/tắt chạy.
-- Mobile chơi theo chiều ngang, bản đồ chiếm toàn bộ vùng dưới thanh trạng thái. Màn hình dọc nhắc xoay máy và tạm dừng game; xoay máy, mở dialog/bảng thông tin hoặc rời trang đều xóa thao tác đang giữ. Bảng **Cư dân** và **Chat** mở thành drawer có nút đóng. Các nút có vùng chạm ít nhất 44px, nút hành động cách nhau 14px; ô tên/chat vẫn nhập và chọn chữ bình thường.
+- WASD / các phím mũi tên: đi; giữ **Shift** để chạy. Nhân vật quay theo bốn hướng và giữ hướng nhìn khi nhả phím. **E**: tương tác với điểm khám phá hoặc cư dân ở gần. **Space**: vung kiếm, có khoảng nghỉ 0,4 giây; **V**: né theo hướng nhìn, tốn10thể lực.
+- **Q** mở sổ nhiệm vụ, **B** mở xây làng, **I** mở túi/chế tạo; **Esc** đóng cửa sổ hoặc hủy câu cá. Mobile có joystick bên trái, nút **Né**, kiếm/tương tác và nút **Chạy** bên phải để bật/tắt chạy.
+- Mobile chơi từ ứng dụng trên Màn hình chính theo chiều ngang; Canvas phủ viewport và HUD nổi trên bản đồ. Màn hình dọc nhắc xoay máy và tạm dừng game; xoay máy, mở dialog/bảng thông tin hoặc rời trang đều xóa thao tác đang giữ. Bảng **Cư dân** và **Chat** mở thành drawer có nút đóng. Các nút có vùng chạm ít nhất 44px; ô tên/chat vẫn nhập và chọn chữ bình thường.
 - Người chơi mới được hướng dẫn bốn bước; có thể bỏ qua hoặc mở lại bằng **Hướng dẫn**. Cờ hoàn tất lưu riêng với tiến trình; save cũ không bị buộc xem lại. QA mặc định không mở hướng dẫn; `?qa=1&tutorial=1` thử hướng dẫn khi chưa có save QA.
 - Minimap góc trên phải hiển thị vùng hiện tại, bạn (chấm trắng), cư dân/nhiệm vụ, mục tiêu (hình thoi vàng), người chơi online cùng vùng và cổng (ô xanh). Khung trắng là vùng nhìn hiện tại. Nút **⌖** thu/mở minimap; cập nhật tối đa năm lần/giây từ dữ liệu đang có trong game.
-- iPhone/Safari: nếu nút fullscreen mở hướng dẫn, chọn **Chia sẻ → Thêm vào Màn hình chính**, bật **Mở dạng ứng dụng** nếu có, rồi mở biểu tượng game. Manifest và icon cho phép chạy ở chế độ ứng dụng; CSS không thể ẩn thanh Safari. Khi thanh trình duyệt đang hiện, game tự thu gọn nút/minimap theo chiều cao nhìn thấy, không ngắt joystick khi chỉ đổi chiều cao.
+- iPhone/Safari: ngay khi mở link, màn hình cài hướng dẫn **Chia sẻ → Thêm vào Màn hình chính**, bật **Mở dạng ứng dụng** nếu có, rồi mở biểu tượng game. Manifest và icon cho phép chạy ở chế độ ứng dụng; CSS không thể ẩn thanh Safari.
 - Để mang tiến trình từ Safari sang ứng dụng trên Màn hình chính, dùng **Xuất tiến trình** trong hướng dẫn fullscreen, lưu file vào Tệp; mở biểu tượng game rồi chọn **Nhập tiến trình đã lưu**. File được xử lý trên máy, giới hạn 128 KB và cần xác nhận trước khi thay thế save. Không có đồng bộ save cloud hay chế độ offline.
 - Tốc độ đi là 180 pixel/giây, tăng lên 225 khi có Giày Lướt Cỏ. Chạy nhanh gấp 1,65 lần: tương ứng 297 và 371,25 pixel/giây, không mất thêm thể lực. Đi chéo có cùng tốc độ với đi thẳng; khi bị vật cản chặn, nhân vật không tiếp tục bước tại chỗ.
 - Chạy và phím di chuyển tự tắt khi mở cửa sổ, tập trung vào chat, câu cá, qua cổng, trở về màn hình đầu hoặc rời cửa sổ trình duyệt. Sau đó nhấn lại Shift hoặc nút Chạy nếu muốn tiếp tục chạy.
-- Nhận nhiệm vụ trước khi thu thập, chế tạo, chiến đấu hoặc trò chuyện để ghi tiến độ. Các mốc xây dựng, khám phá, bia và rương đã làm vẫn được công nhận.
+- Cốt truyện tự nhận bước đầu khi vào chơi và bước kế tiếp khi nhận thưởng. Nhận riêng việc cư dân/hợp đồng trước khi thu thập, chế tạo, chiến đấu hoặc trò chuyện để ghi tiến độ. Các mốc xây dựng, khám phá, bia và rương đã làm vẫn được công nhận.
 - Nhiệm vụ giao hàng dùng vật phẩm trong túi và phải giao cho đúng cư dân. Mỗi nhiệm vụ trả thưởng một lần; hợp đồng được làm lại vào ngày mới.
 - Cả 11 cư dân đi quanh nơi sinh hoạt với tốc độ 76–96 pixel/giây, tránh vật cản và nghỉ 0,8–1,8 giây tại các điểm trên lộ trình; lần bắt đầu nghỉ 0,4–1,2 giây. Họ quay theo hướng đi và dừng khi bạn tới gần; mở hội thoại, gõ chat hoặc câu cá sẽ tạm dừng chuyển động. Đổi vùng giữ vị trí của cư dân trong phiên chơi.
 - Chọn **Tìm cư dân & hợp đồng** ở bảng hành trình để xem lộ trình, việc đang có và theo chỉ dẫn vị trí hiện tại. Dấu **?** là nhiệm vụ/hợp đồng mới, **!** là việc đang làm, **✓** là việc sẵn sàng nhận thưởng. Giao đồ tại vị trí hiện tại của người nhận.
@@ -104,6 +153,8 @@ node --test tests/*.test.js
 `node tests/render-gait.cjs` xuất `test-artifacts/handheld-gait-preview.html`, bản xem chuyển động riêng của người chơi và 11 NPC ở bốn hướng. Có nút đi/chạy, dừng, tạm dừng và giảm chuyển động; dùng renderer thật, dữ liệu mẫu và cùng thời gian chuyển tiếp hình vẽ với game. Bản HTML tự chứa mã/hình, không truy cập save hay kết nối mạng. Chạy của NPC trong bảng là tư thế mẫu để đối chiếu; trong gameplay cư dân đi bộ. Bảng này hỗ trợ rà soát hình vẽ, kiểm thao tác/va chạm trong game vẫn cần trình duyệt thật.
 
 Các URL `?qa=1&scene=day|night|rain|farm|fish|battle|camp|npc|actors` chỉ dùng trên localhost để kiểm tra với dữ liệu riêng (`starfall-valley-qa-save`), không ghi vào save người chơi. Scene `npc` đặt người chơi phía nam làng để quan sát các cư dân đi lại mà không đứng sát họ.
+
+`?qa=1&scene=finale` tạo tiến trình hợp lệ tới bước 24, đã dựng Đèn Dẫn Sao nhưng chưa nhận thưởng. Vào chơi rồi nhận thưởng trên tracker để kiểm cảnh kết. `?qa=1&scene=after` tạo trạng thái sau lễ hội với 7/12 nâng cấp và 2/3 rương, để kiểm mục tiêu tự chọn. Thêm `motion=reduced` kiểm cảnh lễ hội đứng yên. Muốn kiểm lưu/tải lại, mở `?qa=1` không có `scene` sau khi thao tác; URL có `scene` tạo lại fixture QA mỗi lần tải.
 
 Thêm `fullscreen=ios` để kiểm giao diện hướng dẫn khi iPhone không hỗ trợ fullscreen, hoặc `fullscreen=standalone` để kiểm nhãn chế độ ứng dụng. Hai override này chỉ hoạt động với `qa=1` trên localhost; không giả lập Safari hoặc cài ứng dụng thật.
 

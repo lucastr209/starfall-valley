@@ -28,6 +28,10 @@ function canvasMock() {
   return {ctx,calls,stack};
 }
 const close=(a,b)=>assert.ok(Math.abs(a-b)<1e-8,`${a} ≈ ${b}`);
+test('home and cave entrances appear on the minimap only in their own region',()=>{
+  const mock=canvasMock();Minimap.draw(mock.ctx,{map:'forest',player:{x:800,y:550},objects:[{kind:'door',map:'forest',x:260,y:270},{kind:'door',map:'coast',x:1280,y:290}]});
+  assert.equal(mock.calls.filter(c=>c.kind==='rect'&&c.color==='#64d8eb').length,1);
+});
 
 test('minimap loads without a browser, DOM or external dependency',()=>{
   const scope={};vm.createContext(scope);
