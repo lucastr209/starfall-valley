@@ -1,6 +1,6 @@
 (function(root,factory){
   'use strict';
-  const core=typeof module==='object'&&module.exports?require('./game-core.js'):root.StardropCore;
+  const core=typeof module==='object'&&module.exports?(()=>{try{return require('../core/game-core.js');}catch(_){return require('./game-core.js');}})():root.StardropCore;
   const api=factory(core);
   if(typeof module==='object'&&module.exports)module.exports=api;
   else root.StardropSaveTransfer=api;

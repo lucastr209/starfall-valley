@@ -13,23 +13,28 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png">
   <script defer src="js/client-config.js"></script>
-  <script defer src="js/adventure-data.js"></script>
-  <script defer src="js/exploration-data.js"></script>
-  <script defer src="js/game-data.js"></script>
-  <script defer src="js/game-core.js"></script>
-  <script defer src="js/exploration-core.js"></script>
-  <script defer src="js/exploration-scene.js"></script>
-  <script defer src="js/adventure-core.js"></script>
-  <script defer src="js/combat-data.js"></script>
-  <script defer src="js/combat-core.js"></script>
-  <script defer src="js/save-transfer.js"></script>
-  <script defer src="js/npc-ai.js"></script>
-  <script defer src="js/world-paths.js"></script>
-  <script defer src="js/world-effects.js"></script>
-  <script defer src="js/world-actors.js"></script>
-  <script defer src="js/minimap.js"></script>
-  <script defer src="js/onboarding.js"></script>
-  <script defer src="js/install-gate.js"></script>
+  <script defer src="js/data/adventure-data.js"></script>
+  <script defer src="js/data/exploration-data.js"></script>
+  <script defer src="js/data/game-data.js"></script>
+  <script defer src="js/data/combat-data.js"></script>
+  <script defer src="js/core/game-core.js"></script>
+  <script defer src="js/core/exploration-core.js"></script>
+  <script defer src="js/core/adventure-core.js"></script>
+  <script defer src="js/core/combat-core.js"></script>
+  <script defer src="js/core/npc-ai.js"></script>
+  <script defer src="js/world/world-paths.js"></script>
+  <script defer src="js/world/world-effects.js"></script>
+  <script defer src="js/world/world-actors.js"></script>
+  <script defer src="js/world/exploration-scene.js"></script>
+  <script defer src="js/world/lighting.js"></script>
+  <script defer src="js/world/combat-renderer.js"></script>
+  <script defer src="js/ui/minimap.js"></script>
+  <script defer src="js/ui/onboarding.js"></script>
+  <script defer src="js/ui/install-gate.js"></script>
+  <script defer src="js/ui/save-transfer.js"></script>
+  <script defer src="js/ui/title-screen.js"></script>
+  <script defer src="js/ui/hud-dialogs.js"></script>
+  <script defer src="js/ui/input-controls.js"></script>
   <script defer src="js/game.js"></script>
 </head>
 <body>
@@ -55,6 +60,7 @@
           <div class="start-row"><input id="player-name" maxlength="18" placeholder="Tên của bạn" autocomplete="nickname" required value="Lữ khách"><button type="submit" id="btn-start">Bắt đầu hành trình <span>→</span></button></div>
         </form>
         <p id="save-label" class="save-label">Một câu chuyện mới đang đợi bạn.</p>
+        <p class="privacy-note"><a href="awakening.html">✦ Thức Tỉnh — phiêu lưu co-op 1–4 người →</a></p>
         <div class="start-save-actions"><button id="btn-import-start" class="save-import" type="button">Nhập tiến trình</button><button id="btn-export-start" class="save-import" type="button">Sao lưu ra file</button><button id="btn-refresh-start" class="save-import" type="button">Cập nhật game</button></div>
         <p id="start-save-status" class="save-local-note" role="status">Tiến trình chỉ lưu trên trình duyệt/ứng dụng này. Hãy sao lưu ra file trước khi xóa hoặc cài lại. Cập nhật game không cần xóa ứng dụng.</p>
         <p class="privacy-note">Hãy dùng biệt danh. Tên và chat online được người chơi khác nhìn thấy. <a href="privacy.html" target="_blank" rel="noopener">Quyền riêng tư</a></p>

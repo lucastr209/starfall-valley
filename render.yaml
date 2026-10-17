@@ -1,0 +1,25 @@
+# Blueprint để duyệt cấu hình; không áp dụng hoặc mua dịch vụ tự động.
+services:
+  - type: web
+    name: starfall-awakening
+    runtime: node
+    region: singapore
+    plan: free
+    numInstances: 1
+    buildCommand: npm ci --omit=dev
+    startCommand: npm run start:coop
+    healthCheckPath: /health
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_VERSION
+        value: 24
+      - key: HOST
+        value: 0.0.0.0
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false

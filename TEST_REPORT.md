@@ -1,3 +1,46 @@
+## Thức Tỉnh — RPG/co-op — 17/10/2026
+
+- Triển khai chế độ riêng `/awakening.html`; không đọc/ghi khóa save Legacy. Ba chương, 15 phòng, boss hai pha, kiếm/cung/trượng, cứu đồng đội, tín hiệu, ba năng lực mở đường/bí mật thật trong làng, góp tài nguyên và ba công trình hồi sinh.
+- Backend Node quyết định toàn bộ trận đấu, phòng tối đa bốn người, quyền chủ phòng, reconnect và tạm dừng 60 giây. Adapter Supabase Auth/REST và migration Postgres; QA chỉ localhost, RAM riêng.
+- Baseline trước thay đổi: **500 tests, 498 pass, 0 fail, 2 skip**.
+- Kiểm tra toàn bộ cuối trên **Node v24.19.0**: `node --test tests/*.test.js` → **533 tests, 531 pass, 0 fail, 2 skip**, exit 0, 48,13 giây. Hai skip là Redis live tùy chọn. Log đầy đủ: `work/awakening/final-tests.log`.
+- `node --check` cho mọi JS/CJS mới hoặc sửa trong lần này: exit 0. `npm run build`: exit 0; chỉ allowlist client vào `dist`. `git diff --check`: exit 0 (Git có cảnh báo chuẩn hóa CRLF, không lỗi whitespace).
+- **WebSocket thực**: bốn client xác thực/vào cùng phòng, bị chặn quyền chủ phòng/fifth member, reconnect, DB lỗi đóng phòng, race host đóng trong lúc guest join, khôi phục save sau restart. Nhóm bốn bot chỉ gửi input/lệnh bình thường đã vượt đủ năm phòng dungeon đầu, hạ boss và lưu 100 xu + chiến thắng cho từng người; thế giới khách không thay đổi. Không dùng fixture giết boss trong bài full dungeon. Bài này khoảng 27,7 giây khi chạy riêng; log `work/awakening/socket-expedition.log`.
+- **Gameplay đầy đủ**: bot điều khiển bằng lệnh thật cho nhóm 1, 2 và 4 người, mỗi nhóm hoàn thành đủ 15 phòng/ba boss, xây ba công trình và lưu thưởng. Không sửa trực tiếp máu, vị trí, quái hoặc chứng cứ thắng trong các bài expedition. Các unit test quyền/victory riêng vẫn dùng fixture được ghi rõ trong test.
+- **Postgres thực qua PGlite**: chạy migration, kiểm RLS hai tài khoản, chặn anon/client write/client RPC, thưởng idempotent, revision stale và rollback toàn transaction. Đây không phải kiểm Supabase cloud; chưa đo contention nhiều process.
+- **Review độc lập**: sửa và thêm hồi quy cho refresh sau logout, join vào phòng vừa đóng, mất thưởng khi hạ boss rồi rút ngay, hình học báo đòn/khóa hướng dọc. Kiểm thêm né đúng 79,2 px và câu đố không kẹt khi chỉ còn một người.
+- **Trình duyệt Chromium thật localhost**: tạo nhóm bằng bốn tab QA, xác minh danh sách bốn người và quyền khách, đổi cung/trượng ở trại, cả nhóm chuyển vùng, wipe trở về trại, reload/reconnect. Thử giữ/nhả nút cảm ứng, bốn hướng, né, phóng/thu fullscreen và bật AudioContext; console không có lỗi lúc rà. Chưa nghe/đánh giá âm lượng bằng thiết bị âm thanh thực.
+- **Responsive**: desktop 1280×900; mobile 375×812, 844×390, 568×320, 568×280. Kiểm document không tràn ngang; ở 568×280, đáy tám nút di chuyển/hành động ≤273,81 px. Vùng chơi landscape dùng contain để giữ tỉ lệ ảnh. Ảnh tại `test-artifacts/awakening-mobile-375.jpg`, `awakening-mobile-568.jpg`, `awakening-desktop.jpg`.
+- **Giới hạn**: chưa cấu hình Google OAuth/Supabase project/Render live, chưa áp dụng migration lên cloud, chưa triển khai preview/production, chưa mua dịch vụ. Chưa có bốn người thật hoàn thành dungeon trên bốn thiết bị hoặc đánh giá cân bằng dài hạn. Chromium viewport không chứng minh Safari/iPhone vật lý. QA RAM mất khi restart; production adapter mới là lưu bền.
+- Hướng dẫn vận hành và release CSP chính xác: `docs/awakening-operations.md`. Config Vercel Legacy gốc được giữ nguyên; muốn bật backend co-op trên deployment phải dùng file sinh bởi `npm run configure:coop`.
+
+## Tái cơ cấu và module hóa kiến trúc dự án (Refactor Project Structure) — 17/10/2026
+
+- **Mục tiêu**: Tái tổ chức cấu trúc mã nguồn theo hướng mô-đun hóa sạch sẽ, tách `public/js/` thành các thư mục chức năng chuyên biệt (`data/`, `core/`, `world/`, `ui/`), bóc tách các mảng rendering/dialogs/controls độc lập từ monolithic `game.js`, gom các bộ challenger stress testing vào `tests/challengers/` và script kết xuất đồ họa vào `scripts/tools/`, bảo tồn 100% triết lý zero-bundler thuần `<script defer>`.
+- **Cấu trúc mới**:
+  - `public/js/data/`: `game-data.js`, `adventure-data.js`, `combat-data.js`, `exploration-data.js`.
+  - `public/js/core/`: `game-core.js`, `adventure-core.js`, `combat-core.js`, `exploration-core.js`, `npc-ai.js`.
+  - `public/js/world/`: `world-paths.js`, `world-effects.js`, `world-actors.js`, `exploration-scene.js`, `lighting.js`, `combat-renderer.js`.
+  - `public/js/ui/`: `title-screen.js`, `hud-dialogs.js`, `input-controls.js`, `minimap.js`, `onboarding.js`, `save-transfer.js`, `install-gate.js`.
+  - `public/js/game.js`: Runtime Canvas controller kết nối các module giao diện, camera, ánh sáng và mạng online.
+  - `tests/challengers/`: các suite benchmark & adversarial độc lập (`adversarial-monsters.cjs`, `challenger-actors-stress.cjs`, `m1-challenger-suite.cjs`, `m2-challenger-suite.cjs`, `adversarial-title-minimap.cjs`, `adversarial-hud-mobile.cjs`, `browser-mobile-layout.cjs`).
+  - `scripts/tools/`: các renderer CLI (`render-actors.cjs`, `render-gait.cjs`, `render-monsters.cjs`, `capture-scenes.cjs`, `render-app-icons.py`).
+  - Forwarder shims tại `tests/render-*.cjs` và `tests/adversarial-*.cjs` bảo đảm tương thích hoàn toàn cho các lệnh CI/QA hiện hữu.
+- **Kiểm thử tự động thực hiện**:
+  - `node --check` kiểm tra toàn bộ tệp JavaScript/CJS trong dự án: **100% ĐẠT** (0 syntax errors).
+  - `node --test tests/*.test.js`: **500 tests: 498 PASS, 0 FAIL, 2 SKIP (Redis live do thiếu cluster local); exit code 0**.
+  - `npm run test:challengers`: **100% PASS** trên toàn bộ 5 bộ adversarial & challenger suites:
+    - `adversarial-monsters.cjs`: 14/14 tests pass.
+    - `challenger-actors-stress.cjs`: 6/6 tests pass.
+    - `m1-challenger-suite.cjs`: 100% pass (Collision, Determinism, Terrain Cache).
+    - `m2-challenger-suite.cjs`: 8/8 tests pass (Organic flicker, Lipschitz bound, Contrast invariants).
+    - `adversarial-title-minimap.cjs`: 16/16 tests pass (Fuzzing, freeze, context hygiene, benchmarks).
+  - `npm run build`: **ĐẠT (exit 0)**, build ID xác định, hash các tệp `dist/` khớp danh mục xuất bản.
+  - Tool renderers: `node tests/render-actors.cjs`, `node tests/render-gait.cjs`, `node tests/render-monsters.cjs` chạy thành công qua forwarder shims.
+- **Giới hạn xác minh**:
+  - Hai bài test live Redis cluster vẫn được skip có chủ đích vì không có kết nối Redis mạng ngoài trong môi trường local.
+  - `browser-mobile-layout.cjs` được thiết kế để chạy khi có máy chủ game `http://localhost:4173/?qa=1` đang lắng nghe kết hợp Google Chrome remote debugging.
+
 ## Tối ưu lại HUD mobile và phát hành Vercel — 16/10/2026
 
 - Nguyên nhân: bố cục trước dành 112px phía trên cho thanh nút và tên vùng nên thu nhỏ canvas ở màn hình ngang thấp. Bản cũ hơn giữ canvas toàn màn hình nhưng sáu nút tiện ích nổi thường trực, che cảnh chơi.

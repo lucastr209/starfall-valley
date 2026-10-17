@@ -1,8 +1,8 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const D = require('../public/js/game-data.js');
-const AI = require('../public/js/npc-ai.js');
+const D = require('../public/js/data/game-data.js');
+const AI = require('../public/js/core/npc-ai.js');
 
 const boundary = (_map,x,y) => x<25||x>1575||y<40||y>1075;
 const distantPlayer = { x:1500, y:1050 };

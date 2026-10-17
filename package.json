@@ -4,15 +4,23 @@
   "private": true,
   "description": "Thung Lũng Sao Rơi — RPG pixel 2D và máy chủ khách WebSocket",
   "scripts": {
+    "start:coop": "node server/awakening/server.cjs",
+    "configure:coop": "node scripts/configure-coop.cjs",
     "start": "node server/index.js",
     "build": "node scripts/build.cjs",
     "build:online": "node scripts/build.cjs --require-online",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "test:challengers": "node tests/challengers/adversarial-monsters.cjs && node tests/challengers/challenger-actors-stress.cjs && node tests/challengers/m1-challenger-suite.cjs && node tests/challengers/m2-challenger-suite.cjs && node tests/challengers/adversarial-title-minimap.cjs",
+    "render:actors": "node scripts/tools/render-actors.cjs"
   },
   "engines": {
     "node": "24.x"
   },
   "dependencies": {
-    "redis": "6.3.0"
+    "redis": "6.3.0",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.10"
   }
 }

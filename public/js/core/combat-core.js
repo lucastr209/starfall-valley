@@ -1,6 +1,6 @@
 (function (root, factory) {
   'use strict';
-  const data = typeof module === 'object' && module.exports ? require('./combat-data.js') : root.StardropCombatData;
+  const data = typeof module === 'object' && module.exports ? (() => { try { return require('../data/combat-data.js'); } catch (_) { return require('./combat-data.js'); } })() : root.StardropCombatData;
   const api = factory(data);
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.StardropCombat = api;
@@ -225,5 +225,5 @@
     }
     if (runtime.accumulator + EPS >= STEP) runtime.accumulator %= STEP;
   }
-  return Object.freeze({ createRuntime, requestAttack, requestDodge, cancelInputs, resetActions, advance });
+  return Object.freeze({ createRuntime, requestAttack, requestDodge, cancelInputs, resetActions, advance, inCone, lineClear, moveSegment });
 });

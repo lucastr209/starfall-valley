@@ -3,17 +3,16 @@
 ## Cấu trúc
 
 - `public/index.html` / `public/css/styles.css`: màn hình mở đầu và bố cục HUD/dialog.
-- `public/js/game-data.js`: nội dung tiếng Việt, nhiệm vụ, NPC, vật phẩm, nâng cấp, công thức.
-- `public/js/game-core.js`: trạng thái và quy tắc tiến trình, có thể kiểm tra bằng Node.
-- `public/js/npc-ai.js`: vị trí cư dân trong phiên chơi, hướng nhìn/pha bước chân, lộ trình và tìm đường tránh vật cản.
-- `public/js/world-paths.js`: mạng đường liên thông của từng vùng, hợp nhất giao lộ và vẽ viền ngoài.
-- `public/js/world-effects.js`: cảnh vật pixel chuyển động theo vùng/thời tiết, giới hạn số lượng và giảm chuyển động.
-- `public/js/world-actors.js`: sprite chibi nhìn từ trên xuống, bốn hướng, tám tư thế chính nối bằng pha trung gian đi/chạy theo quãng đường, trang phục riêng của 11 NPC và giảm chuyển động. `artMetrics` khai báo kích thước để game đặt tên/dấu nhiệm vụ đúng.
-- `public/js/game.js`: gameplay Canvas, điều khiển, ánh sáng, giao diện và client WebSocket.
+- `public/js/data/`: dữ liệu trò chơi (`game-data.js`, `adventure-data.js`, `combat-data.js`, `exploration-data.js`).
+- `public/js/core/`: logic và trạng thái thuần Node/trình duyệt (`game-core.js`, `adventure-core.js`, `combat-core.js`, `exploration-core.js`, `npc-ai.js`).
+- `public/js/world/`: đồ họa thế giới và cảnh vật (`world-paths.js`, `world-effects.js`, `world-actors.js`, `exploration-scene.js`, `lighting.js`, `combat-renderer.js`).
+- `public/js/ui/`: giao diện người dùng và điều khiển (`title-screen.js`, `hud-dialogs.js`, `input-controls.js`, `minimap.js`, `onboarding.js`, `save-transfer.js`, `install-gate.js`).
+- `public/js/game.js`: vòng lặp Canvas gameplay chính, tích hợp camera, điều phối module và client WebSocket.
+- `tests/`: bộ kiểm thử đơn vị (`tests/*.test.js`); các bộ đo adversarial/challenger độc lập lưu trong `tests/challengers/`.
+- `scripts/`: script build client (`build.cjs`) và các công cụ render sprite/icon trong `scripts/tools/` (hỗ trợ gọi qua forwarder shims `tests/render-*.cjs`).
 - `server/index.js`: server HTTP/WebSocket cộng đồng; `server/policy.cjs` kiểm origin/IP và giới hạn; `server/redis-room.cjs` đồng bộ Redis online.
 - `config/deployment.cjs`: allowlist tài nguyên client và security headers dùng chung cho server/build.
 - `public/assets/icons/` / `public/manifest.webmanifest`: icon và cấu hình ứng dụng trên Màn hình chính.
-- `scripts/`: build client và công cụ tạo icon; `api/play.mjs`: adapter triển khai Vercel.
 - `archive/`: bản giao diện trước lần đổi chủ đề; không phục vụ qua server.
 
 ## Nhân vật và điều khiển

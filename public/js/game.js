@@ -6,6 +6,8 @@
   const Mini=globalThis.StardropMinimap, Tutorial=globalThis.StardropOnboarding, Transfer=globalThis.StardropSaveTransfer;
   const Adventure=globalThis.StardropAdventure, Combat=globalThis.StardropCombat, CombatData=globalThis.StardropCombatData;
   const Exploration=globalThis.StardropExploration, InteriorScene=globalThis.StardropExplorationScene;
+  const Title=globalThis.StardropTitle, Lighting=globalThis.StardropLighting, CombatRenderer=globalThis.StardropCombatRenderer;
+  const Dialogs=globalThis.StardropDialogs, Controls=globalThis.StardropControls;
   const $ = id => document.getElementById(id), esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const SAVE_KEY = 'starfall-valley-save-v1', qaMode = new URLSearchParams(location.search).get('qa') === '1';
   const storageKey = qaMode ? 'starfall-valley-qa-save' : SAVE_KEY;
@@ -61,6 +63,7 @@
   const wantsRun = () => keys.has('shift')||touchRun;
   const moveSpeed = () => (state.upgrades.includes('boots')?225:180)*(wantsRun()?1.65:1);
   function directionFor(dx,dy,current=playerDirection) {
+    if(Controls) return Controls.directionFor(dx,dy,current);
     if(Math.abs(dx)<.01&&Math.abs(dy)<.01)return current;
     if(Math.abs(dx)>Math.abs(dy))return dx>0?'right':'left';
     return dy>0?'down':'up';
@@ -1764,6 +1767,7 @@
   }
   // Vùng nguy hiểm dùng đúng hướng đã khóa trong FSM; vẫn vẽ khi giảm chuyển động.
   function drawCombatWarnings(){
+    if(CombatRenderer){CombatRenderer.drawCombatWarnings(ctx,currentArea().mobs);return;}
     for(const mob of currentArea().mobs){
       const c=mob.combat;if(mob.hp<=0||!c||!['windup','active'].includes(c.stage))continue;
       const def=CombatData.enemies[mob.kind||'slime'],angle=c.stage==='active'&&Number.isFinite(c.vx)&&Number.isFinite(c.vy)?Math.atan2(c.vy,c.vx):Math.atan2(c.aimY-mob.y,c.aimX-mob.x),color=c.stage==='windup'?'#ffd16b':'#eb8d78';
@@ -2040,6 +2044,10 @@
   ];
 
   function drawTitle() {
+    if (Title) {
+      Title.drawTitle(tc, { animation, reducedMotion, house, tree, lamp, actor });
+      return;
+    }
     const c = tc;
 
     // 1. DITHERED SUNRISE SKY

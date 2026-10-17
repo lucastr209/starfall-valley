@@ -1,0 +1,23 @@
+'use strict';
+const test=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const crypto=require('node:crypto');
+const {PGlite}=require('@electric-sql/pglite');
+test('Postgres migration enforces RLS, service-only RPC, atomicity, revision and idempotency',async t=>{
+  const db=new PGlite();t.after(()=>db.close());
+  await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;grant usage on schema public,auth to anon,authenticated,service_role;grant execute on function auth.uid() to authenticated;`);
+  await db.exec(fs.readFileSync('supabase/migrations/202610170001_awakening.sql','utf8'));
+  const ids=[crypto.randomUUID(),crypto.randomUUID()];for(const id of ids)await db.query('insert into auth.users values($1)',[id]);
+  const load=async id=>(await db.query('select public.awakening_load($1) as data',[id])).rows[0].data;
+  const a=await load(ids[0]),b=await load(ids[1]);a.character.coins=100;b.character.coins=100;a.world.cleared=['deepwood'];
+  const event=crypto.randomUUID();const commit=async(id,w,cs)=>(await db.query('select public.awakening_commit($1,$2,$3) as data',[id,JSON.stringify(w),JSON.stringify(cs)])).rows[0].data;
+  const receipt=await commit(event,a.world,[a.character,b.character]);assert.equal(receipt.world.revision,1);
+  assert.deepEqual(await commit(event,a.world,[a.character,b.character]),receipt);
+  assert.equal((await load(ids[1])).character.coins,100);assert.deepEqual((await load(ids[1])).world.cleared,[]);
+  const current=await load(ids[0]);current.world.stock=99;
+  await assert.rejects(commit(crypto.randomUUID(),current.world,[current.character,b.character]),/revision conflict/);
+  assert.equal((await load(ids[0])).world.stock,0);
+  await db.exec(`set role authenticated;select set_config('request.jwt.claim.sub','${ids[0]}',false);`);
+  assert.equal((await db.query('select * from public.awakening_characters')).rows.length,1);
+  await assert.rejects(db.query("update public.awakening_characters set data='{}'"),/permission denied/);
+  await assert.rejects(db.query('select public.awakening_load($1)',[ids[1]]),/permission denied/);
+  await db.exec('reset role;set role anon;');await assert.rejects(db.query('select * from public.awakening_characters'),/permission denied/);
+});

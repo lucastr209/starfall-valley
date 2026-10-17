@@ -1,8 +1,8 @@
 'use strict';
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
-const FX = require('../public/js/world-effects.js');
-const Paths = require('../public/js/world-paths.js');
+const FX = require('../public/js/world/world-effects.js');
+const Paths = require('../public/js/world/world-paths.js');
 
 function canvasMock() {
   const stack = [], calls = [];

@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const actorArt = require('../public/js/world-actors.js');
+const actorArt = require('../public/js/world/world-actors.js');
 
 // Exercise the shipped browser source. The stubs model events, storage and canvas
 // calls; real browser rendering/fullscreen remains a separate visual check.
@@ -135,7 +135,7 @@ function loadGame({ storage = new Map(), saved, search = '?qa=1', hostname = 'lo
     vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'public', file), 'utf8'), sandbox, { filename: file });
     // Production exports stay frozen; a test-owned wrapper lets this harness
     // observe the real renderer inputs without changing the shipped module.
-    if (file === 'js/world-actors.js') sandbox.StardropActors = { ...sandbox.StardropActors };
+    if (file === 'js/world/world-actors.js' || file === 'js/world-actors.js') sandbox.StardropActors = { ...sandbox.StardropActors };
   }
   const qa = sandbox.StardropQA;
   if (expectQA) assert.ok(qa, 'Local QA API is available'); else assert.equal(qa, undefined, 'Debug API is absent outside QA mode');
@@ -165,7 +165,7 @@ async function enterTestRoom(e,id){
   assert.equal(e.qa.getInterior()?.id,id);return door;
 }
 test('all ten homes open into walkable rooms with residents and return safely through their exit',async()=>{
-  for(const room of require('../public/js/game-data.js').exploration.rooms.filter(r=>r.kind!=='cave')){
+  for(const room of require('../public/js/data/game-data.js').exploration.rooms.filter(r=>r.kind!=='cave')){
     const e=loadGame();await e.start();e.set({upgrades:unlocked(e)});const door=await enterTestRoom(e,room.id);
     const scene=e.qa.getInterior();assert.ok(scene.residents.some(n=>n.id===room.npc));assert.equal(e.qa.collides(scene.spawn.x,scene.spawn.y),false);
     const outside=residentPositions(e);e.step(.5);assert.equal(residentPositions(e),outside,'Cư dân ngoài trời không dùng tọa độ phòng');
@@ -206,7 +206,7 @@ test('new huts leave every legacy encounter spawn outside foundations and tree t
   }
 });
 test('all three caves solve through touch handlers, finish every combat wave and grant loot only once',async()=>{
-  for(const room of require('../public/js/game-data.js').exploration.rooms.filter(r=>r.kind==='cave')){
+  for(const room of require('../public/js/data/game-data.js').exploration.rooms.filter(r=>r.kind==='cave')){
     const e=loadGame({search:'?qa=1&scene=adventure'});await e.start();e.set({upgrades:unlocked(e)});await enterTestRoom(e,room.id);
     const point=action=>e.qa.getInterior().objects.find(o=>o.action===action);
     e.at(point('clue'));e.qa.interact();assert.match(e.el('dialog-body').innerHTML,/manh mối|Rễ|Trăng|Sao/);await e.el('dialog-close').dispatch('click');
@@ -675,7 +675,7 @@ test('Farm planting and harvesting enforce timers, greenhouse speed and full-bag
 test('Combat applies windup, cooldown, drops/rewards, mob respawn and recovery after defeat', async () => {
   const e=loadGame();await e.start();e.set({map:'forest',x:420,y:670});const mob=e.qa.getWorld().forest.mobs[0];
   mob.combat={stage:'recovery',timer:10,cycle:0,phase:1,style:'charge'};
-  const bodies=()=>e.calls.filter(c=>c.context==='gameCanvas'&&c.name==='fillRect'&&c.args[2]===38&&c.args[3]===16&&c.fillStyle===require('../public/js/combat-data.js').enemies.slime.color).length;
+  const bodies=()=>e.calls.filter(c=>c.context==='gameCanvas'&&c.name==='fillRect'&&c.args[2]===38&&c.args[3]===16&&c.fillStyle===require('../public/js/data/combat-data.js').enemies.slime.color).length;
   e.calls.length=0;e.qa.drawGame();assert.equal(bodies(),5);
   const initial=e.qa.getState();e.qa.attack();assert.equal(mob.hp,3,'Windup must finish before hit');const spent=e.qa.getState().stamina;e.qa.attack();assert.equal(e.qa.getState().stamina,spent);
   advanceCombat(e,.12);assert.equal(mob.hp,2);advanceCombat(e,.3);e.qa.attack();advanceCombat(e,.12);assert.equal(mob.hp,1);

@@ -5,8 +5,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const corePath = path.join(__dirname, '../public/js/combat-core.js');
-const dataPath = path.join(__dirname, '../public/js/combat-data.js');
+const corePath = path.join(__dirname, '../public/js/core/combat-core.js');
+const dataPath = path.join(__dirname, '../public/js/data/combat-data.js');
 
 // Nạp đúng module phát hành; khi chưa có engine, lỗi RED chỉ rõ tính năng thiếu.
 function engine() {

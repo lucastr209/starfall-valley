@@ -1,8 +1,8 @@
 'use strict';
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
-const Actors = require('../public/js/world-actors.js');
-const data = require('../public/js/game-data.js');
+const Actors = require('../public/js/world/world-actors.js');
+const data = require('../public/js/data/game-data.js');
 
 const ALL_CHARACTERS = ['player', ...data.npcs.map(n => n.id)];
 const DIRECTIONS = ['down', 'up', 'left', 'right'];
